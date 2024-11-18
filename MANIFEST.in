@@ -1,0 +1,1 @@
+recursive-include kinfer/ *.py *.txt py.typed MANIFEST.in
