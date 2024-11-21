@@ -35,6 +35,7 @@ class SimpleModel(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
+
 @pytest.fixture
 def model_path(tmp_path: Path) -> str:
     """Create and export a test model."""
@@ -165,12 +166,7 @@ def test_export_with_given_input(tmp_path: Path) -> None:
     input_tensor = torch.randn(1, 10)
 
     save_path = str(tmp_path / "explicit_input_model.onnx")
-    session = export_to_onnx(
-        model=model,
-        input_tensors=input_tensor,
-        config=config,
-        save_path=save_path
-    )
+    session = export_to_onnx(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
 
     # Verify input shape matches what we provided
     inputs = session.get_inputs()
@@ -186,9 +182,9 @@ def test_export_with_inferred_input(tmp_path: Path) -> None:
     save_path = str(tmp_path / "inferred_input_model.onnx")
     session = export_to_onnx(
         model=model,
-        input_tensors=None,  # Let it infer the input
+        input_tensors=None,
         config=config,
-        save_path=save_path
+        save_path=save_path,  # Let it infer the input
     )
 
     # Verify input shape was correctly inferred

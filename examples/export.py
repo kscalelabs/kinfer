@@ -38,7 +38,7 @@ class SimpleModel(nn.Module):
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    
+
     config = ModelConfig()
     model = SimpleModel(config)
 
