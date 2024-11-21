@@ -23,7 +23,7 @@ class SimpleModel(torch.nn.Module):
     def __init__(self, config: ModelConfig) -> None:
         super().__init__()
         layers = []
-        in_features = 10  # Example input size
+        in_features = 10
 
         for _ in range(config.num_layers):
             layers.extend([torch.nn.Linear(in_features, config.hidden_size), torch.nn.ReLU()])
@@ -154,3 +154,44 @@ def test_comprehensive_model_workflow(tmp_path: Path) -> None:
     assert isinstance(output3, list)
     assert len(output3) == 1
     assert output3[0].shape == (1, 1)
+
+
+def test_export_with_given_input(tmp_path: Path) -> None:
+    """Test model export with explicitly provided input tensor."""
+    config = ModelConfig()
+    model = SimpleModel(config)
+
+    # Create specific input tensor
+    input_tensor = torch.randn(1, 10)
+
+    save_path = str(tmp_path / "explicit_input_model.onnx")
+    session = export_to_onnx(
+        model=model,
+        input_tensors=input_tensor,
+        config=config,
+        save_path=save_path
+    )
+
+    # Verify input shape matches what we provided
+    inputs = session.get_inputs()
+    assert len(inputs) == 1
+    assert inputs[0].shape == [1, 10]
+
+
+def test_export_with_inferred_input(tmp_path: Path) -> None:
+    """Test model export with automatically inferred input tensor."""
+    config = ModelConfig()
+    model = SimpleModel(config)
+
+    save_path = str(tmp_path / "inferred_input_model.onnx")
+    session = export_to_onnx(
+        model=model,
+        input_tensors=None,  # Let it infer the input
+        config=config,
+        save_path=save_path
+    )
+
+    # Verify input shape was correctly inferred
+    inputs = session.get_inputs()
+    assert len(inputs) == 1
+    assert inputs[0].shape == [1, 10]  # Should match the in_features=10 from SimpleModel

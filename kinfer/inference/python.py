@@ -55,7 +55,7 @@ class ONNXModel:
         else:
             input_dict = inputs
 
-        # Run inference
+        # Run inference - pass None to output_names param to get all outputs
         outputs = self.session.run(None, input_dict)
 
         # Convert output format to match input

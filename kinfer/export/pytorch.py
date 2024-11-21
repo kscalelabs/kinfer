@@ -78,21 +78,20 @@ def infer_input_shapes(model: nn.Module) -> Union[torch.Size, List[torch.Size]]:
     Returns:
         Single input shape or list of input shapes
     """
-    # Try to find first layer
-    first_layer = None
-
-    # Check if model is Sequential
+    # Check if model is Sequential or has Sequential as first child
     if isinstance(model, nn.Sequential):
         first_layer = model[0]
-    # Check if model has named modules
     else:
-        for module in model.modules():
-            if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d)):
-                first_layer = module
-                break
+        # Get the first immediate child
+        children = list(model.children())
+        first_layer = children[0] if children else None
 
-    if first_layer is None:
-        raise ValueError("Could not determine input shape from model architecture")
+        # Unwrap if the first child is Sequential
+        if isinstance(first_layer, nn.Sequential):
+            first_layer = first_layer[0]
+    # Check if first layer is a type we can infer from
+    if not isinstance(first_layer, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d)):
+        raise ValueError("First layer must be Linear or Conv layer to infer input shape")
 
     # Get input dimensions
     if isinstance(first_layer, nn.Linear):
@@ -103,8 +102,8 @@ def infer_input_shapes(model: nn.Module) -> Union[torch.Size, List[torch.Size]]:
         raise ValueError("Cannot infer image dimensions for Conv2d layer. Please provide input_tensors explicitly.")
     elif isinstance(first_layer, nn.Conv3d):
         raise ValueError("Cannot infer volume dimensions for Conv3d layer. Please provide input_tensors explicitly.")
-    else:
-        raise ValueError(f"Unsupported layer type: {type(first_layer)}")
+
+    raise ValueError("Could not infer input shape from model architecture")
 
 
 def create_example_inputs(model: nn.Module) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:

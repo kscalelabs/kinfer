@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Example script demonstrating model export functionality."""
 
+import logging
 from dataclasses import dataclass
 
 import torch
@@ -35,6 +36,9 @@ class SimpleModel(nn.Module):
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
     config = ModelConfig()
     model = SimpleModel(config)
 
@@ -45,11 +49,11 @@ def main() -> None:
     # Export model to ONNX
     session = export_to_onnx(model=model, input_tensors=None, config=config, save_path="simple_model.onnx")
 
-    print("Model exported successfully!")
+    logger.info("Model exported successfully!")
     inputs = [{"name": node.name, "shape": node.shape, "type": node.type} for node in session.get_inputs()]
     outputs = [{"name": node.name, "shape": node.shape, "type": node.type} for node in session.get_outputs()]
-    print("Model inputs:", inputs)
-    print("Model outputs:", outputs)
+    logger.info("Model inputs: %s", inputs)
+    logger.info("Model outputs: %s", outputs)
 
 
 if __name__ == "__main__":
