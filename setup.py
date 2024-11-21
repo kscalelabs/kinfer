@@ -28,7 +28,7 @@ setup(
     name="kinfer",
     version=version,
     description="The kinfer project",
-    author="WT-MM",
+    author="K-Scale Labs",
     url="https://github.com/kscalelabs/kinfer.git",
     long_description=long_description,
     long_description_content_type="text/markdown",
