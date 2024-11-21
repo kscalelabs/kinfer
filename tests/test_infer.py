@@ -1,15 +1,41 @@
 """Tests for model inference functionality."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
-from export import ModelConfig, SimpleModel
 
 from kinfer.export.pytorch import export_to_onnx
 from kinfer.inference.python import ONNXModel
 
 
+@dataclass
+class ModelConfig:
+    hidden_size: int = 64
+    num_layers: int = 2
+
+
+class SimpleModel(torch.nn.Module):
+    """A simple neural network model for demonstration."""
+
+    def __init__(self, config: ModelConfig) -> None:
+        super().__init__()
+        layers = []
+        in_features = 10  # Example input size
+
+        for _ in range(config.num_layers):
+            layers.extend([torch.nn.Linear(in_features, config.hidden_size), torch.nn.ReLU()])
+            in_features = config.hidden_size
+
+        layers.append(torch.nn.Linear(config.hidden_size, 1))
+        self.net = torch.nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+@pytest.fixture
 def model_path(tmp_path: Path) -> str:
     """Create and export a test model."""
     # Create and export model
@@ -79,64 +105,52 @@ def test_model_details(model_path: str) -> None:
     assert output_details[0]["shape"] == [1, 1]
 
 
-def main() -> None:
-    """Run inference example."""
-    print("Creating and exporting model...")
-
+def test_comprehensive_model_workflow(tmp_path: Path) -> None:
+    """Test complete model workflow including export, loading and inference."""
     # Create and export model
     config = ModelConfig(hidden_size=64, num_layers=2)
     model = SimpleModel(config)
-
-    # Create example input
     input_tensor = torch.randn(1, 10)
 
-    # Export model to ONNX
-    save_path = "simple_model.onnx"
+    save_path = str(tmp_path / "test_model.onnx")
     export_to_onnx(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
-    print(f"Model exported to {save_path}")
 
     # Load model for inference
-    print("\nLoading model for inference...")
     onnx_model = ONNXModel(save_path)
 
-    # Print model information
-    print("\nModel metadata:")
-    for key, value in onnx_model.get_metadata().items():
-        print(f"  {key}: {value}")
+    # Test metadata
+    metadata = onnx_model.get_metadata()
+    assert "hidden_size" in metadata
+    assert "num_layers" in metadata
+    assert metadata["hidden_size"] == "64"
+    assert metadata["num_layers"] == "2"
 
-    print("\nInput details:")
-    for detail in onnx_model.get_input_details():
-        print(f"  {detail}")
+    # Test input/output details
+    input_details = onnx_model.get_input_details()
+    assert len(input_details) == 1
+    assert input_details[0]["shape"] == [1, 10]
 
-    print("\nOutput details:")
-    for detail in onnx_model.get_output_details():
-        print(f"  {detail}")
+    output_details = onnx_model.get_output_details()
+    assert len(output_details) == 1
+    assert output_details[0]["shape"] == [1, 1]
 
-    # Run inference
-    print("\nRunning inference...")
+    # Test inference with different input methods
     input_data = np.random.randn(1, 10).astype(np.float32)
 
     # Method 1: Direct numpy array input
     output1 = onnx_model(input_data)
-    print("\nMethod 1 - Direct numpy array input:")
-    print(f"  Input shape: {input_data.shape}")
-    print(f"  Output shape: {output1.shape if isinstance(output1, np.ndarray) else 'N/A'}")
-    print(f"  Output value: {output1}")
+    assert isinstance(output1, np.ndarray)
+    assert output1.shape == (1, 1)
 
     # Method 2: Dictionary input
     input_name = onnx_model.get_input_details()[0]["name"]
     output2 = onnx_model({input_name: input_data})
     assert isinstance(output2, dict)
-    print("\nMethod 2 - Dictionary input:")
-    print(f"  Output keys: {list(output2.keys())}")
-    print(f"  Output shapes: {[arr.shape for arr in output2.values() if isinstance(arr, np.ndarray)]}")
+    assert len(output2) == 1
+    assert list(output2.values())[0].shape == (1, 1)
 
     # Method 3: List input
     output3 = onnx_model([input_data])
-    print("\nMethod 3 - List input:")
-    print(f"  Output length: {len(output3)}")
-    print(f"  Output shapes: {[arr.shape for arr in output3 if isinstance(arr, np.ndarray)]}")
-
-
-if __name__ == "__main__":
-    main()
+    assert isinstance(output3, list)
+    assert len(output3) == 1
+    assert output3[0].shape == (1, 1)
