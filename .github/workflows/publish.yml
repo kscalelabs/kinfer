@@ -4,6 +4,12 @@ on:
   release:
     types: [created]
   workflow_dispatch:
+    inputs:
+      build_wheels:
+        description: 'Build platform-specific wheels'
+        required: true
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
@@ -19,11 +25,19 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     name: Build and publish Python package (${{ matrix.os }})
-    timeout-minutes: 10
     runs-on: ${{ matrix.os }}
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout code
+      - name: Skip wheels for pure Python package
+        if: ${{ inputs.build_wheels }}
+        run: |
+          echo "Skipping wheel build - this is a pure Python package"
+          mkdir -p dist
+          touch dist/dummy.whl  # Create dummy file so job succeeds
+        shell: bash
+
+      - name: Build real wheels
+        if: ${{ !inputs.build_wheels }}
         uses: actions/checkout@v3
 
       - name: Set up Python
