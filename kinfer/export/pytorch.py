@@ -1,9 +1,10 @@
 """PyTorch model export utilities."""
 
 import inspect
+import sys
 from dataclasses import fields, is_dataclass
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import onnx
 import onnxruntime as ort  # type: ignore[import-untyped]
@@ -180,11 +181,18 @@ def export_to_onnx(
 
     # Export model to buffer
     buffer = BytesIO()
-    torch.onnx.export(
-        model,
-        (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors,
-        buffer,  # type: ignore[arg-type]
-    )
+    if TYPE_CHECKING and sys.version_info >= (3, 11):
+        torch.onnx.export(
+            model,
+            (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors,
+            buffer,  # type: ignore[arg-type]
+        )
+    else:
+        torch.onnx.export(
+            model,
+            (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors,
+            buffer,
+        )
     buffer.seek(0)
 
     # Load as ONNX model
