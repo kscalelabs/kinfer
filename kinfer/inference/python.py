@@ -1,11 +1,10 @@
 """ONNX model inference utilities for Python."""
 
-from dataclasses import fields, is_dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import onnx
-import onnxruntime as ort
+import onnxruntime as ort  # type: ignore[import-untyped]
 
 
 class ONNXModel:
@@ -33,18 +32,11 @@ class ONNXModel:
         self.metadata = {prop.key: prop.value for prop in self.model.metadata_props}
 
         # Get input and output details
-        self.input_details = [
-            {"name": x.name, "shape": x.shape, "type": x.type}
-            for x in self.session.get_inputs()
-        ]
-        self.output_details = [
-            {"name": x.name, "shape": x.shape, "type": x.type}
-            for x in self.session.get_outputs()
-        ]
+        self.input_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_inputs()]
+        self.output_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_outputs()]
 
     def __call__(
-        self,
-        inputs: Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]
+        self, inputs: Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]
     ) -> Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]:
         """Run inference on input data.
 

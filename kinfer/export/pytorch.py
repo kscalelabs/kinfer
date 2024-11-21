@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import onnx
-import onnxruntime as ort
+import onnxruntime as ort  # type: ignore[import-untyped]
 import torch
 from torch import nn
 
@@ -26,22 +26,21 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
     # Extract parameter information
     params_info = {}
     for name, param in signature.parameters.items():
-        if name == 'self':
+        if name == "self":
             continue
         params_info[name] = {
-            'annotation': str(param.annotation),
-            'default': None if param.default is param.empty else str(param.default)
+            "annotation": str(param.annotation),
+            "default": None if param.default is param.empty else str(param.default),
         }
 
     return {
-        'input_params': params_info,
-        'num_parameters': sum(p.numel() for p in model.parameters()),
+        "input_params": params_info,
+        "num_parameters": sum(p.numel() for p in model.parameters()),
     }
 
+
 def add_metadata_to_onnx(
-    model_proto: onnx.ModelProto,
-    metadata: Dict[str, Any],
-    config: Optional[object] = None
+    model_proto: onnx.ModelProto, metadata: Dict[str, Any], config: Optional[object] = None
 ) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
@@ -68,6 +67,7 @@ def add_metadata_to_onnx(
             meta.value = str(value)
 
     return model_proto
+
 
 def infer_input_shapes(model: nn.Module) -> Union[torch.Size, List[torch.Size]]:
     """Infer input shapes from model architecture.
@@ -106,6 +106,7 @@ def infer_input_shapes(model: nn.Module) -> Union[torch.Size, List[torch.Size]]:
     else:
         raise ValueError(f"Unsupported layer type: {type(first_layer)}")
 
+
 def create_example_inputs(model: nn.Module) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
     """Create example input tensors based on model's forward signature and architecture.
 
@@ -116,21 +117,20 @@ def create_example_inputs(model: nn.Module) -> Union[torch.Tensor, Tuple[torch.T
         Single tensor or tuple of tensors matching the model's expected input
     """
     signature = inspect.signature(model.forward)
-    params = [p for p in signature.parameters.items() if p[0] != 'self']
+    params = [p for p in signature.parameters.items() if p[0] != "self"]
 
     # If single parameter (besides self), try to infer shape
     if len(params) == 1:
         shape = infer_input_shapes(model)
         return torch.randn(*shape) if isinstance(shape, torch.Size) else torch.randn(*shape[0])
 
-
     # For multiple parameters, try to infer from parameter annotations
     input_tensors = []
     for name, param in params:
         # Try to get shape from annotation
-        if hasattr(param.annotation, '__origin__') and param.annotation.__origin__ is torch.Tensor:
+        if hasattr(param.annotation, "__origin__") and param.annotation.__origin__ is torch.Tensor:
             # If annotation includes size information (e.g., Tensor[batch_size, channels, height, width])
-            if hasattr(param.annotation, '__args__'):
+            if hasattr(param.annotation, "__args__"):
                 shape = param.annotation.__args__
                 input_tensors.append(torch.randn(*shape) if isinstance(shape, torch.Size) else torch.randn(*shape[0]))
             else:
@@ -141,6 +141,7 @@ def create_example_inputs(model: nn.Module) -> Union[torch.Tensor, Tuple[torch.T
             input_tensors.append(torch.randn(1, 32))
 
     return tuple(input_tensors)
+
 
 def export_to_onnx(
     model: nn.Module,
@@ -166,12 +167,13 @@ def export_to_onnx(
     if input_tensors is None:
         try:
             input_tensors = create_example_inputs(model)
-            model_info['inferred_input_shapes'] = str(
-                input_tensors.shape if isinstance(input_tensors, torch.Tensor)
-                else [t.shape for t in input_tensors]
+            model_info["inferred_input_shapes"] = str(
+                input_tensors.shape if isinstance(input_tensors, torch.Tensor) else [t.shape for t in input_tensors]
             )
         except ValueError as e:
-            raise ValueError(f"Could not automatically infer input shapes. Please provide input_tensors. Error: {str(e)}")
+            raise ValueError(
+                f"Could not automatically infer input shapes. Please provide input_tensors. Error: {str(e)}"
+            )
 
     # Convert model to JIT if not already
     if not isinstance(model, torch.jit.ScriptModule):
@@ -181,8 +183,8 @@ def export_to_onnx(
     buffer = BytesIO()
     torch.onnx.export(
         model,
-        (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors, 
-        buffer
+        (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors,
+        buffer,  # type: ignore[arg-type]
     )
     buffer.seek(0)
 

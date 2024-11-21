@@ -50,7 +50,7 @@ format:
 static-checks:
 	@black --diff --check $(py-files)
 	@ruff check $(py-files)
-	@mypy --install-types --non-interactive $(py-files)
+	@mypy --install-types --non-interactive $(filter-out ./ref/%.py,$(py-files))
 .PHONY: lint
 
 # ------------------------ #

@@ -17,12 +17,7 @@ def model_path(tmp_path: Path) -> str:
     model = SimpleModel(config)
 
     save_path = str(tmp_path / "test_model.onnx")
-    export_to_onnx(
-        model=model,
-        input_tensors=torch.randn(1, 10),
-        config=config,
-        save_path=save_path
-    )
+    export_to_onnx(model=model, input_tensors=torch.randn(1, 10), config=config, save_path=save_path)
 
     return save_path
 
@@ -83,6 +78,7 @@ def test_model_details(model_path: str) -> None:
     assert len(output_details) == 1
     assert output_details[0]["shape"] == [1, 1]
 
+
 def main() -> None:
     """Run inference example."""
     print("Creating and exporting model...")
@@ -96,12 +92,7 @@ def main() -> None:
 
     # Export model to ONNX
     save_path = "simple_model.onnx"
-    export_to_onnx(
-        model=model,
-        input_tensors=input_tensor,
-        config=config,
-        save_path=save_path
-    )
+    export_to_onnx(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
     print(f"Model exported to {save_path}")
 
     # Load model for inference
@@ -129,21 +120,22 @@ def main() -> None:
     output1 = onnx_model(input_data)
     print("\nMethod 1 - Direct numpy array input:")
     print(f"  Input shape: {input_data.shape}")
-    print(f"  Output shape: {output1.shape}")
+    print(f"  Output shape: {output1.shape if isinstance(output1, np.ndarray) else 'N/A'}")
     print(f"  Output value: {output1}")
 
     # Method 2: Dictionary input
     input_name = onnx_model.get_input_details()[0]["name"]
     output2 = onnx_model({input_name: input_data})
+    assert isinstance(output2, dict)
     print("\nMethod 2 - Dictionary input:")
     print(f"  Output keys: {list(output2.keys())}")
-    print(f"  Output shapes: {[arr.shape for arr in output2.values()]}")
+    print(f"  Output shapes: {[arr.shape for arr in output2.values() if isinstance(arr, np.ndarray)]}")
 
     # Method 3: List input
     output3 = onnx_model([input_data])
     print("\nMethod 3 - List input:")
     print(f"  Output length: {len(output3)}")
-    print(f"  Output shapes: {[arr.shape for arr in output3]}")
+    print(f"  Output shapes: {[arr.shape for arr in output3 if isinstance(arr, np.ndarray)]}")
 
 
 if __name__ == "__main__":
