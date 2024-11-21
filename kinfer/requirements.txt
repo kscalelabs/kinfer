@@ -1,2 +1,5 @@
 # requirements.txt
 
+torch
+onnx
+onnxruntime
