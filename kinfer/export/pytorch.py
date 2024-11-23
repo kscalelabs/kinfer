@@ -60,12 +60,15 @@ def add_metadata_to_onnx(
         meta.value = str(value)
 
     # Add configuration if provided
-    if config is not None and is_dataclass(config):
-        for field in fields(config):
-            value = getattr(config, field.name)
-            meta = model_proto.metadata_props.add()
-            meta.key = field.name
-            meta.value = str(value)
+    if config is not None:
+        if is_dataclass(config):
+            for field in fields(config):
+                value = getattr(config, field.name)
+                meta = model_proto.metadata_props.add()
+                meta.key = field.name
+                meta.value = str(value)
+        else:
+            raise ValueError("config must be a dataclass or dict")
 
     return model_proto
 
@@ -197,6 +200,10 @@ def export_to_onnx(
 
     # Load as ONNX model
     model_proto = onnx.load_model(buffer)
+
+    # Add config dict to model info if provided
+    if isinstance(config, dict):
+        model_info.update(config)
 
     # Add metadata
     model_proto = add_metadata_to_onnx(model_proto, model_info, config)
