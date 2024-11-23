@@ -1,6 +1,7 @@
 """PyTorch model export utilities."""
 
 import inspect
+import logging
 import sys
 from dataclasses import fields, is_dataclass
 from io import BytesIO
@@ -67,8 +68,8 @@ def add_metadata_to_onnx(
                 meta = model_proto.metadata_props.add()
                 meta.key = field.name
                 meta.value = str(value)
-        else:
-            raise ValueError("config must be a dataclass or dict")
+        elif not isinstance(config, dict):
+            raise ValueError("config must be a dataclass or dict. Got: " + str(type(config)))
 
     return model_proto
 
@@ -168,6 +169,10 @@ def export_to_onnx(
 
     # Create example inputs if not provided
     if input_tensors is None:
+        logging.warning(
+            "No input_tensors provided. Attempting to automatically infer input shapes. "
+            "Note: Input shape inference is *highly* experimental and may not work correctly for all models."
+        )
         try:
             input_tensors = create_example_inputs(model)
             model_info["inferred_input_shapes"] = str(
