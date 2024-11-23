@@ -31,7 +31,6 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
         if name == "self":
             continue
         params_info[name] = {
-            "annotation": str(param.annotation),
             "default": None if param.default is param.empty else str(param.default),
         }
 

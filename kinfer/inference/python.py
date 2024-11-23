@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import onnx
@@ -34,9 +34,17 @@ class ONNXModel:
         self.metadata = {}
         for prop in self.model.metadata_props:
             try:
-                self.metadata[prop.key] = json.loads(prop.value)
+                raw_value = prop.value
+                raw_value = raw_value.replace("None", "null")
+                raw_value = raw_value.replace("'", '"')
+
+                self.metadata[prop.key] = json.loads(raw_value)
             except json.JSONDecodeError:
-                logging.warning("Failed to parse metadata value '%s' with JSON parser. Got: %s", prop.key, prop.value)
+                logging.warning(
+                    "Failed to parse metadata value '%s' with JSON parser. Saving as string: %s",
+                    prop.key,
+                    prop.value,
+                )
                 self.metadata[prop.key] = prop.value
 
         # Get input and output details
