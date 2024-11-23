@@ -1,6 +1,8 @@
 """ONNX model inference utilities for Python."""
 
-from typing import Any, Dict, List, Union
+import json
+import logging
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import onnx
@@ -28,8 +30,14 @@ class ONNXModel:
             model_path,
         )
 
-        # Extract metadata
-        self.metadata = {prop.key: prop.value for prop in self.model.metadata_props}
+        # Extract metadata and attempt to parse JSON values
+        self.metadata = {}
+        for prop in self.model.metadata_props:
+            try:
+                self.metadata[prop.key] = json.loads(prop.value)
+            except json.JSONDecodeError:
+                logging.warning("Failed to parse metadata value '%s' with JSON parser. Got: %s", prop.key, prop.value)
+                self.metadata[prop.key] = prop.value
 
         # Get input and output details
         self.input_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_inputs()]
@@ -66,7 +74,7 @@ class ONNXModel:
         else:
             return {detail["name"]: arr for detail, arr in zip(self.output_details, outputs)}
 
-    def get_metadata(self) -> Dict[str, str]:
+    def get_metadata(self) -> Dict[str, Any]:
         """Get model metadata.
 
         Returns:
