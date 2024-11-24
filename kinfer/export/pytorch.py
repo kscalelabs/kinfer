@@ -1,6 +1,7 @@
 """PyTorch model export utilities."""
 
 import inspect
+import json
 import logging
 import sys
 from dataclasses import fields, is_dataclass
@@ -53,22 +54,21 @@ def add_metadata_to_onnx(
     Returns:
         ONNX model with added metadata
     """
-    # Add model metadata
-    for key, value in metadata.items():
-        meta = model_proto.metadata_props.add()
-        meta.key = key
-        meta.value = str(value)
+    # Build metadata dictionary
+    metadata_dict = metadata.copy()
 
     # Add configuration if provided
     if config is not None:
         if is_dataclass(config):
             for field in fields(config):
-                value = getattr(config, field.name)
-                meta = model_proto.metadata_props.add()
-                meta.key = field.name
-                meta.value = str(value)
+                metadata_dict[field.name] = str(getattr(config, field.name))
         elif not isinstance(config, dict):
             raise ValueError("config must be a dataclass or dict. Got: " + str(type(config)))
+
+    # Add metadata as JSON string
+    meta = model_proto.metadata_props.add()
+    meta.key = "kinfer_metadata"
+    meta.value = json.dumps(metadata_dict)
 
     return model_proto
 

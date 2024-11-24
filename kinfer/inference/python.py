@@ -32,20 +32,19 @@ class ONNXModel:
 
         # Extract metadata and attempt to parse JSON values
         self.metadata = {}
+        self.attached_metadata = {}
         for prop in self.model.metadata_props:
-            try:
-                raw_value = prop.value
-                raw_value = raw_value.replace("None", "null")
-                raw_value = raw_value.replace("'", '"')
+            if prop.key == "kinfer_metadata":
+                try:
+                    self.metadata = json.loads(prop.value)
+                except json.JSONDecodeError:
+                    logging.warning(
+                        "Failed to parse kinfer_metadata value with JSON parser. Saving as string: %s",
+                        prop.value,
+                    )
+                    self.metadata = prop.value
 
-                self.metadata[prop.key] = json.loads(raw_value)
-            except json.JSONDecodeError:
-                logging.warning(
-                    "Failed to parse metadata value '%s' with JSON parser. Saving as string: %s",
-                    prop.key,
-                    prop.value,
-                )
-                self.metadata[prop.key] = prop.value
+            self.attached_metadata[prop.key] = prop.value
 
         # Get input and output details
         self.input_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_inputs()]
