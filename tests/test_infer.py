@@ -67,8 +67,8 @@ def test_model_metadata(model_path: str) -> None:
     # Check if config parameters are in metadata
     assert "hidden_size" in metadata
     assert "num_layers" in metadata
-    assert metadata["hidden_size"] == "64"
-    assert metadata["num_layers"] == "2"
+    assert metadata["hidden_size"] == 64
+    assert metadata["num_layers"] == 2
 
 
 def test_model_inference(model_path: str) -> None:
@@ -123,8 +123,8 @@ def test_comprehensive_model_workflow(tmp_path: Path) -> None:
     metadata = onnx_model.get_metadata()
     assert "hidden_size" in metadata
     assert "num_layers" in metadata
-    assert metadata["hidden_size"] == "64"
-    assert metadata["num_layers"] == "2"
+    assert metadata["hidden_size"] == 64
+    assert metadata["num_layers"] == 2
 
     # Test input/output details
     input_details = onnx_model.get_input_details()

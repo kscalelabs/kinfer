@@ -1,6 +1,8 @@
 """PyTorch model export utilities."""
 
 import inspect
+import json
+import logging
 import sys
 from dataclasses import fields, is_dataclass
 from io import BytesIO
@@ -30,7 +32,6 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
         if name == "self":
             continue
         params_info[name] = {
-            "annotation": str(param.annotation),
             "default": None if param.default is param.empty else str(param.default),
         }
 
@@ -53,19 +54,21 @@ def add_metadata_to_onnx(
     Returns:
         ONNX model with added metadata
     """
-    # Add model metadata
-    for key, value in metadata.items():
-        meta = model_proto.metadata_props.add()
-        meta.key = key
-        meta.value = str(value)
+    # Build metadata dictionary
+    metadata_dict = metadata.copy()
 
     # Add configuration if provided
-    if config is not None and is_dataclass(config):
-        for field in fields(config):
-            value = getattr(config, field.name)
-            meta = model_proto.metadata_props.add()
-            meta.key = field.name
-            meta.value = str(value)
+    if config is not None:
+        if is_dataclass(config):
+            for field in fields(config):
+                metadata_dict[field.name] = getattr(config, field.name)
+        elif not isinstance(config, dict):
+            raise ValueError("config must be a dataclass or dict. Got: " + str(type(config)))
+
+    # Add metadata as JSON string
+    meta = model_proto.metadata_props.add()
+    meta.key = "kinfer_metadata"
+    meta.value = json.dumps(metadata_dict)
 
     return model_proto
 
@@ -165,6 +168,10 @@ def export_to_onnx(
 
     # Create example inputs if not provided
     if input_tensors is None:
+        logging.warning(
+            "No input_tensors provided. Attempting to automatically infer input shapes. "
+            "Note: Input shape inference is *highly* experimental and may not work correctly for all models."
+        )
         try:
             input_tensors = create_example_inputs(model)
             model_info["inferred_input_shapes"] = str(
@@ -197,6 +204,10 @@ def export_to_onnx(
 
     # Load as ONNX model
     model_proto = onnx.load_model(buffer)
+
+    # Add config dict to model info if provided
+    if isinstance(config, dict):
+        model_info.update(config)
 
     # Add metadata
     model_proto = add_metadata_to_onnx(model_proto, model_info, config)
