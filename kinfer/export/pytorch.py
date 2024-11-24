@@ -61,7 +61,7 @@ def add_metadata_to_onnx(
     if config is not None:
         if is_dataclass(config):
             for field in fields(config):
-                metadata_dict[field.name] = str(getattr(config, field.name))
+                metadata_dict[field.name] = getattr(config, field.name)
         elif not isinstance(config, dict):
             raise ValueError("config must be a dataclass or dict. Got: " + str(type(config)))
 
