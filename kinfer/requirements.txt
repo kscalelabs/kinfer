@@ -3,3 +3,6 @@
 torch
 onnx
 onnxruntime
+
+# Platform-specific dependencies
+tensorrt; platform_system in ("Linux", "Windows")
