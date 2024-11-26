@@ -9,9 +9,13 @@ import sys
 from subprocess import check_call
 from typing import List
 
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup, Extension
 from setuptools.command.develop import develop
 from setuptools.command.install import install
+from setuptools.command.sdist import sdist
+from setuptools.command.build_py import build_py
+import subprocess
+from pathlib import Path
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description: str = f.read()
@@ -67,10 +71,56 @@ class PostInstallCommand(install):
     def run(self) -> None:
         install.run(self)
         try:
+            # Build TensorRT parser if tensorrt extra is requested
+            if any('tensorrt' in opt for opt in getattr(self.distribution, 'extras_require', {}).get('tensorrt', [])):
+                from kinfer.optimize.tensorrt_build import build_tensorrt_parser
+                build_tensorrt_parser()
+
             print("INFO: Running platform check...")
             check_call([sys.executable, "post_install.py"])
         except Exception as e:
             print(f"WARNING: Platform check failed: {e}")
+
+def get_extensions() -> List[Extension]:
+    """Get platform-specific extensions."""
+    extensions = []
+
+    # Only add TensorRT extension for Linux/Windows
+    if PLATFORM in ("linux", "windows"):
+        try:
+            from kinfer.optimize.tensorrt_build import check_tensorrt_compatibility
+            if check_tensorrt_compatibility():
+                extensions.append(
+                    Extension(
+                        "kinfer.optimize.tensorrt._C",
+                        sources=[],  # Will be built by custom command
+                        optional=True  # Makes the build continue even if this fails
+                    )
+                )
+        except ImportError:
+            print("WARNING: TensorRT build utilities not available")
+    
+    return extensions
+
+class CustomBuildCommand(build_py):
+    """Custom build command to handle git submodules."""
+    def run(self) -> None:
+        if not (Path(__file__).parent / "third_party/onnx-tensorrt").exists():
+            # Initialize submodules
+            subprocess.run(["git", "submodule", "init"], check=True)
+            subprocess.run(["git", "submodule", "update"], check=True)
+
+        super().run()
+
+class CustomSdistCommand(sdist):
+    """Custom sdist command to handle git submodules."""
+    def run(self) -> None:
+        if not (Path(__file__).parent / "third_party/onnx-tensorrt").exists():
+            # Initialize submodules
+            subprocess.run(["git", "submodule", "init"], check=True)
+            subprocess.run(["git", "submodule", "update"], check=True)
+
+        super().run()
 
 setup(
     name="kinfer",
@@ -82,8 +132,13 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=">=3.8",
     install_requires=requirements,
-    tests_require=requirements_dev,
-    extras_require={"dev": requirements_dev},
+    extras_require={
+        'tensorrt': [
+            'tensorrt>=10.6.0; platform_system=="Linux" or platform_system=="Windows"',
+            'cuda-python>=12.0.0; platform_system=="Linux" or platform_system=="Windows"',
+        ],
+        'dev': requirements_dev,
+    },
     packages=find_packages(exclude=exclude_packages),
     entry_points={
         "console_scripts": [
@@ -92,5 +147,8 @@ setup(
     },
     cmdclass={
         "install": PostInstallCommand,
+        "build_py": CustomBuildCommand,
+        "sdist": CustomSdistCommand,
     },
+    ext_modules=get_extensions(),
 )

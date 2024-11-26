@@ -1,1 +1,2 @@
 recursive-include kinfer/ *.py *.txt py.typed MANIFEST.in post_install.py
+recursive-include third_party/onnx-tensorrt/ *

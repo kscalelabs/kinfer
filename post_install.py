@@ -14,6 +14,10 @@ def check_platform_specific_modules() -> None:
     """Check and inform about platform-specific module availability."""
     platform_name = platform.system().lower()
 
+    if platform_name == "darwin":
+        logger.info("macOS detected - TensorRT support is not available")
+        return
+
     # Define platform-specific modules
     platform_modules = {
         "darwin": [],  # macOS has no platform-specific modules

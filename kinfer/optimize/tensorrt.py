@@ -1,23 +1,38 @@
 """TensorRT optimization."""
+import importlib.util
+import warnings
+from typing import Any, Optional
 
-import tensorrt as trt
 
+def is_tensorrt_available() -> bool:
+    """Check if TensorRT is available."""
+    return importlib.util.find_spec("tensorrt") is not None
 
-def optimize_model() -> trt.ICudaEngine:
-    # Create TensorRT logger
-    logger = trt.Logger(trt.Logger.WARNING)
+if is_tensorrt_available():
+    import tensorrt as trt
 
-    # Create builder and network
-    builder = trt.Builder(logger)
-    network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    def optimize_model() -> "trt.ICudaEngine":
+        # Create TensorRT logger
+        logger = trt.Logger(trt.Logger.WARNING)
 
-    # Create config
-    config = builder.create_builder_config()
-    config.max_workspace_size = 1 << 30  # 1GB
+        # Create builder and network
+        builder = trt.Builder(logger)
+        network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
 
-    # Build and return engine
-    engine = builder.build_engine(network, config)
-    if engine is None:
-        raise RuntimeError("Failed to build TensorRT engine")
+        # Create config
+        config = builder.create_builder_config()
+        config.max_workspace_size = 1 << 30  # 1GB
 
-    return engine
+        # Build and return engine
+        engine = builder.build_engine(network, config)
+        if engine is None:
+            raise RuntimeError("Failed to build TensorRT engine")
+
+        return engine
+else:
+    def optimize_model() -> "Any":  # type: ignore[ANN401]
+        warnings.warn(
+            "TensorRT is not available. Install kinfer[tensorrt] on a supported platform.",
+            RuntimeWarning
+        )
+        return None
