@@ -122,6 +122,20 @@ class CustomSdistCommand(sdist):
 
         super().run()
 
+# Define platform-specific TensorRT requirements
+if PLATFORM == "linux":
+    tensorrt_requires = [
+        'tensorrt>=10.0.0',
+        'cuda-python>=12.0.0'
+    ] if platform.machine() != "aarch64" else []
+elif PLATFORM == "windows":
+    tensorrt_requires = [
+        'tensorrt>=10.0.0',
+        'cuda-python>=12.0.0'
+    ]
+else:
+    tensorrt_requires = []
+
 setup(
     name="kinfer",
     version=version,
@@ -133,10 +147,7 @@ setup(
     python_requires=">=3.8",
     install_requires=requirements,
     extras_require={
-        'tensorrt': [
-            'tensorrt>=10.6.0; platform_system=="Linux" or platform_system=="Windows"',
-            'cuda-python>=12.0.0; platform_system=="Linux" or platform_system=="Windows"',
-        ],
+        'tensorrt': tensorrt_requires,
         'dev': requirements_dev,
     },
     packages=find_packages(exclude=exclude_packages),

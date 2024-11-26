@@ -13,10 +13,18 @@ logger = logging.getLogger(__name__)
 def check_platform_specific_modules() -> None:
     """Check and inform about platform-specific module availability."""
     platform_name = platform.system().lower()
+    machine = platform.machine().lower()
 
     if platform_name == "darwin":
         logger.info("macOS detected - TensorRT support is not available")
         return
+
+    # Special handling for Tegra platforms
+    if platform_name == "linux" and machine == "aarch64":
+        from kinfer.optimize.tensorrt_build import is_tegra_platform
+        if is_tegra_platform():
+            logger.info("Tegra platform detected - Please install TensorRT using: sudo apt-get install tensorrt")
+            return
 
     # Define platform-specific modules
     platform_modules = {
