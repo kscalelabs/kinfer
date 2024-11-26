@@ -2,11 +2,16 @@
 #!/usr/bin/env python
 """Setup script for the project."""
 
+import os
 import platform
 import re
+import sys
+from subprocess import check_call
 from typing import List
 
 from setuptools import find_packages, setup
+from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description: str = f.read()
@@ -33,7 +38,8 @@ def should_include_requirement(platform_spec: str) -> bool:
 # Filter requirements based on platform
 requirements = []
 with open("kinfer/requirements.txt", "r", encoding="utf-8") as f:
-    for line in f:
+    lines = f.read().splitlines()
+    for line in lines:
         line = line.strip()
         if not line or line.startswith('#'):
             continue
@@ -56,6 +62,16 @@ with open("kinfer/__init__.py", "r", encoding="utf-8") as fh:
 assert version_re is not None, "Could not find version in kinfer/__init__.py"
 version: str = version_re.group(1)
 
+class PostInstallCommand(install):
+    """Post-installation for installation mode."""
+    def run(self) -> None:
+        install.run(self)
+        try:
+            print("INFO: Running platform check...")
+            check_call([sys.executable, "post_install.py"])
+        except Exception as e:
+            print(f"WARNING: Platform check failed: {e}")
+
 setup(
     name="kinfer",
     version=version,
@@ -69,9 +85,12 @@ setup(
     tests_require=requirements_dev,
     extras_require={"dev": requirements_dev},
     packages=find_packages(exclude=exclude_packages),
-    # entry_points={
-    #     "console_scripts": [
-    #         "kinfer.cli:main",
-    #     ],
-    # },
+    entry_points={
+        "console_scripts": [
+            "kinfer-check=kinfer.platform_check:check_platform_specific_modules",
+        ],
+    },
+    cmdclass={
+        "install": PostInstallCommand,
+    },
 )
