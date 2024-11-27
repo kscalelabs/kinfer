@@ -19,6 +19,7 @@ build/
 dist/
 *.so
 out*/
+target/
 
 # References
 ref/

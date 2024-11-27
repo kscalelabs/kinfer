@@ -10,7 +10,7 @@ import onnxruntime as ort  # type: ignore[import-untyped]
 
 
 class ONNXModel:
-    """Wrapper for ONNX model inference."""
+    """Wrapxper for ONNX model inference."""
 
     def __init__(
         self,

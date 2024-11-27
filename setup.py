@@ -11,11 +11,11 @@ with open("README.md", "r", encoding="utf-8") as f:
     long_description: str = f.read()
 
 
-with open("kinfer/requirements.txt", "r", encoding="utf-8") as f:
+with open("kinfer/python/requirements.txt", "r", encoding="utf-8") as f:
     requirements: List[str] = f.read().splitlines()
 
 
-with open("kinfer/requirements-dev.txt", "r", encoding="utf-8") as f:
+with open("kinfer/python/requirements-dev.txt", "r", encoding="utf-8") as f:
     requirements_dev: List[str] = f.read().splitlines()
 
 
@@ -24,7 +24,7 @@ with open("kinfer/__init__.py", "r", encoding="utf-8") as fh:
 assert version_re is not None, "Could not find version in kinfer/__init__.py"
 version: str = version_re.group(1)
 
-
+print(find_packages(exclude=["kinfer.python", "kinfer.python.*"]))
 setup(
     name="kinfer",
     version=version,
@@ -37,7 +37,7 @@ setup(
     install_requires=requirements,
     tests_require=requirements_dev,
     extras_require={"dev": requirements_dev},
-    packages=find_packages(),
+    packages=find_packages(exclude=["kinfer.python", "kinfer.python.*"]),
     # entry_points={
     #     "console_scripts": [
     #         "kinfer.cli:main",
