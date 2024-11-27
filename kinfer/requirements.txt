@@ -3,3 +3,5 @@
 torch
 onnx
 onnxruntime
+
+# Optional TensorRT support is available via [tensorrt] extra

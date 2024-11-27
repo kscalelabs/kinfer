@@ -55,6 +55,12 @@ jobs:
         if: ${{ inputs.build_wheels }}
         env:
           CIBW_SKIP: "pp* *-musllinux*"  # Skip PyPy and musllinux builds
+          CIBW_ENVIRONMENT: |
+            SKIP_TENSORRT=1
+          CIBW_BEFORE_BUILD_MACOS: |
+            echo "Building on macOS - skipping TensorRT"
+          CIBW_BEFORE_BUILD_LINUX: |
+            echo "Building on Linux - TensorRT support enabled"
         run: |
           cibuildwheel --output-dir dist
 
@@ -74,6 +80,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
 
       - name: Set up Python
         uses: actions/setup-python@v4
