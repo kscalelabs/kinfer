@@ -40,7 +40,7 @@ push-to-pypi: build-for-pypi
 #       Static Checks      #
 # ------------------------ #
 
-py-files := $(shell find . -name '*.py')
+py-files := $(shell find kinfer/python -name '*.py')
 
 format:
 	@black $(py-files)

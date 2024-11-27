@@ -1,0 +1,16 @@
+[package]
+name = "kinfer"
+version = "0.1.0"
+edition = "2021"
+authors = ["K-Scale Labs"]
+
+[dependencies]
+ort = "1.16.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ndarray = "0.16.1"
+thiserror = "2.0.3"
+
+[dev-dependencies]
+anyhow = "1.0"
+tempfile = "3.8.1"
