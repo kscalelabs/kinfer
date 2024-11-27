@@ -1,134 +1,18 @@
-# mypy: disable-error-code="import-untyped"
 #!/usr/bin/env python
-"""Setup script for the project."""
+"""Setup script for kinfer package."""
 
 import os
 import platform
-import re
-import sys
-from subprocess import check_call
-from typing import List
-
-from setuptools import find_packages, setup, Extension
-from setuptools.command.develop import develop
-from setuptools.command.install import install
-from setuptools.command.sdist import sdist
-from setuptools.command.build_py import build_py
 import subprocess
 from pathlib import Path
-
-with open("README.md", "r", encoding="utf-8") as f:
-    long_description: str = f.read()
+from setuptools import setup, find_packages, Extension
+from setuptools.command.build_py import build_py
+from setuptools.command.install import install
 
 PLATFORM = platform.system().lower()
 
-# Define platform-specific exclusions
-if PLATFORM == "darwin":
-    exclude_packages = ["kinfer.optimize.tensorrt*"]
-else:
-    exclude_packages = []
-
-def should_include_requirement(platform_spec: str) -> bool:
-    """Check if requirement should be included based on platform specification."""
-    # Extract the platform systems from the spec (e.g., "Linux", "Windows")
-    match = re.search(r'platform_system\s*in\s*\(([^)]+)\)', platform_spec)
-    if not match:
-        return True
-
-    # Parse the platforms
-    platforms = [p.strip(' "\'') for p in match.group(1).split(',')]
-    return PLATFORM in [p.lower() for p in platforms]
-
-# Filter requirements based on platform
-requirements = []
-with open("kinfer/requirements.txt", "r", encoding="utf-8") as f:
-    lines = f.read().splitlines()
-    for line in lines:
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-
-        # Split requirement into package and platform specification
-        parts = line.split(';')
-        package = parts[0].strip()
-
-        # Check platform specification if it exists
-        if len(parts) > 1 and not should_include_requirement(parts[1].strip()):
-            continue
-
-        requirements.append(package)
-
-with open("kinfer/requirements-dev.txt", "r", encoding="utf-8") as f:
-    requirements_dev: List[str] = f.read().splitlines()
-
-with open("kinfer/__init__.py", "r", encoding="utf-8") as fh:
-    version_re = re.search(r"^__version__ = \"([^\"]*)\"", fh.read(), re.MULTILINE)
-assert version_re is not None, "Could not find version in kinfer/__init__.py"
-version: str = version_re.group(1)
-
-class PostInstallCommand(install):
-    """Post-installation for installation mode."""
-    def run(self) -> None:
-        install.run(self)
-        try:
-            # Build TensorRT parser if tensorrt extra is requested
-            if any('tensorrt' in opt for opt in getattr(self.distribution, 'extras_require', {}).get('tensorrt', [])):
-                from kinfer.optimize.tensorrt_build import build_tensorrt_parser
-                build_tensorrt_parser()
-
-            print("INFO: Running platform check...")
-            check_call([sys.executable, "post_install.py"])
-        except Exception as e:
-            print(f"WARNING: Platform check failed: {e}")
-
-def get_extensions() -> List[Extension]:
-    """Get platform-specific extensions."""
-    extensions = []
-
-    # Only add TensorRT extension for Linux/Windows
-    if PLATFORM in ("linux", "windows"):
-        try:
-            from kinfer.optimize.tensorrt_build import check_tensorrt_compatibility
-            if check_tensorrt_compatibility():
-                extensions.append(
-                    Extension(
-                        "kinfer.optimize.tensorrt._C",
-                        sources=[],  # Will be built by custom command
-                        optional=True  # Makes the build continue even if this fails
-                    )
-                )
-        except ImportError:
-            print("WARNING: TensorRT build utilities not available")
-    
-    return extensions
-
-class CustomBuildCommand(build_py):
-    """Custom build command to handle git submodules."""
-    def run(self) -> None:
-        if not (Path(__file__).parent / "third_party/onnx-tensorrt").exists():
-            # Initialize submodules
-            subprocess.run(["git", "submodule", "init"], check=True)
-            subprocess.run(["git", "submodule", "update"], check=True)
-
-        super().run()
-
-class CustomSdistCommand(sdist):
-    """Custom sdist command to handle git submodules."""
-    def run(self) -> None:
-        if not (Path(__file__).parent / "third_party/onnx-tensorrt").exists():
-            # Initialize submodules
-            subprocess.run(["git", "submodule", "init"], check=True)
-            subprocess.run(["git", "submodule", "update"], check=True)
-
-        super().run()
-
 # Define platform-specific TensorRT requirements
-if PLATFORM == "linux":
-    tensorrt_requires = [
-        'tensorrt>=10.0.0',
-        'cuda-python>=12.0.0'
-    ] if platform.machine() != "aarch64" else []
-elif PLATFORM == "windows":
+if PLATFORM in ("linux", "windows"):
     tensorrt_requires = [
         'tensorrt>=10.0.0',
         'cuda-python>=12.0.0'
@@ -136,30 +20,54 @@ elif PLATFORM == "windows":
 else:
     tensorrt_requires = []
 
+class CustomBuildCommand(build_py):
+    """Custom build command to handle onnx-tensorrt."""
+    def run(self) -> None:
+        # Check if tensorrt extra is requested
+        if any('tensorrt' in opt for opt in self.distribution.extras_require.get('tensorrt', [])):
+            onnx_tensorrt_path = Path(__file__).parent / "third_party/onnx-tensorrt"
+            
+            if not onnx_tensorrt_path.exists():
+                # Clone the repository if it doesn't exist
+                subprocess.run([
+                    "git", "clone", 
+                    "https://github.com/onnx/onnx-tensorrt.git",
+                    str(onnx_tensorrt_path)
+                ], check=True)
+
+            # Build onnx-tensorrt
+            build_dir = onnx_tensorrt_path / "build"
+            build_dir.mkdir(exist_ok=True)
+            
+            subprocess.run([
+                "cmake", "..",
+                "-DCMAKE_BUILD_TYPE=Release"
+            ], cwd=build_dir, check=True)
+
+            subprocess.run([
+                "cmake", "--build", ".", 
+                "--config", "Release",
+                "-j"
+            ], cwd=build_dir, check=True)
+
+        super().run()
+
 setup(
     name="kinfer",
-    version=version,
-    description="The kinfer project",
+    version="0.0.1",
+    description="Neural network inference toolkit",
     author="K-Scale Labs",
-    url="https://github.com/kscalelabs/kinfer.git",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
+    packages=find_packages(),
     python_requires=">=3.8",
-    install_requires=requirements,
+    install_requires=[
+        "torch",
+        "onnx",
+        "onnxruntime",
+    ],
     extras_require={
         'tensorrt': tensorrt_requires,
-        'dev': requirements_dev,
-    },
-    packages=find_packages(exclude=exclude_packages),
-    entry_points={
-        "console_scripts": [
-            "kinfer-check=kinfer.platform_check:check_platform_specific_modules",
-        ],
     },
     cmdclass={
-        "install": PostInstallCommand,
-        "build_py": CustomBuildCommand,
-        "sdist": CustomSdistCommand,
+        'build_py': CustomBuildCommand,
     },
-    ext_modules=get_extensions(),
 )
