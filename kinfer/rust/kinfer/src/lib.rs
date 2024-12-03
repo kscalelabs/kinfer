@@ -1,4 +1,10 @@
-use ort::{session::Session, value::Tensor, Environment, GraphOptimizationLevel, SessionBuilder};
+use ort::{
+    Environment,
+    ExecutionProvider,
+    GraphOptimizationLevel,
+    Session,
+    SessionBuilder
+};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::Path;
@@ -35,23 +41,29 @@ pub enum OutputData<'a> {
 
 impl ONNXModel {
     pub fn new<P: AsRef<Path>>(model_path: P) -> Result<Self, Box<dyn std::error::Error>> {
-        ort::init()
-            .commit()?;
-        // Create session with optimizations
-        let session = Session::builder()?
-            .commit_from_file(model_path)?;
+        // Initialize environment
+        let environment = Environment::builder()
+            .with_name("onnx_environment")
+            .with_execution_providers(vec![ExecutionProvider::CPU(Default::default())])
+            .build()?
+            .into_arc();
+
+        // Create session
+        let session = SessionBuilder::new(&environment)?
+            .with_optimization_level(GraphOptimizationLevel::Level3)?
+            .with_model_from_file(model_path)?;
         
         // Extract metadata from the model
         let mut metadata = HashMap::new();
-
+        
         // Get input and output details
         let input_details = session
             .inputs
             .iter()
             .map(|input| TensorInfo {
                 name: input.name.clone(),
-                shape: input.dimensions().collect(),
-                type_info: format!("{:?}", input.type_info),
+                shape: input.dimensions().map(|d| d.unwrap_or(-1) as i64).collect(),
+                type_info: format!("{:?}", input.input_type),
             })
             .collect();
 
@@ -60,8 +72,8 @@ impl ONNXModel {
             .iter()
             .map(|output| TensorInfo {
                 name: output.name.clone(),
-                shape: output.dimensions().collect(),
-                type_info: format!("{:?}", output.type_info),
+                shape: output.dimensions().map(|d| d.unwrap_or(-1) as i64).collect(),
+                type_info: format!("{:?}", output.output_type),
             })
             .collect();
 
@@ -71,44 +83,6 @@ impl ONNXModel {
             input_details,
             output_details,
         })
-    }
-
-    pub fn run<'a>(&'a self, inputs: impl Into<InputData<'a>>) -> Result<OutputData<'a>, Box<dyn std::error::Error>> {
-        let inputs = inputs.into();  // Convert to InputData first
-        let input_values = match &inputs {
-            InputData::Single(tensor) => {
-                let input_name = &self.input_details[0].name;
-                vec![(input_name.as_str(), tensor)]
-            }
-            InputData::List(tensors) => {
-                self.input_details
-                    .iter()
-                    .zip(tensors)
-                    .map(|(info, tensor)| (info.name.as_str(), tensor))
-                    .collect()
-            }
-            InputData::Map(named_tensors) => named_tensors.iter().map(|(k, v)| (*k, v)).collect(),
-        };
-
-        // Convert to HashMap for session.run
-        let input_map: HashMap<_, _> = input_values.into_iter().collect();
-        
-        // Run inference
-        let outputs = self.session.run(&input_map)?;
-
-        // Convert output format to match input format
-        match inputs {
-            InputData::Single(_) => Ok(OutputData::Single(outputs.remove(0))),
-            InputData::List(_) => Ok(OutputData::List(outputs)),
-            InputData::Map(_) => {
-                let named_outputs = self.output_details
-                    .iter()
-                    .zip(outputs)
-                    .map(|(info, tensor)| (info.name.clone(), tensor))
-                    .collect();
-                Ok(OutputData::Map(named_outputs))
-            }
-        }
     }
 
     pub fn get_metadata(&self) -> &HashMap<String, JsonValue> {
