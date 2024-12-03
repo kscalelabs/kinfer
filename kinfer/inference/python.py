@@ -81,6 +81,17 @@ class ONNXModel:
         else:
             return {detail["name"]: arr for detail, arr in zip(self.output_details, outputs)}
 
+    def run(self, inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+        """Directly passes inputs to the model and returns outputs.
+
+        Args:
+            inputs: Input data as dictionary of arrays
+
+        Returns:
+            Model outputs as dictionary of arrays
+        """
+        return self.session.run(None, inputs)
+
     def get_metadata(self) -> Dict[str, Any]:
         """Get model metadata.
 
