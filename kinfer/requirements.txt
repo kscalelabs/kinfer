@@ -1,5 +1,11 @@
 # requirements.txt
 
+# Machine Learning
 torch
 onnx
 onnxruntime
+
+# Protocol Buffers
+grpcio
+grpcio-tools
+protobuf
