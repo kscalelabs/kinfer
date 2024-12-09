@@ -24,7 +24,7 @@ enum JointPositionUnit {
 }
 
 message JointPositionValue {
-    string name = 1;
+    string joint_name = 1;
     float value = 2;
     JointPositionUnit unit = 3;
 }
@@ -48,7 +48,7 @@ enum JointVelocityUnit {
 }
 
 message JointVelocityValue {
-    string name = 1;
+    string joint_name = 1;
     float value = 2;
     JointVelocityUnit unit = 3;
 }
@@ -71,7 +71,7 @@ enum JointTorqueUnit {
 }
 
 message JointTorqueValue {
-    string name = 1;
+    string joint_name = 1;
     float value = 2;
     JointTorqueUnit unit = 3;
 }
@@ -122,15 +122,26 @@ enum IMUValueType {
     EULER_ANGLES = 1;
 }
 
+message IMUTranslationValue {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message IMUQuaternionValue {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+    float w = 4;
+}
+
 message IMUSchema {
     IMUValueType value_type = 1;
 }
 
 message IMUValue {
-    float x = 1;
-    float y = 2;
-    float z = 3;
-    float w = 4;
+    IMUTranslationValue translation = 1;
+    IMUQuaternionValue rotation = 2;
 }
 
 /* --------- *
@@ -152,7 +163,7 @@ message TimestampValue {
  * ----- */
 
 message Value {
-    string name = 1;
+    string value_name = 1;
     oneof value {
         TensorValue tensor = 2;
         JointPositionsValue joint_positions = 3;
@@ -166,7 +177,7 @@ message Value {
 }
 
 message ValueSchema {
-    string name = 1;
+    string value_name = 1;
     oneof value_type {
         TensorSchema tensor = 2;
         JointPositionsSchema joint_positions = 3;

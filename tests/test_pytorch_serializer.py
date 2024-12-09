@@ -10,6 +10,11 @@ from kinfer.protos.kinfer_pb2 import (
     AudioFrameValue,
     CameraFrameSchema,
     CameraFrameValue,
+    IMUQuaternionValue,
+    IMUSchema,
+    IMUTranslationValue,
+    IMUValue,
+    IMUValueType,
     JointPositionsSchema,
     JointPositionsValue,
     JointPositionUnit,
@@ -42,7 +47,7 @@ def test_serialize_tensor() -> None:
     assert tensor.shape == (1, 2, 3)
 
     # Back to tensor value.
-    new_value = serializer.deserialize("tensor", tensor)
+    new_value = serializer.deserialize(tensor)
     assert new_value == value
 
 
@@ -62,9 +67,9 @@ def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: J
     value = Value(
         joint_positions=JointPositionsValue(
             values=[
-                JointPositionValue(name="joint_2", value=60, unit=value_unit),
-                JointPositionValue(name="joint_1", value=30, unit=value_unit),
-                JointPositionValue(name="joint_3", value=90, unit=value_unit),
+                JointPositionValue(joint_name="joint_2", value=60, unit=value_unit),
+                JointPositionValue(joint_name="joint_1", value=30, unit=value_unit),
+                JointPositionValue(joint_name="joint_3", value=90, unit=value_unit),
             ]
         )
     )
@@ -72,7 +77,7 @@ def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: J
     assert isinstance(tensor, Tensor)
 
     # Back to joint positions value.
-    new_value = serializer.deserialize("joint_positions", tensor)
+    new_value = serializer.deserialize(tensor)
     assert len(new_value.joint_positions.values) == len(value.joint_positions.values)
 
 
@@ -91,9 +96,9 @@ def test_serialize_joint_velocities(schema_unit: JointVelocityUnit, value_unit: 
     value = Value(
         joint_velocities=JointVelocitiesValue(
             values=[
-                JointVelocityValue(name="joint_2", value=60, unit=value_unit),
-                JointVelocityValue(name="joint_1", value=30, unit=value_unit),
-                JointVelocityValue(name="joint_3", value=90, unit=value_unit),
+                JointVelocityValue(joint_name="joint_2", value=60, unit=value_unit),
+                JointVelocityValue(joint_name="joint_1", value=30, unit=value_unit),
+                JointVelocityValue(joint_name="joint_3", value=90, unit=value_unit),
             ]
         )
     )
@@ -101,7 +106,7 @@ def test_serialize_joint_velocities(schema_unit: JointVelocityUnit, value_unit: 
     assert isinstance(tensor, Tensor)
 
     # Back to joint velocities value.
-    new_value = serializer.deserialize("joint_velocities", tensor)
+    new_value = serializer.deserialize(tensor)
     assert len(new_value.joint_velocities.values) == len(value.joint_velocities.values)
 
 
@@ -120,9 +125,9 @@ def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: Joint
     value = Value(
         joint_torques=JointTorquesValue(
             values=[
-                JointTorqueValue(name="joint_1", value=1, unit=value_unit),
-                JointTorqueValue(name="joint_2", value=2, unit=value_unit),
-                JointTorqueValue(name="joint_3", value=3, unit=value_unit),
+                JointTorqueValue(joint_name="joint_1", value=1, unit=value_unit),
+                JointTorqueValue(joint_name="joint_2", value=2, unit=value_unit),
+                JointTorqueValue(joint_name="joint_3", value=3, unit=value_unit),
             ]
         )
     )
@@ -130,7 +135,7 @@ def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: Joint
     assert isinstance(tensor, Tensor)
 
     # Back to joint torques value.
-    new_value = serializer.deserialize("joint_torques", tensor)
+    new_value = serializer.deserialize(tensor)
     assert len(new_value.joint_torques.values) == len(value.joint_torques.values)
 
 
@@ -155,7 +160,7 @@ def test_serialize_camera_frame() -> None:
     assert tensor.shape == (3, 64, 32)
 
     # Back to camera frame value.
-    new_value = serializer.deserialize("camera_frame", tensor)
+    new_value = serializer.deserialize(tensor)
     assert isinstance(new_value, Value)
     assert new_value == value
 
@@ -180,8 +185,31 @@ def test_serialize_audio_frame() -> None:
     assert isinstance(tensor, Tensor)
 
     # Back to audio frame value.
-    new_value = serializer.deserialize("audio_frame", tensor)
+    new_value = serializer.deserialize(tensor)
     assert isinstance(new_value, Value)
+    assert new_value == value
+
+
+def test_serialize_imu() -> None:
+    serializer = PyTorchSerializer(
+        schema=ValueSchema(
+            imu=IMUSchema(
+                value_type=IMUValueType.QUATERNION,
+            )
+        )
+    )
+
+    value = Value(
+        imu=IMUValue(
+            translation=IMUTranslationValue(x=1.0, y=2.0, z=3.0),
+            rotation=IMUQuaternionValue(x=4.0, y=5.0, z=6.0, w=7.0),
+        )
+    )
+    tensor = serializer.serialize(value)
+    assert isinstance(tensor, Tensor)
+
+    # Back to imu value.
+    new_value = serializer.deserialize(tensor)
     assert new_value == value
 
 
@@ -200,5 +228,5 @@ def test_serialize_timestamp() -> None:
     assert tensor.item() == 1.5
 
     # Back to timestamp value.
-    new_value = serializer.deserialize("timestamp", tensor)
+    new_value = serializer.deserialize(tensor)
     assert new_value == value

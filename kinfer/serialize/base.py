@@ -1,7 +1,7 @@
 """Defines functions for serializing and deserializing signatures."""
 
 from abc import ABC, abstractmethod
-from typing import Generic, Literal, TypeVar
+from typing import Generic, Sequence, TypeVar
 
 from kinfer.protos.kinfer_pb2 import (
     AudioFrameSchema,
@@ -11,15 +11,12 @@ from kinfer.protos.kinfer_pb2 import (
     IMUSchema,
     IMUValue,
     Input,
-    InputSchema,
     JointPositionsSchema,
     JointPositionsValue,
     JointTorquesSchema,
     JointTorquesValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
-    Output,
-    OutputSchema,
     TensorSchema,
     TensorValue,
     TimestampSchema,
@@ -316,12 +313,12 @@ class Serializer(
     Generic[T],
 ):
     def __init__(self, schema: ValueSchema) -> None:
-        super().__init__()
-
         self.schema = schema
 
     def serialize(self, value: Value) -> T:
-        match value.WhichOneof("value"):
+        value_type = value.WhichOneof("value")
+
+        match value_type:
             case "tensor":
                 return self.serialize_tensor(
                     schema=self.schema.tensor,
@@ -363,23 +360,12 @@ class Serializer(
                     value=value.timestamp,
                 )
             case _:
-                raise ValueError(f"Unsupported value type: {value.WhichOneof('value')}")
+                raise ValueError(f"Unsupported value type: {value_type}")
 
-    def deserialize(
-        self,
-        kind: Literal[
-            "tensor",
-            "joint_positions",
-            "joint_velocities",
-            "joint_torques",
-            "camera_frame",
-            "audio_frame",
-            "imu",
-            "timestamp",
-        ],
-        value: T,
-    ) -> Value:
-        match kind:
+    def deserialize(self, value: T) -> Value:
+        value_type = self.schema.WhichOneof("value_type")
+
+        match value_type:
             case "tensor":
                 return Value(
                     tensor=self.deserialize_tensor(
@@ -437,30 +423,15 @@ class Serializer(
                     ),
                 )
             case _:
-                raise ValueError(f"Unsupported value type: {kind}")
+                raise ValueError(f"Unsupported value type: {value_type}")
 
 
-class InputSerializer(Generic[T]):
-    def __init__(self, schema: InputSchema, serializer_cls: type[Serializer[T]]) -> None:
-        super().__init__()
+class MultiSerializer(Generic[T]):
+    def __init__(self, serializers: Sequence[Serializer[T]]) -> None:
+        self.serializers = list(serializers)
 
-        self.serializers = [serializer_cls(schema=input_schema) for input_schema in schema.inputs]
+    def serialize(self, input: Input) -> dict[str, T]:
+        return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
 
-    def serialize(self, input: Input) -> list[Value]:
-        raise NotImplementedError("Serializing inputs is not supported")
-
-    def deserialize(self, input: Input) -> list[Value]:
-        raise NotImplementedError("Deserializing inputs is not supported")
-
-
-class OutputSerializer(Generic[T]):
-    def __init__(self, schema: OutputSchema, serializer_cls: type[Serializer[T]]) -> None:
-        super().__init__()
-
-        self.serializers = [serializer_cls(schema=output_schema) for output_schema in schema.outputs]
-
-    def serialize(self, output: Output) -> list[Value]:
-        raise NotImplementedError("Serializing outputs is not supported")
-
-    def deserialize(self, output: Output) -> list[Value]:
-        raise NotImplementedError("Deserializing outputs is not supported")
+    def deserialize(self, input: dict[str, T]) -> Input:
+        return Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.items())])
