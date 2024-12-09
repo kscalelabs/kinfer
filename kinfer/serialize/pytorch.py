@@ -11,6 +11,7 @@ from kinfer.protos.kinfer_pb2 import (
     CameraFrameValue,
     JointPosition,
     JointPositionsValue,
+    JointTorque,
     JointTorquesValue,
     TensorValue,
     TimestampValue,
@@ -118,22 +119,36 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
 
 class PyTorchCameraFrameSerializer(PyTorchBaseSerializer, CameraFrameSerializer[Tensor]):
     def serialize_camera_frame(self, camera_frame: CameraFrameValue) -> Tensor:
-        # Implement serialization logic for CameraFrame
-        pass
+        tensor = torch.tensor(camera_frame.data, dtype=self.dtype, device=self.device)
+        tensor = tensor.view(camera_frame.channels, camera_frame.height, camera_frame.width)
+        return tensor
 
     def deserialize_camera_frame(self, value: Tensor) -> CameraFrameValue:
-        # Implement deserialization logic for CameraFrameValue
-        pass
+        camera_data = value.cpu().flatten().numpy().tolist()
+        camera_frame = CameraFrameValue()
+        camera_frame.width = value.size(2)
+        camera_frame.height = value.size(1)
+        camera_frame.channels = value.size(0)
+        camera_frame.data.extend(camera_data)
+        return camera_frame
 
 
 class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerializer[Tensor]):
-    def serialize_joint_torques(self, joint_torques: JointTorquesValue) -> Tensor:
-        # Implement serialization logic for JointTorques
-        pass
+    def serialize_joint_torques(self, joint_torques: JointTorquesValue) -> tuple[Tensor, list[str]]:
+        names, values = zip(
+            *[
+                (torque.joint_name, torque.newton_meters)
+                for torque in sorted(joint_torques.torques, key=lambda x: x.joint_name)
+            ]
+        )
+        tensor = torch.tensor(values, dtype=self.dtype, device=self.device)
+        return tensor, list(names)
 
-    def deserialize_joint_torques(self, value: Tensor) -> JointTorquesValue:
-        # Implement deserialization logic for JointTorquesValue
-        pass
+    def deserialize_joint_torques(self, names: list[str], value: Tensor) -> JointTorquesValue:
+        joint_torques = JointTorquesValue()
+        for name, newton_meters in zip(names, value.tolist()):
+            joint_torques.torques.append(JointTorque(joint_name=name, newton_meters=newton_meters))
+        return joint_torques
 
 
 class PyTorchSerializer(

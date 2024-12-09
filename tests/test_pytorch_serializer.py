@@ -6,7 +6,16 @@ import pytest
 import torch
 from torch import Tensor
 
-from kinfer.protos.kinfer_pb2 import AudioFrameValue, JointPosition, JointPositionsValue, TensorValue, TimestampValue
+from kinfer.protos.kinfer_pb2 import (
+    AudioFrameValue,
+    CameraFrameValue,
+    JointPosition,
+    JointPositionsValue,
+    JointTorque,
+    JointTorquesValue,
+    TensorValue,
+    TimestampValue,
+)
 from kinfer.serialize.pytorch import PyTorchSerializer
 
 
@@ -74,6 +83,46 @@ def test_serialize_audio_frame(target_sample_rate: int | None) -> None:
     new_audio_frame = serializer.deserialize_audio_frame(tensor, sample_rate=audio_frame.sample_rate)
     assert isinstance(new_audio_frame, AudioFrameValue)
     assert new_audio_frame.channels == audio_frame.channels
-
     if target_sample_rate is None:
         assert new_audio_frame.data == audio_frame.data
+
+
+def test_serialize_camera_frame() -> None:
+    serializer = PyTorchSerializer()
+
+    camera_frame = CameraFrameValue(
+        width=1920,
+        height=1080,
+        channels=3,
+        data=[random.random() for _ in range(1920 * 1080 * 3)],
+    )
+    tensor = serializer.serialize_camera_frame(camera_frame)
+    assert isinstance(tensor, Tensor)
+    assert tensor.shape == (3, 1080, 1920)
+
+    # Back to camera frame value.
+    new_camera_frame = serializer.deserialize_camera_frame(tensor)
+    assert isinstance(new_camera_frame, CameraFrameValue)
+    assert new_camera_frame.width == camera_frame.width
+    assert new_camera_frame.height == camera_frame.height
+    assert new_camera_frame.channels == camera_frame.channels
+    assert new_camera_frame.data == camera_frame.data
+
+
+def test_serialize_joint_torques() -> None:
+    serializer = PyTorchSerializer()
+
+    joints = {"joint_3": 0.5, "joint_1": 1.0, "joint_2": 1.5}
+
+    joint_torques = JointTorquesValue()
+    for name, newton_meters in joints.items():
+        joint_torques.torques.append(JointTorque(joint_name=name, newton_meters=newton_meters))
+    tensor, names = serializer.serialize_joint_torques(joint_torques)
+    assert isinstance(tensor, Tensor)
+
+    # Back to joint torques value.
+    new_joint_torques = serializer.deserialize_joint_torques(names, tensor)
+    assert isinstance(new_joint_torques, JointTorquesValue)
+    for joint in new_joint_torques.torques:
+        assert joint.joint_name in joints
+        assert joint.newton_meters == joints[joint.joint_name]

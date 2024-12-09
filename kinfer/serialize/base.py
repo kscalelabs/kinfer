@@ -130,12 +130,27 @@ class CameraFrameSerializer(ABC, Generic[T]):
 
 class JointTorquesSerializer(ABC, Generic[T]):
     @abstractmethod
-    def serialize_joint_torques(self, joint_torques: JointTorquesValue) -> T:
-        """Serialize a joint torques value."""
+    def serialize_joint_torques(self, joint_torques: JointTorquesValue) -> tuple[T, list[str]]:
+        """Serialize a joint torques value.
+
+        Args:
+            joint_torques: The joint torques to serialize.
+
+        Returns:
+            The serialized joint torques and the names of the joints.
+        """
 
     @abstractmethod
-    def deserialize_joint_torques(self, value: T) -> JointTorquesValue:
-        """Deserialize a joint torques value."""
+    def deserialize_joint_torques(self, names: list[str], value: T) -> JointTorquesValue:
+        """Deserialize a joint torques value.
+
+        Args:
+            names: The names of the joints.
+            value: The serialized joint torques.
+
+        Returns:
+            The deserialized joint torques.
+        """
 
 
 class Serializer(
