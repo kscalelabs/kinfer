@@ -5,7 +5,7 @@ import numpy as np
 from kinfer.protos.kinfer_pb2 import DType
 
 
-def numpy_dtype(dtype: DType) -> type[np.floating] | type[np.integer] | type[np.unsignedinteger]:
+def numpy_dtype(dtype: DType) -> type[np.floating] | type[np.integer]:
     match dtype:
         case DType.FP8:
             raise NotImplementedError("FP8 is not supported")
