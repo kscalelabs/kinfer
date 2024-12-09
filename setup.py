@@ -28,7 +28,7 @@ version: str = version_re.group(1)
 setup(
     name="kinfer",
     version=version,
-    description="The kinfer project",
+    description="Tool to make it easier to run a model on a real robot",
     author="K-Scale Labs",
     url="https://github.com/kscalelabs/kinfer.git",
     long_description=long_description,
@@ -38,9 +38,4 @@ setup(
     tests_require=requirements_dev,
     extras_require={"dev": requirements_dev},
     packages=find_packages(),
-    # entry_points={
-    #     "console_scripts": [
-    #         "kinfer.cli:main",
-    #     ],
-    # },
 )

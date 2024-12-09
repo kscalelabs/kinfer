@@ -1,30 +1,6 @@
 # Makefile
 
-define HELP_MESSAGE
-kinfer
-
-# Installing
-
-1. Create a new Conda environment: `conda create --name kinfer python=3.11`
-2. Activate the environment: `conda activate kinfer`
-3. Install the package: `make install-dev`
-
-# Running Tests
-
-1. Run autoformatting: `make format`
-2. Run static checks: `make static-checks`
-3. Run unit tests: `make test`
-
-endef
-export HELP_MESSAGE
-
-all:
-	@echo "$$HELP_MESSAGE"
-.PHONY: all
-
-# ------------------------ #
-#        PyPI Build        #
-# ------------------------ #
+# PyPI Build
 
 build-for-pypi:
 	@pip install --verbose build wheel twine
@@ -36,9 +12,7 @@ push-to-pypi: build-for-pypi
 	@twine upload dist/*
 .PHONY: push-to-pypi
 
-# ------------------------ #
-#       Static Checks      #
-# ------------------------ #
+# Static Checks
 
 py-files := $(shell find . -name '*.py')
 
@@ -53,9 +27,7 @@ static-checks:
 	@mypy --install-types --non-interactive $(filter-out ./ref/%.py,$(py-files))
 .PHONY: lint
 
-# ------------------------ #
-#        Unit tests        #
-# ------------------------ #
+# Unit tests
 
 test:
 	python -m pytest
