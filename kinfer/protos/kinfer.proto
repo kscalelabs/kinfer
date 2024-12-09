@@ -6,74 +6,125 @@ package kinfer;
  * Tensor *
  * ------ */
 
-message TensorValue {
-    repeated int32 shape = 2;
-    repeated float data = 3;
+message TensorSchema {
+    repeated int32 shape = 1;
 }
 
-/* ---------------- *
- * Joint Positions *
- * ---------------- */
+message TensorValue {
+    repeated float data = 1;
+}
 
-message JointPosition {
-    string joint_name = 1;
-    float degrees = 2;
+/* --------------- *
+ * Joint Positions *
+ * --------------- */
+
+enum JointPositionUnit {
+    DEGREES = 0;
+    RADIANS = 1;
+}
+
+message JointPositionValue {
+    string name = 1;
+    float value = 2;
+    JointPositionUnit unit = 3;
+}
+
+message JointPositionsSchema {
+    JointPositionUnit unit = 1;
+    repeated string joint_names = 2;
 }
 
 message JointPositionsValue {
-    repeated JointPosition positions = 1;
+    repeated JointPositionValue values = 1;
 }
 
 /* ---------------- *
  * Joint Velocities *
  * ---------------- */
 
-message JointVelocity {
-    string joint_name = 1;
-    float degrees_per_second = 2;
+enum JointVelocityUnit {
+    DEGREES_PER_SECOND = 0;
+    RADIANS_PER_SECOND = 1;
+}
+
+message JointVelocityValue {
+    string name = 1;
+    float value = 2;
+    JointVelocityUnit unit = 3;
+}
+
+message JointVelocitiesSchema {
+    JointVelocityUnit unit = 1;
+    repeated string joint_names = 2;
 }
 
 message JointVelocitiesValue {
-    repeated JointVelocity velocities = 1;
+    repeated JointVelocityValue values = 1;
 }
 
 /* -------------- *
  * Joint Torques *
  * -------------- */
 
-message JointTorque {
-    string joint_name = 1;
-    float newton_meters = 2;
+enum JointTorqueUnit {
+    NEWTON_METERS = 0;
+}
+
+message JointTorqueValue {
+    string name = 1;
+    float value = 2;
+    JointTorqueUnit unit = 3;
+}
+
+message JointTorquesSchema {
+    JointTorqueUnit unit = 1;
+    repeated string joint_names = 2;
 }
 
 message JointTorquesValue {
-    repeated JointTorque torques = 1;
+    repeated JointTorqueValue values = 1;
 }
 
 /* ------------ *
  * Camera Frame *
  * ------------ */
 
-message CameraFrameValue {
+message CameraFrameSchema {
     int32 width = 1;
     int32 height = 2;
     int32 channels = 3;
-    repeated float data = 4;
+}
+
+message CameraFrameValue {
+    bytes data = 1;
 }
 
 /* ----------- *
  * Audio Frame *
  * ----------- */
 
-message AudioFrameValue {
+message AudioFrameSchema {
     int32 channels = 1;
     int32 sample_rate = 2;
-    repeated float data = 3;
+    int32 bytes_per_sample = 3;
+}
+
+message AudioFrameValue {
+    bytes data = 1;
 }
 
 /* --- *
  * IMU *
  * --- */
+
+enum IMUValueType {
+    QUATERNION = 0;
+    EULER_ANGLES = 1;
+}
+
+message IMUSchema {
+    IMUValueType value_type = 1;
+}
 
 message IMUValue {
     float x = 1;
@@ -86,11 +137,14 @@ message IMUValue {
  * Timestamp *
  * --------- */
 
+message TimestampSchema {
+    int64 start_seconds = 1;
+    int32 start_nanos = 2;
+}
+
 message TimestampValue {
     int64 seconds = 1;
     int32 nanos = 2;
-    int64 start_seconds = 3;
-    int32 start_nanos = 4;
 }
 
 /* ----- *
@@ -98,7 +152,7 @@ message TimestampValue {
  * ----- */
 
 message Value {
-    string value_name = 1;
+    string name = 1;
     oneof value {
         TensorValue tensor = 2;
         JointPositionsValue joint_positions = 3;
@@ -111,42 +165,40 @@ message Value {
     }
 }
 
-enum ValueType {
-    TENSOR = 0;
-    JOINT_POSITIONS = 1;
-    JOINT_VELOCITIES = 2;
-    JOINT_TORQUES = 3;
-    CAMERA_FRAME = 4;
-    AUDIO_FRAME = 5;
-    IMU = 6;
-    TIMESTAMP = 7;
-}
-
 message ValueSchema {
     string name = 1;
-    ValueType value_type = 2;
+    oneof value_type {
+        TensorSchema tensor = 2;
+        JointPositionsSchema joint_positions = 3;
+        JointVelocitiesSchema joint_velocities = 4;
+        JointTorquesSchema joint_torques = 5;
+        CameraFrameSchema camera_frame = 6;
+        AudioFrameSchema audio_frame = 7;
+        IMUSchema imu = 8;
+        TimestampSchema timestamp = 9;
+    }
 }
 
 /* ------ *
  * Inputs *
  * ------ */
 
-message Input {
-    repeated Value inputs = 1;
-}
-
 message InputSchema {
     repeated ValueSchema inputs = 1;
+}
+
+message Input {
+    repeated Value inputs = 1;
 }
 
 /* ------- *
  * Outputs *
  * ------- */
 
-message Output {
-    repeated Value outputs = 1;
-}
-
 message OutputSchema {
     repeated ValueSchema outputs = 1;
+}
+
+message Output {
+    repeated Value outputs = 1;
 }

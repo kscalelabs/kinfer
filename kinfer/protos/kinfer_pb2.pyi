@@ -19,35 +19,82 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-class _ValueType:
+class _JointPositionUnit:
     ValueType = typing.NewType("ValueType", builtins.int)
     V: typing_extensions.TypeAlias = ValueType
 
-class _ValueTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_ValueType.ValueType], builtins.type):
+class _JointPositionUnitEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_JointPositionUnit.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
-    TENSOR: _ValueType.ValueType  # 0
-    JOINT_POSITIONS: _ValueType.ValueType  # 1
-    JOINT_VELOCITIES: _ValueType.ValueType  # 2
-    JOINT_TORQUES: _ValueType.ValueType  # 3
-    CAMERA_FRAME: _ValueType.ValueType  # 4
-    AUDIO_FRAME: _ValueType.ValueType  # 5
-    IMU: _ValueType.ValueType  # 6
-    TIMESTAMP: _ValueType.ValueType  # 7
+    DEGREES: _JointPositionUnit.ValueType  # 0
+    RADIANS: _JointPositionUnit.ValueType  # 1
 
-class ValueType(_ValueType, metaclass=_ValueTypeEnumTypeWrapper): ...
+class JointPositionUnit(_JointPositionUnit, metaclass=_JointPositionUnitEnumTypeWrapper):
+    """--------------- *
+    Joint Positions *
+    ---------------
+    """
 
-TENSOR: ValueType.ValueType  # 0
-JOINT_POSITIONS: ValueType.ValueType  # 1
-JOINT_VELOCITIES: ValueType.ValueType  # 2
-JOINT_TORQUES: ValueType.ValueType  # 3
-CAMERA_FRAME: ValueType.ValueType  # 4
-AUDIO_FRAME: ValueType.ValueType  # 5
-IMU: ValueType.ValueType  # 6
-TIMESTAMP: ValueType.ValueType  # 7
-global___ValueType = ValueType
+DEGREES: JointPositionUnit.ValueType  # 0
+RADIANS: JointPositionUnit.ValueType  # 1
+global___JointPositionUnit = JointPositionUnit
+
+class _JointVelocityUnit:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _JointVelocityUnitEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_JointVelocityUnit.ValueType], builtins.type):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    DEGREES_PER_SECOND: _JointVelocityUnit.ValueType  # 0
+    RADIANS_PER_SECOND: _JointVelocityUnit.ValueType  # 1
+
+class JointVelocityUnit(_JointVelocityUnit, metaclass=_JointVelocityUnitEnumTypeWrapper):
+    """---------------- *
+    Joint Velocities *
+    ----------------
+    """
+
+DEGREES_PER_SECOND: JointVelocityUnit.ValueType  # 0
+RADIANS_PER_SECOND: JointVelocityUnit.ValueType  # 1
+global___JointVelocityUnit = JointVelocityUnit
+
+class _JointTorqueUnit:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _JointTorqueUnitEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_JointTorqueUnit.ValueType], builtins.type):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    NEWTON_METERS: _JointTorqueUnit.ValueType  # 0
+
+class JointTorqueUnit(_JointTorqueUnit, metaclass=_JointTorqueUnitEnumTypeWrapper):
+    """-------------- *
+    Joint Torques *
+    --------------
+    """
+
+NEWTON_METERS: JointTorqueUnit.ValueType  # 0
+global___JointTorqueUnit = JointTorqueUnit
+
+class _IMUValueType:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _IMUValueTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_IMUValueType.ValueType], builtins.type):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    QUATERNION: _IMUValueType.ValueType  # 0
+    EULER_ANGLES: _IMUValueType.ValueType  # 1
+
+class IMUValueType(_IMUValueType, metaclass=_IMUValueTypeEnumTypeWrapper):
+    """--- *
+    IMU *
+    ---
+    """
+
+QUATERNION: IMUValueType.ValueType  # 0
+EULER_ANGLES: IMUValueType.ValueType  # 1
+global___IMUValueType = IMUValueType
 
 @typing.final
-class TensorValue(google.protobuf.message.Message):
+class TensorSchema(google.protobuf.message.Message):
     """------ *
     Tensor *
     ------
@@ -56,140 +103,203 @@ class TensorValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     SHAPE_FIELD_NUMBER: builtins.int
-    DATA_FIELD_NUMBER: builtins.int
     @property
     def shape(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.int]: ...
+    def __init__(
+        self,
+        *,
+        shape: collections.abc.Iterable[builtins.int] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["shape", b"shape"]) -> None: ...
+
+global___TensorSchema = TensorSchema
+
+@typing.final
+class TensorValue(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    DATA_FIELD_NUMBER: builtins.int
     @property
     def data(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
     def __init__(
         self,
         *,
-        shape: collections.abc.Iterable[builtins.int] | None = ...,
         data: collections.abc.Iterable[builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["data", b"data", "shape", b"shape"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["data", b"data"]) -> None: ...
 
 global___TensorValue = TensorValue
 
 @typing.final
-class JointPosition(google.protobuf.message.Message):
-    """---------------- *
-    Joint Positions *
-    ----------------
-    """
-
+class JointPositionValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    JOINT_NAME_FIELD_NUMBER: builtins.int
-    DEGREES_FIELD_NUMBER: builtins.int
-    joint_name: builtins.str
-    degrees: builtins.float
+    NAME_FIELD_NUMBER: builtins.int
+    VALUE_FIELD_NUMBER: builtins.int
+    UNIT_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    value: builtins.float
+    unit: global___JointPositionUnit.ValueType
     def __init__(
         self,
         *,
-        joint_name: builtins.str = ...,
-        degrees: builtins.float = ...,
+        name: builtins.str = ...,
+        value: builtins.float = ...,
+        unit: global___JointPositionUnit.ValueType = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["degrees", b"degrees", "joint_name", b"joint_name"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["name", b"name", "unit", b"unit", "value", b"value"]) -> None: ...
 
-global___JointPosition = JointPosition
+global___JointPositionValue = JointPositionValue
+
+@typing.final
+class JointPositionsSchema(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    UNIT_FIELD_NUMBER: builtins.int
+    JOINT_NAMES_FIELD_NUMBER: builtins.int
+    unit: global___JointPositionUnit.ValueType
+    @property
+    def joint_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    def __init__(
+        self,
+        *,
+        unit: global___JointPositionUnit.ValueType = ...,
+        joint_names: collections.abc.Iterable[builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["joint_names", b"joint_names", "unit", b"unit"]) -> None: ...
+
+global___JointPositionsSchema = JointPositionsSchema
 
 @typing.final
 class JointPositionsValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    POSITIONS_FIELD_NUMBER: builtins.int
+    VALUES_FIELD_NUMBER: builtins.int
     @property
-    def positions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointPosition]: ...
+    def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointPositionValue]: ...
     def __init__(
         self,
         *,
-        positions: collections.abc.Iterable[global___JointPosition] | None = ...,
+        values: collections.abc.Iterable[global___JointPositionValue] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["positions", b"positions"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["values", b"values"]) -> None: ...
 
 global___JointPositionsValue = JointPositionsValue
 
 @typing.final
-class JointVelocity(google.protobuf.message.Message):
-    """---------------- *
-    Joint Velocities *
-    ----------------
-    """
-
+class JointVelocityValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    JOINT_NAME_FIELD_NUMBER: builtins.int
-    DEGREES_PER_SECOND_FIELD_NUMBER: builtins.int
-    joint_name: builtins.str
-    degrees_per_second: builtins.float
+    NAME_FIELD_NUMBER: builtins.int
+    VALUE_FIELD_NUMBER: builtins.int
+    UNIT_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    value: builtins.float
+    unit: global___JointVelocityUnit.ValueType
     def __init__(
         self,
         *,
-        joint_name: builtins.str = ...,
-        degrees_per_second: builtins.float = ...,
+        name: builtins.str = ...,
+        value: builtins.float = ...,
+        unit: global___JointVelocityUnit.ValueType = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["degrees_per_second", b"degrees_per_second", "joint_name", b"joint_name"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["name", b"name", "unit", b"unit", "value", b"value"]) -> None: ...
 
-global___JointVelocity = JointVelocity
+global___JointVelocityValue = JointVelocityValue
+
+@typing.final
+class JointVelocitiesSchema(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    UNIT_FIELD_NUMBER: builtins.int
+    JOINT_NAMES_FIELD_NUMBER: builtins.int
+    unit: global___JointVelocityUnit.ValueType
+    @property
+    def joint_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    def __init__(
+        self,
+        *,
+        unit: global___JointVelocityUnit.ValueType = ...,
+        joint_names: collections.abc.Iterable[builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["joint_names", b"joint_names", "unit", b"unit"]) -> None: ...
+
+global___JointVelocitiesSchema = JointVelocitiesSchema
 
 @typing.final
 class JointVelocitiesValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    VELOCITIES_FIELD_NUMBER: builtins.int
+    VALUES_FIELD_NUMBER: builtins.int
     @property
-    def velocities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointVelocity]: ...
+    def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointVelocityValue]: ...
     def __init__(
         self,
         *,
-        velocities: collections.abc.Iterable[global___JointVelocity] | None = ...,
+        values: collections.abc.Iterable[global___JointVelocityValue] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["velocities", b"velocities"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["values", b"values"]) -> None: ...
 
 global___JointVelocitiesValue = JointVelocitiesValue
 
 @typing.final
-class JointTorque(google.protobuf.message.Message):
-    """-------------- *
-    Joint Torques *
-    --------------
-    """
-
+class JointTorqueValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    JOINT_NAME_FIELD_NUMBER: builtins.int
-    NEWTON_METERS_FIELD_NUMBER: builtins.int
-    joint_name: builtins.str
-    newton_meters: builtins.float
+    NAME_FIELD_NUMBER: builtins.int
+    VALUE_FIELD_NUMBER: builtins.int
+    UNIT_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    value: builtins.float
+    unit: global___JointTorqueUnit.ValueType
     def __init__(
         self,
         *,
-        joint_name: builtins.str = ...,
-        newton_meters: builtins.float = ...,
+        name: builtins.str = ...,
+        value: builtins.float = ...,
+        unit: global___JointTorqueUnit.ValueType = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["joint_name", b"joint_name", "newton_meters", b"newton_meters"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["name", b"name", "unit", b"unit", "value", b"value"]) -> None: ...
 
-global___JointTorque = JointTorque
+global___JointTorqueValue = JointTorqueValue
+
+@typing.final
+class JointTorquesSchema(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    UNIT_FIELD_NUMBER: builtins.int
+    JOINT_NAMES_FIELD_NUMBER: builtins.int
+    unit: global___JointTorqueUnit.ValueType
+    @property
+    def joint_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    def __init__(
+        self,
+        *,
+        unit: global___JointTorqueUnit.ValueType = ...,
+        joint_names: collections.abc.Iterable[builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["joint_names", b"joint_names", "unit", b"unit"]) -> None: ...
+
+global___JointTorquesSchema = JointTorquesSchema
 
 @typing.final
 class JointTorquesValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    TORQUES_FIELD_NUMBER: builtins.int
+    VALUES_FIELD_NUMBER: builtins.int
     @property
-    def torques(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointTorque]: ...
+    def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointTorqueValue]: ...
     def __init__(
         self,
         *,
-        torques: collections.abc.Iterable[global___JointTorque] | None = ...,
+        values: collections.abc.Iterable[global___JointTorqueValue] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["torques", b"torques"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["values", b"values"]) -> None: ...
 
 global___JointTorquesValue = JointTorquesValue
 
 @typing.final
-class CameraFrameValue(google.protobuf.message.Message):
+class CameraFrameSchema(google.protobuf.message.Message):
     """------------ *
     Camera Frame *
     ------------
@@ -200,26 +310,37 @@ class CameraFrameValue(google.protobuf.message.Message):
     WIDTH_FIELD_NUMBER: builtins.int
     HEIGHT_FIELD_NUMBER: builtins.int
     CHANNELS_FIELD_NUMBER: builtins.int
-    DATA_FIELD_NUMBER: builtins.int
     width: builtins.int
     height: builtins.int
     channels: builtins.int
-    @property
-    def data(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
     def __init__(
         self,
         *,
         width: builtins.int = ...,
         height: builtins.int = ...,
         channels: builtins.int = ...,
-        data: collections.abc.Iterable[builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["channels", b"channels", "data", b"data", "height", b"height", "width", b"width"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["channels", b"channels", "height", b"height", "width", b"width"]) -> None: ...
+
+global___CameraFrameSchema = CameraFrameSchema
+
+@typing.final
+class CameraFrameValue(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    DATA_FIELD_NUMBER: builtins.int
+    data: builtins.bytes
+    def __init__(
+        self,
+        *,
+        data: builtins.bytes = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["data", b"data"]) -> None: ...
 
 global___CameraFrameValue = CameraFrameValue
 
 @typing.final
-class AudioFrameValue(google.protobuf.message.Message):
+class AudioFrameSchema(google.protobuf.message.Message):
     """----------- *
     Audio Frame *
     -----------
@@ -229,29 +350,53 @@ class AudioFrameValue(google.protobuf.message.Message):
 
     CHANNELS_FIELD_NUMBER: builtins.int
     SAMPLE_RATE_FIELD_NUMBER: builtins.int
-    DATA_FIELD_NUMBER: builtins.int
+    BYTES_PER_SAMPLE_FIELD_NUMBER: builtins.int
     channels: builtins.int
     sample_rate: builtins.int
-    @property
-    def data(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
+    bytes_per_sample: builtins.int
     def __init__(
         self,
         *,
         channels: builtins.int = ...,
         sample_rate: builtins.int = ...,
-        data: collections.abc.Iterable[builtins.float] | None = ...,
+        bytes_per_sample: builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["channels", b"channels", "data", b"data", "sample_rate", b"sample_rate"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["bytes_per_sample", b"bytes_per_sample", "channels", b"channels", "sample_rate", b"sample_rate"]) -> None: ...
+
+global___AudioFrameSchema = AudioFrameSchema
+
+@typing.final
+class AudioFrameValue(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    DATA_FIELD_NUMBER: builtins.int
+    data: builtins.bytes
+    def __init__(
+        self,
+        *,
+        data: builtins.bytes = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["data", b"data"]) -> None: ...
 
 global___AudioFrameValue = AudioFrameValue
 
 @typing.final
-class IMUValue(google.protobuf.message.Message):
-    """--- *
-    IMU *
-    ---
-    """
+class IMUSchema(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    VALUE_TYPE_FIELD_NUMBER: builtins.int
+    value_type: global___IMUValueType.ValueType
+    def __init__(
+        self,
+        *,
+        value_type: global___IMUValueType.ValueType = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["value_type", b"value_type"]) -> None: ...
+
+global___IMUSchema = IMUSchema
+
+@typing.final
+class IMUValue(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     X_FIELD_NUMBER: builtins.int
@@ -275,7 +420,7 @@ class IMUValue(google.protobuf.message.Message):
 global___IMUValue = IMUValue
 
 @typing.final
-class TimestampValue(google.protobuf.message.Message):
+class TimestampSchema(google.protobuf.message.Message):
     """--------- *
     Timestamp *
     ---------
@@ -283,23 +428,35 @@ class TimestampValue(google.protobuf.message.Message):
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    SECONDS_FIELD_NUMBER: builtins.int
-    NANOS_FIELD_NUMBER: builtins.int
     START_SECONDS_FIELD_NUMBER: builtins.int
     START_NANOS_FIELD_NUMBER: builtins.int
-    seconds: builtins.int
-    nanos: builtins.int
     start_seconds: builtins.int
     start_nanos: builtins.int
     def __init__(
         self,
         *,
-        seconds: builtins.int = ...,
-        nanos: builtins.int = ...,
         start_seconds: builtins.int = ...,
         start_nanos: builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["nanos", b"nanos", "seconds", b"seconds", "start_nanos", b"start_nanos", "start_seconds", b"start_seconds"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["start_nanos", b"start_nanos", "start_seconds", b"start_seconds"]) -> None: ...
+
+global___TimestampSchema = TimestampSchema
+
+@typing.final
+class TimestampValue(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SECONDS_FIELD_NUMBER: builtins.int
+    NANOS_FIELD_NUMBER: builtins.int
+    seconds: builtins.int
+    nanos: builtins.int
+    def __init__(
+        self,
+        *,
+        seconds: builtins.int = ...,
+        nanos: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["nanos", b"nanos", "seconds", b"seconds"]) -> None: ...
 
 global___TimestampValue = TimestampValue
 
@@ -312,7 +469,7 @@ class Value(google.protobuf.message.Message):
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    VALUE_NAME_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
     TENSOR_FIELD_NUMBER: builtins.int
     JOINT_POSITIONS_FIELD_NUMBER: builtins.int
     JOINT_VELOCITIES_FIELD_NUMBER: builtins.int
@@ -321,7 +478,7 @@ class Value(google.protobuf.message.Message):
     AUDIO_FRAME_FIELD_NUMBER: builtins.int
     IMU_FIELD_NUMBER: builtins.int
     TIMESTAMP_FIELD_NUMBER: builtins.int
-    value_name: builtins.str
+    name: builtins.str
     @property
     def tensor(self) -> global___TensorValue: ...
     @property
@@ -341,7 +498,7 @@ class Value(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        value_name: builtins.str = ...,
+        name: builtins.str = ...,
         tensor: global___TensorValue | None = ...,
         joint_positions: global___JointPositionsValue | None = ...,
         joint_velocities: global___JointVelocitiesValue | None = ...,
@@ -352,7 +509,7 @@ class Value(google.protobuf.message.Message):
         timestamp: global___TimestampValue | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing.Literal["audio_frame", b"audio_frame", "camera_frame", b"camera_frame", "imu", b"imu", "joint_positions", b"joint_positions", "joint_torques", b"joint_torques", "joint_velocities", b"joint_velocities", "tensor", b"tensor", "timestamp", b"timestamp", "value", b"value"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["audio_frame", b"audio_frame", "camera_frame", b"camera_frame", "imu", b"imu", "joint_positions", b"joint_positions", "joint_torques", b"joint_torques", "joint_velocities", b"joint_velocities", "tensor", b"tensor", "timestamp", b"timestamp", "value", b"value", "value_name", b"value_name"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["audio_frame", b"audio_frame", "camera_frame", b"camera_frame", "imu", b"imu", "joint_positions", b"joint_positions", "joint_torques", b"joint_torques", "joint_velocities", b"joint_velocities", "name", b"name", "tensor", b"tensor", "timestamp", b"timestamp", "value", b"value"]) -> None: ...
     def WhichOneof(self, oneof_group: typing.Literal["value", b"value"]) -> typing.Literal["tensor", "joint_positions", "joint_velocities", "joint_torques", "camera_frame", "audio_frame", "imu", "timestamp"] | None: ...
 
 global___Value = Value
@@ -362,42 +519,57 @@ class ValueSchema(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     NAME_FIELD_NUMBER: builtins.int
-    VALUE_TYPE_FIELD_NUMBER: builtins.int
+    TENSOR_FIELD_NUMBER: builtins.int
+    JOINT_POSITIONS_FIELD_NUMBER: builtins.int
+    JOINT_VELOCITIES_FIELD_NUMBER: builtins.int
+    JOINT_TORQUES_FIELD_NUMBER: builtins.int
+    CAMERA_FRAME_FIELD_NUMBER: builtins.int
+    AUDIO_FRAME_FIELD_NUMBER: builtins.int
+    IMU_FIELD_NUMBER: builtins.int
+    TIMESTAMP_FIELD_NUMBER: builtins.int
     name: builtins.str
-    value_type: global___ValueType.ValueType
+    @property
+    def tensor(self) -> global___TensorSchema: ...
+    @property
+    def joint_positions(self) -> global___JointPositionsSchema: ...
+    @property
+    def joint_velocities(self) -> global___JointVelocitiesSchema: ...
+    @property
+    def joint_torques(self) -> global___JointTorquesSchema: ...
+    @property
+    def camera_frame(self) -> global___CameraFrameSchema: ...
+    @property
+    def audio_frame(self) -> global___AudioFrameSchema: ...
+    @property
+    def imu(self) -> global___IMUSchema: ...
+    @property
+    def timestamp(self) -> global___TimestampSchema: ...
     def __init__(
         self,
         *,
         name: builtins.str = ...,
-        value_type: global___ValueType.ValueType = ...,
+        tensor: global___TensorSchema | None = ...,
+        joint_positions: global___JointPositionsSchema | None = ...,
+        joint_velocities: global___JointVelocitiesSchema | None = ...,
+        joint_torques: global___JointTorquesSchema | None = ...,
+        camera_frame: global___CameraFrameSchema | None = ...,
+        audio_frame: global___AudioFrameSchema | None = ...,
+        imu: global___IMUSchema | None = ...,
+        timestamp: global___TimestampSchema | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["name", b"name", "value_type", b"value_type"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["audio_frame", b"audio_frame", "camera_frame", b"camera_frame", "imu", b"imu", "joint_positions", b"joint_positions", "joint_torques", b"joint_torques", "joint_velocities", b"joint_velocities", "tensor", b"tensor", "timestamp", b"timestamp", "value_type", b"value_type"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["audio_frame", b"audio_frame", "camera_frame", b"camera_frame", "imu", b"imu", "joint_positions", b"joint_positions", "joint_torques", b"joint_torques", "joint_velocities", b"joint_velocities", "name", b"name", "tensor", b"tensor", "timestamp", b"timestamp", "value_type", b"value_type"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["value_type", b"value_type"]) -> typing.Literal["tensor", "joint_positions", "joint_velocities", "joint_torques", "camera_frame", "audio_frame", "imu", "timestamp"] | None: ...
 
 global___ValueSchema = ValueSchema
 
 @typing.final
-class Input(google.protobuf.message.Message):
+class InputSchema(google.protobuf.message.Message):
     """------ *
     Inputs *
     ------
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    INPUTS_FIELD_NUMBER: builtins.int
-    @property
-    def inputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
-    def __init__(
-        self,
-        *,
-        inputs: collections.abc.Iterable[global___Value] | None = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["inputs", b"inputs"]) -> None: ...
-
-global___Input = Input
-
-@typing.final
-class InputSchema(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     INPUTS_FIELD_NUMBER: builtins.int
@@ -413,28 +585,28 @@ class InputSchema(google.protobuf.message.Message):
 global___InputSchema = InputSchema
 
 @typing.final
-class Output(google.protobuf.message.Message):
+class Input(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    INPUTS_FIELD_NUMBER: builtins.int
+    @property
+    def inputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
+    def __init__(
+        self,
+        *,
+        inputs: collections.abc.Iterable[global___Value] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["inputs", b"inputs"]) -> None: ...
+
+global___Input = Input
+
+@typing.final
+class OutputSchema(google.protobuf.message.Message):
     """------- *
     Outputs *
     -------
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    OUTPUTS_FIELD_NUMBER: builtins.int
-    @property
-    def outputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
-    def __init__(
-        self,
-        *,
-        outputs: collections.abc.Iterable[global___Value] | None = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["outputs", b"outputs"]) -> None: ...
-
-global___Output = Output
-
-@typing.final
-class OutputSchema(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     OUTPUTS_FIELD_NUMBER: builtins.int
@@ -448,3 +620,19 @@ class OutputSchema(google.protobuf.message.Message):
     def ClearField(self, field_name: typing.Literal["outputs", b"outputs"]) -> None: ...
 
 global___OutputSchema = OutputSchema
+
+@typing.final
+class Output(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    OUTPUTS_FIELD_NUMBER: builtins.int
+    @property
+    def outputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
+    def __init__(
+        self,
+        *,
+        outputs: collections.abc.Iterable[global___Value] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["outputs", b"outputs"]) -> None: ...
+
+global___Output = Output
