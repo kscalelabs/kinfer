@@ -28,19 +28,14 @@ version: str = version_re.group(1)
 setup(
     name="kinfer",
     version=version,
-    description="The kinfer project",
+    description="Tool to make it easier to run a model on a real robot",
     author="K-Scale Labs",
     url="https://github.com/kscalelabs/kinfer.git",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    python_requires=">=3.8",
+    python_requires=">=3.11",
     install_requires=requirements,
     tests_require=requirements_dev,
     extras_require={"dev": requirements_dev},
     packages=find_packages(),
-    # entry_points={
-    #     "console_scripts": [
-    #         "kinfer.cli:main",
-    #     ],
-    # },
 )

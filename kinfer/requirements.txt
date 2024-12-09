@@ -1,5 +1,9 @@
 # requirements.txt
 
+# Machine Learning
 torch
 onnx
 onnxruntime
+
+# Protocol Buffers
+protobuf
