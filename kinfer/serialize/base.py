@@ -17,49 +17,15 @@ from kinfer.protos.kinfer_pb2 import (
     JointTorquesValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
-    TensorSchema,
-    TensorValue,
     TimestampSchema,
     TimestampValue,
     Value,
     ValueSchema,
+    VectorCommandSchema,
+    VectorCommandValue,
 )
 
 T = TypeVar("T")
-
-
-class TensorSerializer(ABC, Generic[T]):
-    @abstractmethod
-    def serialize_tensor(
-        self,
-        schema: TensorSchema,
-        value: TensorValue,
-    ) -> T:
-        """Serialize a tensor value.
-
-        Args:
-            schema: The schema of the tensor.
-            value: The tensor to serialize.
-
-        Returns:
-            The serialized tensor.
-        """
-
-    @abstractmethod
-    def deserialize_tensor(
-        self,
-        schema: TensorSchema,
-        value: T,
-    ) -> TensorValue:
-        """Deserialize a tensor value.
-
-        Args:
-            schema: The schema of the tensor.
-            value: The serialized tensor.
-
-        Returns:
-            The deserialized tensor.
-        """
 
 
 class JointPositionsSerializer(ABC, Generic[T]):
@@ -301,8 +267,41 @@ class TimestampSerializer(ABC, Generic[T]):
         """
 
 
+class VectorCommandSerializer(ABC, Generic[T]):
+    @abstractmethod
+    def serialize_vector_command(
+        self,
+        schema: VectorCommandSchema,
+        value: VectorCommandValue,
+    ) -> T:
+        """Serialize an XY command value.
+
+        Args:
+            schema: The schema of the vector command.
+            value: The vector command to serialize.
+
+        Returns:
+            The serialized vector command.
+        """
+
+    @abstractmethod
+    def deserialize_vector_command(
+        self,
+        schema: VectorCommandSchema,
+        value: T,
+    ) -> VectorCommandValue:
+        """Deserialize a vector command value.
+
+        Args:
+            schema: The schema of the vector command.
+            value: The serialized vector command.
+
+        Returns:
+            The deserialized vector command.
+        """
+
+
 class Serializer(
-    TensorSerializer[T],
     JointPositionsSerializer[T],
     JointVelocitiesSerializer[T],
     JointTorquesSerializer[T],
@@ -310,6 +309,7 @@ class Serializer(
     AudioFrameSerializer[T],
     IMUSerializer[T],
     TimestampSerializer[T],
+    VectorCommandSerializer[T],
     Generic[T],
 ):
     def __init__(self, schema: ValueSchema) -> None:
@@ -319,11 +319,6 @@ class Serializer(
         value_type = value.WhichOneof("value")
 
         match value_type:
-            case "tensor":
-                return self.serialize_tensor(
-                    schema=self.schema.tensor,
-                    value=value.tensor,
-                )
             case "joint_positions":
                 return self.serialize_joint_positions(
                     schema=self.schema.joint_positions,
@@ -359,6 +354,11 @@ class Serializer(
                     schema=self.schema.timestamp,
                     value=value.timestamp,
                 )
+            case "vector_command":
+                return self.serialize_vector_command(
+                    schema=self.schema.vector_command,
+                    value=value.vector_command,
+                )
             case _:
                 raise ValueError(f"Unsupported value type: {value_type}")
 
@@ -366,13 +366,6 @@ class Serializer(
         value_type = self.schema.WhichOneof("value_type")
 
         match value_type:
-            case "tensor":
-                return Value(
-                    tensor=self.deserialize_tensor(
-                        schema=self.schema.tensor,
-                        value=value,
-                    ),
-                )
             case "joint_positions":
                 return Value(
                     joint_positions=self.deserialize_joint_positions(
@@ -422,6 +415,13 @@ class Serializer(
                         value=value,
                     ),
                 )
+            case "vector_command":
+                return Value(
+                    vector_command=self.deserialize_vector_command(
+                        schema=self.schema.vector_command,
+                        value=value,
+                    ),
+                )
             case _:
                 raise ValueError(f"Unsupported value type: {value_type}")
 
@@ -434,4 +434,4 @@ class MultiSerializer(Generic[T]):
         return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
 
     def deserialize(self, input: dict[str, T]) -> Input:
-        return Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.items())])
+        return Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])

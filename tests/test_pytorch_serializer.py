@@ -10,11 +10,11 @@ from kinfer.protos.kinfer_pb2 import (
     AudioFrameValue,
     CameraFrameSchema,
     CameraFrameValue,
-    IMUQuaternionValue,
+    IMUAccelerometerValue,
+    IMUGyroscopeValue,
+    IMUMagnetometerValue,
     IMUSchema,
-    IMUTranslationValue,
     IMUValue,
-    IMUValueType,
     JointPositionsSchema,
     JointPositionsValue,
     JointPositionUnit,
@@ -27,28 +27,14 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesValue,
     JointVelocityUnit,
     JointVelocityValue,
-    TensorSchema,
-    TensorValue,
     TimestampSchema,
     TimestampValue,
     Value,
     ValueSchema,
+    VectorCommandSchema,
+    VectorCommandValue,
 )
 from kinfer.serialize.pytorch import PyTorchSerializer
-
-
-def test_serialize_tensor() -> None:
-    serializer = PyTorchSerializer(schema=ValueSchema(tensor=TensorSchema(shape=[1, 2, 3])))
-
-    # From tensor value to tensor.
-    value = Value(tensor=TensorValue(data=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-    tensor = serializer.serialize(value)
-    assert isinstance(tensor, Tensor)
-    assert tensor.shape == (1, 2, 3)
-
-    # Back to tensor value.
-    new_value = serializer.deserialize(tensor)
-    assert new_value == value
 
 
 @pytest.mark.parametrize("schema_unit", [JointPositionUnit.DEGREES, JointPositionUnit.RADIANS])
@@ -194,15 +180,18 @@ def test_serialize_imu() -> None:
     serializer = PyTorchSerializer(
         schema=ValueSchema(
             imu=IMUSchema(
-                value_type=IMUValueType.QUATERNION,
+                use_accelerometer=True,
+                use_gyroscope=True,
+                use_magnetometer=True,
             )
         )
     )
 
     value = Value(
         imu=IMUValue(
-            translation=IMUTranslationValue(x=1.0, y=2.0, z=3.0),
-            rotation=IMUQuaternionValue(x=4.0, y=5.0, z=6.0, w=7.0),
+            linear_acceleration=IMUAccelerometerValue(x=1.0, y=2.0, z=3.0),
+            angular_velocity=IMUGyroscopeValue(x=4.0, y=5.0, z=6.0),
+            magnetic_field=IMUMagnetometerValue(x=7.0, y=8.0, z=9.0),
         )
     )
     tensor = serializer.serialize(value)
@@ -228,5 +217,18 @@ def test_serialize_timestamp() -> None:
     assert tensor.item() == 1.5
 
     # Back to timestamp value.
+    new_value = serializer.deserialize(tensor)
+    assert new_value == value
+
+
+def test_serialize_vector_command() -> None:
+    serializer = PyTorchSerializer(schema=ValueSchema(vector_command=VectorCommandSchema()))
+
+    value = Value(vector_command=VectorCommandValue(values=[1.0, 2.0, 3.0]))
+    tensor = serializer.serialize(value)
+    assert isinstance(tensor, Tensor)
+    assert tensor.shape == (3,)
+
+    # Back to vector command value.
     new_value = serializer.deserialize(tensor)
     assert new_value == value

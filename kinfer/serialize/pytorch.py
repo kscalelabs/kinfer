@@ -26,11 +26,11 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesValue,
     JointVelocityUnit,
     JointVelocityValue,
-    TensorSchema,
-    TensorValue,
     TimestampSchema,
     TimestampValue,
     ValueSchema,
+    VectorCommandSchema,
+    VectorCommandValue,
 )
 from kinfer.serialize.base import (
     AudioFrameSerializer,
@@ -41,8 +41,8 @@ from kinfer.serialize.base import (
     JointVelocitiesSerializer,
     MultiSerializer,
     Serializer,
-    TensorSerializer,
     TimestampSerializer,
+    VectorCommandSerializer,
 )
 
 
@@ -63,19 +63,6 @@ class PyTorchBaseSerializer:
     ) -> None:
         self.device = device
         self.dtype = dtype
-
-
-class PyTorchTensorSerializer(PyTorchBaseSerializer, TensorSerializer[Tensor]):
-    def serialize_tensor(self, schema: TensorSchema, value: TensorValue) -> Tensor:
-        tensor = torch.tensor(value.data, dtype=self.dtype, device=self.device)
-        return tensor.view(*schema.shape)
-
-    def deserialize_tensor(self, schema: TensorSchema, value: Tensor) -> TensorValue:
-        schema_shape, value_shape = tuple(schema.shape), tuple(value.shape)
-        if schema_shape != value_shape:
-            raise ValueError(f"Shape of tensor must match schema: {value_shape} != {schema_shape}")
-        tensor_data = value.detach().cpu().flatten().numpy().tolist()
-        return TensorValue(data=tensor_data)
 
 
 class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSerializer[Tensor]):
@@ -257,10 +244,54 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
 
 class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
     def serialize_imu(self, schema: IMUSchema, value: IMUValue) -> Tensor:
-        return torch.tensor(value.data, dtype=self.dtype, device=self.device)
+        vectors: list[Tensor] = []
+        if schema.use_accelerometer:
+            vectors.append(
+                torch.tensor(
+                    [value.linear_acceleration.x, value.linear_acceleration.y, value.linear_acceleration.z],
+                    dtype=self.dtype,
+                    device=self.device,
+                )
+            )
+        if schema.use_gyroscope:
+            vectors.append(
+                torch.tensor(
+                    [value.angular_velocity.x, value.angular_velocity.y, value.angular_velocity.z],
+                    dtype=self.dtype,
+                    device=self.device,
+                )
+            )
+        if schema.use_magnetometer:
+            vectors.append(
+                torch.tensor(
+                    [value.magnetic_field.x, value.magnetic_field.y, value.magnetic_field.z],
+                    dtype=self.dtype,
+                    device=self.device,
+                )
+            )
+        if not vectors:
+            raise ValueError("IMU has nothing to serialize")
+        return torch.stack(vectors, dim=0)
 
     def deserialize_imu(self, schema: IMUSchema, value: Tensor) -> IMUValue:
-        return IMUValue(schema=schema, data=value.tolist())
+        vectors = value.tolist()
+        imu_value = IMUValue()
+        if schema.use_accelerometer:
+            (x, y, z), vectors = vectors[0], vectors[1:]
+            imu_value.linear_acceleration.x = x
+            imu_value.linear_acceleration.y = y
+            imu_value.linear_acceleration.z = z
+        if schema.use_gyroscope:
+            (x, y, z), vectors = vectors[0], vectors[1:]
+            imu_value.angular_velocity.x = x
+            imu_value.angular_velocity.y = y
+            imu_value.angular_velocity.z = z
+        if schema.use_magnetometer:
+            (x, y, z), vectors = vectors[0], vectors[1:]
+            imu_value.magnetic_field.x = x
+            imu_value.magnetic_field.y = y
+            imu_value.magnetic_field.z = z
+        return imu_value
 
 
 class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tensor]):
@@ -280,8 +311,15 @@ class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tens
         return TimestampValue(seconds=elapsed_seconds, nanos=elapsed_nanos)
 
 
+class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSerializer[Tensor]):
+    def serialize_vector_command(self, schema: VectorCommandSchema, value: VectorCommandValue) -> Tensor:
+        return torch.tensor(value.values, dtype=self.dtype, device=self.device)
+
+    def deserialize_vector_command(self, schema: VectorCommandSchema, value: Tensor) -> VectorCommandValue:
+        return VectorCommandValue(values=value.tolist())
+
+
 class PyTorchSerializer(
-    PyTorchTensorSerializer,
     PyTorchJointPositionsSerializer,
     PyTorchJointVelocitiesSerializer,
     PyTorchJointTorquesSerializer,
@@ -289,6 +327,7 @@ class PyTorchSerializer(
     PyTorchAudioFrameSerializer,
     PyTorchIMUSerializer,
     PyTorchTimestampSerializer,
+    PyTorchVectorCommandSerializer,
     Serializer[Tensor],
 ):
     def __init__(

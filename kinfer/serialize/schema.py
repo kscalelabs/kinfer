@@ -1,10 +1,11 @@
 """Defines utility functions for the schema."""
 
-import numpy as np
-
 from kinfer.protos.kinfer_pb2 import (
     AudioFrameValue,
     CameraFrameValue,
+    IMUAccelerometerValue,
+    IMUGyroscopeValue,
+    IMUMagnetometerValue,
     IMUValue,
     Input,
     InputSchema,
@@ -16,10 +17,10 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocityValue,
     Output,
     OutputSchema,
-    TensorValue,
     TimestampValue,
     Value,
     ValueSchema,
+    VectorCommandValue,
 )
 
 
@@ -27,10 +28,6 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
     value_type = value_schema.WhichOneof("value_type")
 
     match value_type:
-        case "tensor":
-            return Value(
-                tensor=TensorValue(data=[0.0] * np.prod(value_schema.tensor.shape)),
-            )
         case "joint_positions":
             return Value(
                 joint_positions=JointPositionsValue(
@@ -94,11 +91,19 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
             )
         case "imu":
             return Value(
-                imu=IMUValue(x=0.0, y=0.0, z=0.0, w=1.0),
+                imu=IMUValue(
+                    linear_acceleration=IMUAccelerometerValue(x=0.0, y=0.0, z=0.0),
+                    angular_velocity=IMUGyroscopeValue(x=0.0, y=0.0, z=0.0),
+                    magnetic_field=IMUMagnetometerValue(x=0.0, y=0.0, z=0.0),
+                ),
             )
         case "timestamp":
             return Value(
                 timestamp=TimestampValue(seconds=1728000000, nanos=0),
+            )
+        case "vector_command":
+            return Value(
+                vector_command=VectorCommandValue(values=[0.0, 0.0, 0.0]),
             )
         case _:
             raise ValueError(f"Invalid value type: {value_type}")

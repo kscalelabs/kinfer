@@ -14,17 +14,16 @@ push-to-pypi: build-for-pypi
 
 # Static Checks
 
-py-files := $(shell find . -name '*.py')
-
 format:
 	@black $(py-files)
 	@ruff format $(py-files)
 .PHONY: format
 
 static-checks:
-	@black --diff --check $(py-files)
-	@ruff check $(py-files)
-	@mypy --install-types --non-interactive $(filter-out ./ref/%.py,$(py-files))
+	@black --diff --check .
+	@ruff check
+	@mkdir -p .mypy_cache
+	@mypy --install-types --non-interactive .
 .PHONY: lint
 
 # Unit tests

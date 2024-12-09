@@ -2,18 +2,6 @@ syntax = "proto3";
 
 package kinfer;
 
-/* ------ *
- * Tensor *
- * ------ */
-
-message TensorSchema {
-    repeated int32 shape = 1;
-}
-
-message TensorValue {
-    repeated float data = 1;
-}
-
 /* --------------- *
  * Joint Positions *
  * --------------- */
@@ -117,31 +105,34 @@ message AudioFrameValue {
  * IMU *
  * --- */
 
-enum IMUValueType {
-    QUATERNION = 0;
-    EULER_ANGLES = 1;
-}
-
-message IMUTranslationValue {
+message IMUAccelerometerValue {
     float x = 1;
     float y = 2;
     float z = 3;
 }
 
-message IMUQuaternionValue {
+message IMUGyroscopeValue {
     float x = 1;
     float y = 2;
     float z = 3;
-    float w = 4;
+}
+
+message IMUMagnetometerValue {
+    float x = 1;
+    float y = 2;
+    float z = 3;
 }
 
 message IMUSchema {
-    IMUValueType value_type = 1;
+    bool use_accelerometer = 1;
+    bool use_gyroscope = 2;
+    bool use_magnetometer = 3;
 }
 
 message IMUValue {
-    IMUTranslationValue translation = 1;
-    IMUQuaternionValue rotation = 2;
+    IMUAccelerometerValue linear_acceleration = 1;
+    IMUGyroscopeValue angular_velocity = 2;
+    IMUMagnetometerValue magnetic_field = 3;
 }
 
 /* --------- *
@@ -158,6 +149,30 @@ message TimestampValue {
     int32 nanos = 2;
 }
 
+/* ------------------- *
+ * XY Position Command *
+ * ------------------- */
+
+message VectorCommandSchema {
+    int32 dimensions = 1;
+}
+
+message VectorCommandValue {
+    repeated float values = 1;
+}
+
+/* ------------ *
+ * State Tensor *
+ * ------------ */
+
+message StateTensorSchema {
+    repeated int32 shape = 1;
+}
+
+message StateTensorValue {
+    bytes data = 1;
+}
+
 /* ----- *
  * Value *
  * ----- */
@@ -165,28 +180,30 @@ message TimestampValue {
 message Value {
     string value_name = 1;
     oneof value {
-        TensorValue tensor = 2;
-        JointPositionsValue joint_positions = 3;
-        JointVelocitiesValue joint_velocities = 4;
-        JointTorquesValue joint_torques = 5;
-        CameraFrameValue camera_frame = 6;
-        AudioFrameValue audio_frame = 7;
-        IMUValue imu = 8;
-        TimestampValue timestamp = 9;
+        JointPositionsValue joint_positions = 2;
+        JointVelocitiesValue joint_velocities = 3;
+        JointTorquesValue joint_torques = 4;
+        CameraFrameValue camera_frame = 5;
+        AudioFrameValue audio_frame = 6;
+        IMUValue imu = 7;
+        TimestampValue timestamp = 8;
+        VectorCommandValue vector_command = 9;
+        StateTensorValue state_tensor = 10;
     }
 }
 
 message ValueSchema {
     string value_name = 1;
     oneof value_type {
-        TensorSchema tensor = 2;
-        JointPositionsSchema joint_positions = 3;
-        JointVelocitiesSchema joint_velocities = 4;
-        JointTorquesSchema joint_torques = 5;
-        CameraFrameSchema camera_frame = 6;
-        AudioFrameSchema audio_frame = 7;
-        IMUSchema imu = 8;
-        TimestampSchema timestamp = 9;
+        JointPositionsSchema joint_positions = 2;
+        JointVelocitiesSchema joint_velocities = 3;
+        JointTorquesSchema joint_torques = 4;
+        CameraFrameSchema camera_frame = 5;
+        AudioFrameSchema audio_frame = 6;
+        IMUSchema imu = 7;
+        TimestampSchema timestamp = 8;
+        VectorCommandSchema vector_command = 9;
+        StateTensorSchema state_tensor = 10;
     }
 }
 

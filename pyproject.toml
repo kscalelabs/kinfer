@@ -3,6 +3,7 @@
 line-length = 120
 target-version = ["py311"]
 include = '\.pyi?$'
+exclude = "kinfer/protos/"
 
 [tool.pytest.ini_options]
 
@@ -30,10 +31,16 @@ warn_redundant_casts = true
 incremental = true
 namespace_packages = false
 
-# Uncomment to exclude modules from Mypy.
-# [[tool.mypy.overrides]]
-# module = []
-# ignore_missing_imports = true
+exclude = "build/"
+
+[[tool.mypy.overrides]]
+
+module = [
+    "google.*",
+    "kinfer.protos.*",
+]
+
+ignore_missing_imports = true
 
 [tool.isort]
 
@@ -43,6 +50,7 @@ profile = "black"
 
 line-length = 120
 target-version = "py310"
+exclude = ["kinfer/protos/"]
 
 [tool.ruff.lint]
 
