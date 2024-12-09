@@ -15,8 +15,8 @@ push-to-pypi: build-for-pypi
 # Static Checks
 
 format:
-	@black $(py-files)
-	@ruff format $(py-files)
+	@black .
+	@ruff format
 .PHONY: format
 
 static-checks:
