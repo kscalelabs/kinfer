@@ -5,34 +5,38 @@ import numpy as np
 from kinfer.protos.kinfer_pb2 import DType
 
 
-def parse_bytes(data: bytes, dtype: DType) -> np.ndarray:
+def numpy_dtype(dtype: DType) -> type[np.floating] | type[np.integer] | type[np.unsignedinteger]:
     match dtype:
         case DType.FP8:
             raise NotImplementedError("FP8 is not supported")
         case DType.FP16:
-            return np.frombuffer(data, dtype=np.float16)
+            return np.float16
         case DType.FP32:
-            return np.frombuffer(data, dtype=np.float32)
+            return np.float32
         case DType.FP64:
-            return np.frombuffer(data, dtype=np.float64)
+            return np.float64
         case DType.INT8:
-            return np.frombuffer(data, dtype=np.int8)
+            return np.int8
         case DType.INT16:
-            return np.frombuffer(data, dtype=np.int16)
+            return np.int16
         case DType.INT32:
-            return np.frombuffer(data, dtype=np.int32)
+            return np.int32
         case DType.INT64:
-            return np.frombuffer(data, dtype=np.int64)
+            return np.int64
         case DType.UINT8:
-            return np.frombuffer(data, dtype=np.uint8)
+            return np.uint8
         case DType.UINT16:
-            return np.frombuffer(data, dtype=np.uint16)
+            return np.uint16
         case DType.UINT32:
-            return np.frombuffer(data, dtype=np.uint32)
+            return np.uint32
         case DType.UINT64:
-            return np.frombuffer(data, dtype=np.uint64)
+            return np.uint64
         case _:
             raise ValueError(f"Unsupported dtype: {dtype}")
+
+
+def parse_bytes(data: bytes, dtype: DType) -> np.ndarray:
+    return np.frombuffer(data, dtype=numpy_dtype(dtype))
 
 
 def dtype_num_bytes(dtype: DType) -> int:

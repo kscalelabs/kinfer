@@ -1,7 +1,7 @@
 """Defines a serializer for PyTorch tensors."""
 
 import math
-from typing import Sequence, cast
+from typing import Sequence
 
 import numpy as np
 import torch
@@ -49,7 +49,7 @@ from kinfer.serialize.base import (
     TimestampSerializer,
     VectorCommandSerializer,
 )
-from kinfer.serialize.utils import dtype_num_bytes, parse_bytes, dtype_range
+from kinfer.serialize.utils import dtype_num_bytes, dtype_range, numpy_dtype, parse_bytes
 
 
 def check_names_match(names_a: Sequence[str], names_b: Sequence[str]) -> None:
@@ -220,21 +220,19 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
 
 class PyTorchCameraFrameSerializer(PyTorchBaseSerializer, CameraFrameSerializer[Tensor]):
     def serialize_camera_frame(self, schema: CameraFrameSchema, value: CameraFrameValue) -> Tensor:
-        value_bytes = value.data
-        if len(value_bytes) != schema.channels * schema.height * schema.width:
+        np_arr = parse_bytes(value.data, DType.UINT8)
+        tensor = torch.from_numpy(np_arr).to(self.device, self.dtype) / 255.0
+        if tensor.numel() != schema.channels * schema.height * schema.width:
             raise ValueError(
                 "Length of data must match number of channels, height, and width: "
-                f"{len(value_bytes)} != {schema.channels} * {schema.height} * {schema.width}"
+                f"{tensor.numel()} != {schema.channels} * {schema.height} * {schema.width}"
             )
-        np_arr = parse_bytes(value_bytes, DType.UINT8)
-        tensor = torch.from_numpy(np_arr).to(self.device, self.dtype) / 255.0
         tensor = tensor.view(schema.channels, schema.height, schema.width)
         return tensor
 
     def deserialize_camera_frame(self, schema: CameraFrameSchema, value: Tensor) -> CameraFrameValue:
-        camera_data = cast(list[float], value.cpu().flatten().numpy().tolist())
-        camera_bytes = bytes([int(round(a * 255)) for a in camera_data])
-        return CameraFrameValue(data=camera_bytes)
+        np_arr = (value * 255.0).detach().cpu().flatten().numpy().astype(np.uint8)
+        return CameraFrameValue(data=np_arr.tobytes())
 
 
 class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Tensor]):
@@ -253,10 +251,9 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
         return tensor
 
     def deserialize_audio_frame(self, schema: AudioFrameSchema, value: Tensor) -> AudioFrameValue:
-        audio_data = cast(list[float], value.cpu().flatten().numpy().tolist())
         _, max_value = dtype_range(schema.dtype)
-        audio_bytes = bytes([int(round(a * max_value)) for a in audio_data])
-        return AudioFrameValue(data=audio_bytes)
+        np_arr = (value * max_value).detach().cpu().flatten().numpy().astype(numpy_dtype(schema.dtype))
+        return AudioFrameValue(data=np_arr.tobytes())
 
 
 class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
