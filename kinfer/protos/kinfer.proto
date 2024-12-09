@@ -2,6 +2,25 @@ syntax = "proto3";
 
 package kinfer;
 
+/* ----- *
+ * Types *
+ * ----- */
+
+enum DType {
+    FP8 = 0;
+    FP16 = 1;
+    FP32 = 2;
+    FP64 = 3;
+    INT8 = 4;
+    INT16 = 5;
+    INT32 = 6;
+    INT64 = 7;
+    UINT8 = 8;
+    UINT16 = 9;
+    UINT32 = 10;
+    UINT64 = 11;
+}
+
 /* --------------- *
  * Joint Positions *
  * --------------- */
@@ -94,7 +113,7 @@ message CameraFrameValue {
 message AudioFrameSchema {
     int32 channels = 1;
     int32 sample_rate = 2;
-    int32 bytes_per_sample = 3;
+    DType dtype = 3;
 }
 
 message AudioFrameValue {
@@ -167,6 +186,7 @@ message VectorCommandValue {
 
 message StateTensorSchema {
     repeated int32 shape = 1;
+    DType dtype = 2;
 }
 
 message StateTensorValue {

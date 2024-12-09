@@ -10,6 +10,7 @@ from kinfer.protos.kinfer_pb2 import (
     AudioFrameValue,
     CameraFrameSchema,
     CameraFrameValue,
+    DType,
     IMUAccelerometerValue,
     IMUGyroscopeValue,
     IMUMagnetometerValue,
@@ -27,6 +28,8 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesValue,
     JointVelocityUnit,
     JointVelocityValue,
+    StateTensorSchema,
+    StateTensorValue,
     TimestampSchema,
     TimestampValue,
     Value,
@@ -157,7 +160,7 @@ def test_serialize_audio_frame() -> None:
             audio_frame=AudioFrameSchema(
                 channels=2,
                 sample_rate=44100,
-                bytes_per_sample=2,
+                dtype=DType.UINT16,
             )
         )
     )
@@ -230,5 +233,25 @@ def test_serialize_vector_command() -> None:
     assert tensor.shape == (3,)
 
     # Back to vector command value.
+    new_value = serializer.deserialize(tensor)
+    assert new_value == value
+
+
+def test_serialize_state_tensor() -> None:
+    serializer = PyTorchSerializer(
+        schema=ValueSchema(
+            state_tensor=StateTensorSchema(
+                shape=[2, 2],
+                dtype=DType.INT8,
+            )
+        )
+    )
+
+    value = Value(state_tensor=StateTensorValue(data=bytes([1, 2, 3, 4])))
+    tensor = serializer.serialize(value)
+    assert isinstance(tensor, Tensor)
+    assert tensor.shape == (2, 2)
+
+    # Back to state tensor value.
     new_value = serializer.deserialize(tensor)
     assert new_value == value

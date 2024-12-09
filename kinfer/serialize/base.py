@@ -17,6 +17,8 @@ from kinfer.protos.kinfer_pb2 import (
     JointTorquesValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
+    StateTensorSchema,
+    StateTensorValue,
     TimestampSchema,
     TimestampValue,
     Value,
@@ -301,6 +303,32 @@ class VectorCommandSerializer(ABC, Generic[T]):
         """
 
 
+class StateTensorSerializer(ABC, Generic[T]):
+    @abstractmethod
+    def serialize_state_tensor(self, schema: StateTensorSchema, value: StateTensorValue) -> T:
+        """Serialize a state tensor value.
+
+        Args:
+            schema: The schema of the state.
+            value: The state to serialize.
+
+        Returns:
+            The serialized state.
+        """
+
+    @abstractmethod
+    def deserialize_state_tensor(self, schema: StateTensorSchema, value: T) -> StateTensorValue:
+        """Deserialize a state tensor value.
+
+        Args:
+            schema: The schema of the state.
+            value: The serialized state.
+
+        Returns:
+            The deserialized state.
+        """
+
+
 class Serializer(
     JointPositionsSerializer[T],
     JointVelocitiesSerializer[T],
@@ -310,6 +338,7 @@ class Serializer(
     IMUSerializer[T],
     TimestampSerializer[T],
     VectorCommandSerializer[T],
+    StateTensorSerializer[T],
     Generic[T],
 ):
     def __init__(self, schema: ValueSchema) -> None:
@@ -358,6 +387,11 @@ class Serializer(
                 return self.serialize_vector_command(
                     schema=self.schema.vector_command,
                     value=value.vector_command,
+                )
+            case "state_tensor":
+                return self.serialize_state_tensor(
+                    schema=self.schema.state_tensor,
+                    value=value.state_tensor,
                 )
             case _:
                 raise ValueError(f"Unsupported value type: {value_type}")
@@ -419,6 +453,13 @@ class Serializer(
                 return Value(
                     vector_command=self.deserialize_vector_command(
                         schema=self.schema.vector_command,
+                        value=value,
+                    ),
+                )
+            case "state_tensor":
+                return Value(
+                    state_tensor=self.deserialize_state_tensor(
+                        schema=self.schema.state_tensor,
                         value=value,
                     ),
                 )

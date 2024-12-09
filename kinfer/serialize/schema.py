@@ -22,6 +22,7 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandValue,
 )
+from kinfer.serialize.utils import dtype_num_bytes
 
 
 def get_dummy_value(value_schema: ValueSchema) -> Value:
@@ -85,7 +86,7 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
                     * (
                         value_schema.audio_frame.channels
                         * value_schema.audio_frame.sample_rate
-                        * value_schema.audio_frame.bytes_per_sample
+                        * dtype_num_bytes(value_schema.audio_frame.dtype)
                     )
                 ),
             )

@@ -3,6 +3,7 @@
 from kinfer.protos.kinfer_pb2 import (
     AudioFrameSchema,
     CameraFrameSchema,
+    DType,
     IMUSchema,
     InputSchema,
     JointPositionsSchema,
@@ -56,7 +57,7 @@ def test_serialize_schema() -> None:
                 audio_frame=AudioFrameSchema(
                     channels=2,
                     sample_rate=44100,
-                    bytes_per_sample=2,
+                    dtype=DType.UINT8,
                 ),
             ),
             ValueSchema(
