@@ -6,6 +6,4 @@ onnx
 onnxruntime
 
 # Protocol Buffers
-grpcio
-grpcio-tools
 protobuf
