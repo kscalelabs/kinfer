@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Union
 import numpy as np
 import onnx
 import onnxruntime as ort  # type: ignore[import-untyped]
-
+from kinfer.serialize.pytorch import PyTorchInputSerializer
 
 class ONNXModel:
     """Wrapper for ONNX model inference."""
@@ -15,6 +15,7 @@ class ONNXModel:
     def __init__(
         self,
         model_path: str,
+        input_schema: InputSchema,
     ) -> None:
         """Initialize ONNX model.
 
@@ -23,6 +24,7 @@ class ONNXModel:
             config: Optional inference configuration
         """
         self.model_path = model_path
+        self.input_serializer = PyTorchInputSerializer(schema=input_schema)
 
         # Load model and create inference session
         self.model = onnx.load(model_path)
@@ -61,17 +63,11 @@ class ONNXModel:
         Returns:
             Model outputs in the same format as inputs
         """
-        # Convert single array to dict
-        if isinstance(inputs, np.ndarray):
-            input_dict = {self.input_details[0]["name"]: inputs}
-        # Convert list to dict
-        elif isinstance(inputs, list):
-            input_dict = {detail["name"]: arr for detail, arr in zip(self.input_details, inputs)}
-        else:
-            input_dict = inputs
+        # Serialize inputs
+        serialized_inputs = self.input_serializer.serialize(inputs)
 
         # Run inference - pass None to output_names param to get all outputs
-        outputs = self.session.run(None, input_dict)
+        outputs = self.session.run(None, serialized_inputs)
 
         # Convert output format to match input
         if isinstance(inputs, np.ndarray):
