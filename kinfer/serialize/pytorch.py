@@ -28,6 +28,7 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesValue,
     JointVelocityUnit,
     JointVelocityValue,
+    OutputSchema,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -376,3 +377,46 @@ class PyTorchSerializer(
 class PyTorchInputSerializer(MultiSerializer[Tensor]):
     def __init__(self, schema: InputSchema) -> None:
         super().__init__([PyTorchSerializer(schema=s) for s in schema.inputs])
+
+
+class PyTorchOutputSerializer(MultiSerializer[Tensor]):
+    def __init__(self, schema: OutputSchema) -> None:
+        super().__init__([PyTorchSerializer(schema=s) for s in schema.outputs])
+
+
+if __name__ == "__main__":
+    # Create an example InputSchema with multiple value types
+    schema = InputSchema(inputs=[
+        ValueSchema(
+            joint_positions=JointPositionsSchema(
+                joint_names=["joint1", "joint2"],
+                unit=JointPositionUnit.RADIANS
+            )
+        ),
+        ValueSchema(
+            timestamp=TimestampSchema(
+                start_seconds=0,
+                start_nanos=0
+            )
+        )
+    ])
+
+    # Create example input values
+    joint_positions = JointPositionsValue(values=[
+        JointPositionValue(joint_name="joint1", value=1.5, unit=JointPositionUnit.RADIANS),
+        JointPositionValue(joint_name="joint2", value=0.5, unit=JointPositionUnit.RADIANS)
+    ])
+    timestamp = TimestampValue(seconds=1, nanos=500000000)  # 1.5 seconds
+
+    # Create and use the serializer
+    serializer = PyTorchInputSerializer(schema)
+    breakpoint()
+    tensors = serializer.serialize(timestamp)
+
+    print("Serialized tensors:", tensors)
+    # Expected output will be a list of two tensors:
+    # [tensor([1.5000, 0.5000]), tensor([1.5000])]
+
+    # Deserialize back
+    deserialized = serializer.deserialize(tensors)
+    print("Deserialized values:", deserialized)

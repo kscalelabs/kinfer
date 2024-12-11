@@ -7,7 +7,9 @@ from typing import Any, Dict, List, Union
 import numpy as np
 import onnx
 import onnxruntime as ort  # type: ignore[import-untyped]
-from kinfer.serialize.pytorch import PyTorchInputSerializer
+from kinfer.serialize.pytorch import PyTorchInputSerializer, PyTorchOutputSerializer
+from kinfer.protos.kinfer_pb2 import InputSchema, OutputSchema, Input, Output
+
 
 class ONNXModel:
     """Wrapper for ONNX model inference."""
@@ -16,6 +18,7 @@ class ONNXModel:
         self,
         model_path: str,
         input_schema: InputSchema,
+        output_schema: OutputSchema,
     ) -> None:
         """Initialize ONNX model.
 
@@ -25,6 +28,7 @@ class ONNXModel:
         """
         self.model_path = model_path
         self.input_serializer = PyTorchInputSerializer(schema=input_schema)
+        self.output_serializer = PyTorchOutputSerializer(schema=output_schema)
 
         # Load model and create inference session
         self.model = onnx.load(model_path)
@@ -53,29 +57,23 @@ class ONNXModel:
         self.output_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_outputs()]
 
     def __call__(
-        self, inputs: Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]
-    ) -> Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]:
+        self, input: Input
+    ) -> Output:
         """Run inference on input data.
 
         Args:
-            inputs: Input data as numpy array, dictionary of arrays, or list of arrays
+            inputs: Repeated Value objects
 
         Returns:
-            Model outputs in the same format as inputs
+            Repeated Value objects
+            
         """
-        # Serialize inputs
-        serialized_inputs = self.input_serializer.serialize(inputs)
+        serialized_inputs = self.input_serializer.serialize(input)
 
         # Run inference - pass None to output_names param to get all outputs
         outputs = self.session.run(None, serialized_inputs)
 
-        # Convert output format to match input
-        if isinstance(inputs, np.ndarray):
-            return outputs[0]
-        elif isinstance(inputs, list):
-            return outputs
-        else:
-            return {detail["name"]: arr for detail, arr in zip(self.output_details, outputs)}
+        return self.output_serializer.deserialize(outputs)
 
     def run(self, inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         """Directly passes inputs to the model and returns outputs.
