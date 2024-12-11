@@ -66,7 +66,6 @@ class ONNXModel:
 
         Returns:
             Repeated Value objects
-            
         """
         serialized_inputs = self.input_serializer.serialize(input)
 
