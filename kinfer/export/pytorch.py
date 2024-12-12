@@ -42,7 +42,9 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
 
 
 def add_metadata_to_onnx(
-    model_proto: onnx.ModelProto, metadata: Dict[str, Any], config: Optional[object] = None
+    model_proto: onnx.ModelProto, 
+    metadata: Dict[str, Any], 
+    config: Optional[object] = None
 ) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
