@@ -154,18 +154,34 @@ message IMUValue {
     IMUMagnetometerValue magnetic_field = 3;
 }
 
+message AngularVelocitySchema {
+}
+
+message AngularVelocityValue {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message EulerRotationSchema {
+}
+
+message EulerRotationValue {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
 /* --------- *
  * Timestamp *
  * --------- */
 
 message TimestampSchema {
-    int64 start_seconds = 1;
-    int32 start_nanos = 2;
+    float start_seconds = 1;
 }
 
 message TimestampValue {
-    int64 seconds = 1;
-    int32 nanos = 2;
+    float seconds = 1;
 }
 
 /* ------------------- *
@@ -190,7 +206,7 @@ message StateTensorSchema {
 }
 
 message StateTensorValue {
-    bytes data = 1;
+    repeated DType values = 1;
 }
 
 /* ----- *
@@ -209,6 +225,8 @@ message Value {
         TimestampValue timestamp = 8;
         VectorCommandValue vector_command = 9;
         StateTensorValue state_tensor = 10;
+        AngularVelocityValue angular_velocity = 11;
+        EulerRotationValue euler_rotation = 12;
     }
 }
 
@@ -224,6 +242,8 @@ message ValueSchema {
         TimestampSchema timestamp = 8;
         VectorCommandSchema vector_command = 9;
         StateTensorSchema state_tensor = 10;
+        AngularVelocitySchema angular_velocity = 11;
+        EulerRotationSchema euler_rotation = 12;
     }
 }
 
