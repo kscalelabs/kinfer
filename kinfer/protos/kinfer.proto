@@ -200,14 +200,24 @@ message VectorCommandValue {
  * State Tensor *
  * ------------ */
 
+message StateTensorSchema2 {
+    repeated int32 shape = 1;
+    DType dtype = 2;
+}
+
+message StateTensorValue2 {
+    repeated float values = 1;
+}
+
 message StateTensorSchema {
     repeated int32 shape = 1;
     DType dtype = 2;
 }
 
 message StateTensorValue {
-    repeated DType values = 1;
+    bytes data = 1;
 }
+
 
 /* ----- *
  * Value *
