@@ -9,7 +9,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import onnx
-import onnxruntime as ort  # type: ignore[import-untyped]
+import onnxruntime as ort
 import torch
 from torch import nn
 
@@ -42,7 +42,9 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
 
 
 def add_metadata_to_onnx(
-    model_proto: onnx.ModelProto, metadata: Dict[str, Any], config: Optional[object] = None
+    model_proto: onnx.ModelProto,
+    metadata: Dict[str, Any],
+    config: Optional[object] = None,
 ) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
@@ -146,7 +148,7 @@ def create_example_inputs(model: nn.Module) -> Union[torch.Tensor, Tuple[torch.T
     return tuple(input_tensors)
 
 
-def export_to_onnx(
+def export_model(
     model: nn.Module,
     input_tensors: Optional[Union[torch.Tensor, Tuple[torch.Tensor, ...]]] = None,
     config: Optional[object] = None,

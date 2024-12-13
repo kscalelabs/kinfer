@@ -38,6 +38,7 @@ exclude = "build/"
 module = [
     "google.*",
     "kinfer.protos.*",
+    "onnxruntime.*",
 ]
 
 ignore_missing_imports = true

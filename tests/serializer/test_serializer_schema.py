@@ -16,7 +16,7 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
 )
-from kinfer.serialize.pytorch import PyTorchInputSerializer
+from kinfer.serialize.pytorch import PyTorchMultiSerializer
 from kinfer.serialize.schema import get_dummy_inputs
 
 
@@ -85,8 +85,8 @@ def test_serialize_schema() -> None:
     )
 
     dummy_input = get_dummy_inputs(input_schema)
-    serializer = PyTorchInputSerializer(schema=input_schema)
-    dummy_input_serialized = serializer.serialize(dummy_input)
+    serializer = PyTorchMultiSerializer(schema=input_schema)
+    dummy_input_serialized = serializer.serialize_input(dummy_input)
     assert len(dummy_input_serialized) == len(input_schema.inputs)
-    dummy_input_deserialized = serializer.deserialize(dummy_input_serialized)
+    dummy_input_deserialized = serializer.deserialize_input(dummy_input_serialized)
     assert len(dummy_input_deserialized.inputs) == len(dummy_input.inputs)

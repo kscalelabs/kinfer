@@ -11,12 +11,15 @@ from kinfer.protos.kinfer_pb2 import (
     IMUSchema,
     IMUValue,
     Input,
+    JointCommandsSchema,
+    JointCommandsValue,
     JointPositionsSchema,
     JointPositionsValue,
     JointTorquesSchema,
     JointTorquesValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
+    Output,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -130,6 +133,40 @@ class JointTorquesSerializer(ABC, Generic[T]):
 
         Returns:
             The deserialized joint torques.
+        """
+
+
+class JointCommandsSerializer(ABC, Generic[T]):
+    @abstractmethod
+    def serialize_joint_commands(
+        self,
+        schema: JointCommandsSchema,
+        value: JointCommandsValue,
+    ) -> T:
+        """Serialize a joint commands value.
+
+        Args:
+            schema: The schema of the joint commands.
+            value: The joint commands to serialize.
+
+        Returns:
+            The serialized joint commands.
+        """
+
+    @abstractmethod
+    def deserialize_joint_commands(
+        self,
+        schema: JointCommandsSchema,
+        value: T,
+    ) -> JointCommandsValue:
+        """Deserialize a joint commands value.
+
+        Args:
+            schema: The schema of the joint commands.
+            value: The serialized joint commands.
+
+        Returns:
+            The deserialized joint commands.
         """
 
 
@@ -333,6 +370,7 @@ class Serializer(
     JointPositionsSerializer[T],
     JointVelocitiesSerializer[T],
     JointTorquesSerializer[T],
+    JointCommandsSerializer[T],
     CameraFrameSerializer[T],
     AudioFrameSerializer[T],
     IMUSerializer[T],
@@ -362,6 +400,11 @@ class Serializer(
                 return self.serialize_joint_torques(
                     schema=self.schema.joint_torques,
                     value=value.joint_torques,
+                )
+            case "joint_commands":
+                return self.serialize_joint_commands(
+                    schema=self.schema.joint_commands,
+                    value=value.joint_commands,
                 )
             case "camera_frame":
                 return self.serialize_camera_frame(
@@ -421,6 +464,13 @@ class Serializer(
                         value=value,
                     ),
                 )
+            case "joint_commands":
+                return Value(
+                    joint_commands=self.deserialize_joint_commands(
+                        schema=self.schema.joint_commands,
+                        value=value,
+                    ),
+                )
             case "camera_frame":
                 return Value(
                     camera_frame=self.deserialize_camera_frame(
@@ -471,8 +521,14 @@ class MultiSerializer(Generic[T]):
     def __init__(self, serializers: Sequence[Serializer[T]]) -> None:
         self.serializers = list(serializers)
 
-    def serialize(self, input: Input) -> dict[str, T]:
+    def serialize_input(self, input: Input) -> dict[str, T]:
         return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
 
-    def deserialize(self, input: dict[str, T]) -> Input:
+    def serialize_output(self, output: Output) -> dict[str, T]:
+        return {s.schema.value_name: s.serialize(o) for s, o in zip(self.serializers, output.outputs)}
+
+    def deserialize_input(self, input: dict[str, T]) -> Input:
         return Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])
+
+    def deserialize_output(self, output: dict[str, T]) -> Output:
+        return Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])

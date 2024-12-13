@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 import onnx
-import onnxruntime as ort  # type: ignore[import-untyped]
+import onnxruntime as ort
 
 
 class ONNXModel:

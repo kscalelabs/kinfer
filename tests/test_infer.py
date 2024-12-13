@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 
-from kinfer.export.pytorch import export_to_onnx
+from kinfer.export.pytorch import export_model
 from kinfer.inference.python import ONNXModel
 
 
@@ -44,7 +44,7 @@ def model_path(tmp_path: Path) -> str:
     model = SimpleModel(config)
 
     save_path = str(tmp_path / "test_model.onnx")
-    export_to_onnx(model=model, input_tensors=torch.randn(1, 10), config=config, save_path=save_path)
+    export_model(model=model, input_tensors=torch.randn(1, 10), config=config, save_path=save_path)
 
     return save_path
 
@@ -114,7 +114,7 @@ def test_comprehensive_model_workflow(tmp_path: Path) -> None:
     input_tensor = torch.randn(1, 10)
 
     save_path = str(tmp_path / "test_model.onnx")
-    export_to_onnx(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
+    export_model(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
 
     # Load model for inference
     onnx_model = ONNXModel(save_path)
@@ -166,7 +166,7 @@ def test_export_with_given_input(tmp_path: Path) -> None:
     input_tensor = torch.randn(1, 10)
 
     save_path = str(tmp_path / "explicit_input_model.onnx")
-    session = export_to_onnx(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
+    session = export_model(model=model, input_tensors=input_tensor, config=config, save_path=save_path)
 
     # Verify input shape matches what we provided
     inputs = session.get_inputs()
@@ -180,7 +180,7 @@ def test_export_with_inferred_input(tmp_path: Path) -> None:
     model = SimpleModel(config)
 
     save_path = str(tmp_path / "inferred_input_model.onnx")
-    session = export_to_onnx(
+    session = export_model(
         model=model,
         input_tensors=None,
         config=config,

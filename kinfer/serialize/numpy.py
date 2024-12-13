@@ -1,8 +1,6 @@
-"""Defines a serializer for PyTorch tensors."""
+"""Defines a serializer for Numpy arrays."""
 
 import numpy as np
-import torch
-from torch import Tensor
 
 from kinfer.protos.kinfer_pb2 import (
     AudioFrameSchema,
@@ -57,84 +55,76 @@ from kinfer.serialize.utils import (
     dtype_range,
     numpy_dtype,
     parse_bytes,
-    pytorch_dtype,
 )
 
 
-class PyTorchBaseSerializer:
-    def __init__(
-        self,
-        device: str | torch.device | None = None,
-        dtype: torch.dtype | None = None,
-    ) -> None:
-        self.device = device
+class NumpyBaseSerializer:
+    def __init__(self, dtype: np.dtype | None = None) -> None:
         self.dtype = dtype
 
 
-class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSerializer[Tensor]):
+class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerializer[np.ndarray]):
     def serialize_joint_positions(
         self,
         schema: JointPositionsSchema,
         value: JointPositionsValue,
-    ) -> Tensor:
+    ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
-        tensor = torch.tensor(
+        array = np.array(
             [
                 convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit)
                 for name in schema.joint_names
             ],
             dtype=self.dtype,
-            device=self.device,
         )
-        return tensor
+        return array
 
     def deserialize_joint_positions(
         self,
         schema: JointPositionsSchema,
-        value: Tensor,
+        value: np.ndarray,
     ) -> JointPositionsValue:
         if value.shape != (len(schema.joint_names),):
             raise ValueError(
-                f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
+                f"Shape of array must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        value_list = value.flatten().tolist()
         return JointPositionsValue(
             values=[
-                JointPositionValue(joint_name=name, value=value_list[i], unit=schema.unit)
+                JointPositionValue(
+                    joint_name=name,
+                    value=value_list[i],
+                    unit=schema.unit,
+                )
                 for i, name in enumerate(schema.joint_names)
             ]
         )
 
 
-class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSerializer[Tensor]):
+class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSerializer[np.ndarray]):
     def serialize_joint_velocities(
         self,
         schema: JointVelocitiesSchema,
         value: JointVelocitiesValue,
-    ) -> Tensor:
+    ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
-        tensor = torch.tensor(
+        array = np.array(
             [
                 convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
                 for name in schema.joint_names
             ],
             dtype=self.dtype,
-            device=self.device,
         )
-        return tensor
+        return array
 
     def deserialize_joint_velocities(
         self,
         schema: JointVelocitiesSchema,
-        value: Tensor,
+        value: np.ndarray,
     ) -> JointVelocitiesValue:
-        if value.shape != (len(schema.joint_names),):
-            raise ValueError(
-                f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
-            )
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        value_list = value.flatten().tolist()
         return JointVelocitiesValue(
             values=[
                 JointVelocityValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -143,31 +133,26 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
         )
 
 
-class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerializer[Tensor]):
+class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np.ndarray]):
     def serialize_joint_torques(
         self,
         schema: JointTorquesSchema,
         value: JointTorquesValue,
-    ) -> Tensor:
+    ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
-        tensor = torch.tensor(
+        array = np.array(
             [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in schema.joint_names],
             dtype=self.dtype,
-            device=self.device,
         )
-        return tensor
+        return array
 
     def deserialize_joint_torques(
         self,
         schema: JointTorquesSchema,
-        value: Tensor,
+        value: np.ndarray,
     ) -> JointTorquesValue:
-        if value.shape != (len(schema.joint_names),):
-            raise ValueError(
-                f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
-            )
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        value_list = value.flatten().tolist()
         return JointTorquesValue(
             values=[
                 JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -176,13 +161,13 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
         )
 
 
-class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSerializer[Tensor]):
-    def _convert_value_to_tensor(
+class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[np.ndarray]):
+    def _convert_value_to_array(
         self,
         value: JointCommandValue,
         schema: JointCommandsSchema,
-    ) -> Tensor:
-        return torch.tensor(
+    ) -> np.ndarray:
+        return np.array(
             [
                 convert_torque(value.torque, value.torque_unit, schema.torque_unit),
                 convert_angular_velocity(value.velocity, value.velocity_unit, schema.velocity_unit),
@@ -191,17 +176,16 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
                 value.kd,
             ],
             dtype=self.dtype,
-            device=self.device,
         )
 
-    def _convert_tensor_to_value(
+    def _convert_array_to_value(
         self,
         values: list[float],
         schema: JointCommandsSchema,
         name: str,
     ) -> JointCommandValue:
         if len(values) != 5:
-            raise ValueError(f"Shape of tensor must match number of joint commands: {len(values)} != 5")
+            raise ValueError(f"Shape of array must match number of joint commands: {len(values)} != 5")
         return JointCommandValue(
             joint_name=name,
             torque=values[0],
@@ -218,48 +202,48 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
         self,
         schema: JointCommandsSchema,
         value: JointCommandsValue,
-    ) -> Tensor:
+    ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
-        tensor = torch.stack(
-            [self._convert_value_to_tensor(value_map[name], schema) for name in schema.joint_names],
-            dim=0,
+        array = np.stack(
+            [self._convert_value_to_array(value_map[name], schema) for name in schema.joint_names],
+            axis=0,
         )
-        return tensor
+        return array
 
-    def deserialize_joint_commands(self, schema: JointCommandsSchema, value: Tensor) -> JointCommandsValue:
+    def deserialize_joint_commands(self, schema: JointCommandsSchema, value: np.ndarray) -> JointCommandsValue:
         if value.shape != (len(schema.joint_names), 5):
             raise ValueError(
-                "Shape of tensor must match number of joint names and commands: "
+                "Shape of array must match number of joint names and commands: "
                 f"{value.shape} != ({len(schema.joint_names)}, 5)"
             )
-        value_list = value.detach().cpu().numpy().tolist()
+        value_list = value.tolist()
         return JointCommandsValue(
             values=[
-                self._convert_tensor_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
+                self._convert_array_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
             ]
         )
 
 
-class PyTorchCameraFrameSerializer(PyTorchBaseSerializer, CameraFrameSerializer[Tensor]):
-    def serialize_camera_frame(self, schema: CameraFrameSchema, value: CameraFrameValue) -> Tensor:
+class NumpyCameraFrameSerializer(NumpyBaseSerializer, CameraFrameSerializer[np.ndarray]):
+    def serialize_camera_frame(self, schema: CameraFrameSchema, value: CameraFrameValue) -> np.ndarray:
         np_arr = parse_bytes(value.data, DType.UINT8)
-        tensor = torch.from_numpy(np_arr).to(self.device, self.dtype) / 255.0
-        if tensor.numel() != schema.channels * schema.height * schema.width:
+        array = np_arr.astype(self.dtype) / 255.0
+        if array.size != schema.channels * schema.height * schema.width:
             raise ValueError(
                 "Length of data must match number of channels, height, and width: "
-                f"{tensor.numel()} != {schema.channels} * {schema.height} * {schema.width}"
+                f"{array.size} != {schema.channels} * {schema.height} * {schema.width}"
             )
-        tensor = tensor.view(schema.channels, schema.height, schema.width)
-        return tensor
+        array = array.reshape(schema.channels, schema.height, schema.width)
+        return array
 
-    def deserialize_camera_frame(self, schema: CameraFrameSchema, value: Tensor) -> CameraFrameValue:
-        np_arr = (value * 255.0).detach().cpu().flatten().numpy().astype(np.uint8)
+    def deserialize_camera_frame(self, schema: CameraFrameSchema, value: np.ndarray) -> CameraFrameValue:
+        np_arr = (value * 255.0).flatten().astype(np.uint8)
         return CameraFrameValue(data=np_arr.tobytes())
 
 
-class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Tensor]):
-    def serialize_audio_frame(self, schema: AudioFrameSchema, value: AudioFrameValue) -> Tensor:
+class NumpyAudioFrameSerializer(NumpyBaseSerializer, AudioFrameSerializer[np.ndarray]):
+    def serialize_audio_frame(self, schema: AudioFrameSchema, value: AudioFrameValue) -> np.ndarray:
         value_bytes = value.data
         if len(value_bytes) != schema.channels * schema.sample_rate * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -268,49 +252,46 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
             )
         _, max_value = dtype_range(schema.dtype)
         np_arr = parse_bytes(value_bytes, schema.dtype)
-        tensor = torch.from_numpy(np_arr).to(self.device, self.dtype)
-        tensor = tensor.view(schema.channels, -1)
-        tensor = tensor / max_value
-        return tensor
+        array = np_arr.astype(self.dtype)
+        array = array.reshape(schema.channels, -1)
+        array = array / max_value
+        return array
 
-    def deserialize_audio_frame(self, schema: AudioFrameSchema, value: Tensor) -> AudioFrameValue:
+    def deserialize_audio_frame(self, schema: AudioFrameSchema, value: np.ndarray) -> AudioFrameValue:
         _, max_value = dtype_range(schema.dtype)
-        np_arr = (value * max_value).detach().cpu().flatten().numpy().astype(numpy_dtype(schema.dtype))
+        np_arr = (value * max_value).flatten().astype(numpy_dtype(schema.dtype))
         return AudioFrameValue(data=np_arr.tobytes())
 
 
-class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
-    def serialize_imu(self, schema: IMUSchema, value: IMUValue) -> Tensor:
-        vectors: list[Tensor] = []
+class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
+    def serialize_imu(self, schema: IMUSchema, value: IMUValue) -> np.ndarray:
+        vectors = []
         if schema.use_accelerometer:
             vectors.append(
-                torch.tensor(
+                np.array(
                     [value.linear_acceleration.x, value.linear_acceleration.y, value.linear_acceleration.z],
                     dtype=self.dtype,
-                    device=self.device,
                 )
             )
         if schema.use_gyroscope:
             vectors.append(
-                torch.tensor(
+                np.array(
                     [value.angular_velocity.x, value.angular_velocity.y, value.angular_velocity.z],
                     dtype=self.dtype,
-                    device=self.device,
                 )
             )
         if schema.use_magnetometer:
             vectors.append(
-                torch.tensor(
+                np.array(
                     [value.magnetic_field.x, value.magnetic_field.y, value.magnetic_field.z],
                     dtype=self.dtype,
-                    device=self.device,
                 )
             )
         if not vectors:
             raise ValueError("IMU has nothing to serialize")
-        return torch.stack(vectors, dim=0)
+        return np.stack(vectors, axis=0)
 
-    def deserialize_imu(self, schema: IMUSchema, value: Tensor) -> IMUValue:
+    def deserialize_imu(self, schema: IMUSchema, value: np.ndarray) -> IMUValue:
         vectors = value.tolist()
         imu_value = IMUValue()
         if schema.use_accelerometer:
@@ -331,33 +312,33 @@ class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
         return imu_value
 
 
-class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tensor]):
-    def serialize_timestamp(self, schema: TimestampSchema, value: TimestampValue) -> Tensor:
+class NumpyTimestampSerializer(NumpyBaseSerializer, TimestampSerializer[np.ndarray]):
+    def serialize_timestamp(self, schema: TimestampSchema, value: TimestampValue) -> np.ndarray:
         elapsed_seconds = value.seconds - schema.start_seconds
         elapsed_nanos = value.nanos - schema.start_nanos
         if elapsed_nanos < 0:
             elapsed_seconds -= 1
             elapsed_nanos += 1_000_000_000
         total_elapsed_seconds = elapsed_seconds + elapsed_nanos / 1_000_000_000
-        return torch.tensor([total_elapsed_seconds], dtype=self.dtype, device=self.device, requires_grad=False)
+        return np.array([total_elapsed_seconds], dtype=self.dtype)
 
-    def deserialize_timestamp(self, schema: TimestampSchema, value: Tensor) -> TimestampValue:
+    def deserialize_timestamp(self, schema: TimestampSchema, value: np.ndarray) -> TimestampValue:
         total_elapsed_seconds = value.item()
         elapsed_seconds = int(total_elapsed_seconds)
         elapsed_nanos = int((total_elapsed_seconds - elapsed_seconds) * 1_000_000_000)
         return TimestampValue(seconds=elapsed_seconds, nanos=elapsed_nanos)
 
 
-class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSerializer[Tensor]):
-    def serialize_vector_command(self, schema: VectorCommandSchema, value: VectorCommandValue) -> Tensor:
-        return torch.tensor(value.values, dtype=self.dtype, device=self.device)
+class NumpyVectorCommandSerializer(NumpyBaseSerializer, VectorCommandSerializer[np.ndarray]):
+    def serialize_vector_command(self, schema: VectorCommandSchema, value: VectorCommandValue) -> np.ndarray:
+        return np.array(value.values, dtype=self.dtype)
 
-    def deserialize_vector_command(self, schema: VectorCommandSchema, value: Tensor) -> VectorCommandValue:
+    def deserialize_vector_command(self, schema: VectorCommandSchema, value: np.ndarray) -> VectorCommandValue:
         return VectorCommandValue(values=value.tolist())
 
 
-class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[Tensor]):
-    def serialize_state_tensor(self, schema: StateTensorSchema, value: StateTensorValue) -> Tensor:
+class NumpyStateTensorSerializer(NumpyBaseSerializer, StateTensorSerializer[np.ndarray]):
+    def serialize_state_tensor(self, schema: StateTensorSchema, value: StateTensorValue) -> np.ndarray:
         value_bytes = value.data
         if len(value_bytes) != np.prod(schema.shape) * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -365,38 +346,38 @@ class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[
                 f"{len(value_bytes)} != {np.prod(schema.shape)} * {dtype_num_bytes(schema.dtype)}"
             )
         np_arr = parse_bytes(value_bytes, schema.dtype)
-        tensor = torch.from_numpy(np_arr).to(self.device, pytorch_dtype(schema.dtype))
-        tensor = tensor.view(tuple(schema.shape))
-        return tensor
+        array = np.ascontiguousarray(np_arr.astype(numpy_dtype(schema.dtype)))
+        array = array.reshape(tuple(schema.shape))
+        return array
 
-    def deserialize_state_tensor(self, schema: StateTensorSchema, value: Tensor) -> StateTensorValue:
-        return StateTensorValue(data=value.cpu().flatten().numpy().tobytes())
+    def deserialize_state_tensor(self, schema: StateTensorSchema, value: np.ndarray) -> StateTensorValue:
+        contiguous_value = np.ascontiguousarray(value)
+        return StateTensorValue(data=contiguous_value.flatten().tobytes())
 
 
-class PyTorchSerializer(
-    PyTorchJointPositionsSerializer,
-    PyTorchJointVelocitiesSerializer,
-    PyTorchJointTorquesSerializer,
-    PyTorchJointCommandsSerializer,
-    PyTorchCameraFrameSerializer,
-    PyTorchAudioFrameSerializer,
-    PyTorchIMUSerializer,
-    PyTorchTimestampSerializer,
-    PyTorchVectorCommandSerializer,
-    PyTorchStateTensorSerializer,
-    Serializer[Tensor],
+class NumpySerializer(
+    NumpyJointPositionsSerializer,
+    NumpyJointVelocitiesSerializer,
+    NumpyJointTorquesSerializer,
+    NumpyJointCommandsSerializer,
+    NumpyCameraFrameSerializer,
+    NumpyAudioFrameSerializer,
+    NumpyIMUSerializer,
+    NumpyTimestampSerializer,
+    NumpyVectorCommandSerializer,
+    NumpyStateTensorSerializer,
+    Serializer[np.ndarray],
 ):
     def __init__(
         self,
         schema: ValueSchema,
         *,
-        device: str | torch.device | None = None,
-        dtype: torch.dtype | None = None,
+        dtype: np.dtype | None = None,
     ) -> None:
-        PyTorchBaseSerializer.__init__(self, device=device, dtype=dtype)
+        NumpyBaseSerializer.__init__(self, dtype=dtype)
         Serializer.__init__(self, schema=schema)
 
 
-class PyTorchMultiSerializer(MultiSerializer[Tensor]):
+class NumpyMultiSerializer(MultiSerializer[np.ndarray]):
     def __init__(self, schema: InputSchema | OutputSchema) -> None:
-        super().__init__([PyTorchSerializer(schema=s) for s in schema.inputs])
+        super().__init__([NumpySerializer(schema=s) for s in schema.inputs])
