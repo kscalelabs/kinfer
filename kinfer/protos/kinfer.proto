@@ -92,6 +92,27 @@ message JointTorquesValue {
     repeated JointTorqueValue values = 1;
 }
 
+/* ---------------- *
+ * Actuator Command *
+ * ---------------- */
+
+message JointCommandSchema {
+    repeated string joint_names = 1;
+}
+
+message JointCommandValue {
+    string joint_name = 1;
+    float torque = 2;
+    float velocity = 3;
+    float position = 4;
+    float kp = 5;
+    float kd = 6;
+}
+
+message JointCommandsValue {
+    repeated JointCommandValue values = 1;
+}
+
 /* ------------ *
  * Camera Frame *
  * ------------ */

@@ -282,6 +282,73 @@ class JointTorquesValue(google.protobuf.message.Message):
 global___JointTorquesValue = JointTorquesValue
 
 @typing.final
+class JointCommandSchema(google.protobuf.message.Message):
+    """---------------- *
+    Actuator Command *
+    ----------------
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    JOINT_NAMES_FIELD_NUMBER: builtins.int
+    @property
+    def joint_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    def __init__(
+        self,
+        *,
+        joint_names: collections.abc.Iterable[builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["joint_names", b"joint_names"]) -> None: ...
+
+global___JointCommandSchema = JointCommandSchema
+
+@typing.final
+class JointCommandValue(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    JOINT_NAME_FIELD_NUMBER: builtins.int
+    TORQUE_FIELD_NUMBER: builtins.int
+    VELOCITY_FIELD_NUMBER: builtins.int
+    POSITION_FIELD_NUMBER: builtins.int
+    KP_FIELD_NUMBER: builtins.int
+    KD_FIELD_NUMBER: builtins.int
+    joint_name: builtins.str
+    torque: builtins.float
+    velocity: builtins.float
+    position: builtins.float
+    kp: builtins.float
+    kd: builtins.float
+    def __init__(
+        self,
+        *,
+        joint_name: builtins.str = ...,
+        torque: builtins.float = ...,
+        velocity: builtins.float = ...,
+        position: builtins.float = ...,
+        kp: builtins.float = ...,
+        kd: builtins.float = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["joint_name", b"joint_name", "kd", b"kd", "kp", b"kp", "position", b"position", "torque", b"torque", "velocity", b"velocity"]) -> None: ...
+
+global___JointCommandValue = JointCommandValue
+
+@typing.final
+class JointCommandsValue(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    VALUES_FIELD_NUMBER: builtins.int
+    @property
+    def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___JointCommandValue]: ...
+    def __init__(
+        self,
+        *,
+        values: collections.abc.Iterable[global___JointCommandValue] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["values", b"values"]) -> None: ...
+
+global___JointCommandsValue = JointCommandsValue
+
+@typing.final
 class CameraFrameSchema(google.protobuf.message.Message):
     """------------ *
     Camera Frame *

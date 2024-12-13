@@ -1,6 +1,7 @@
 """Utility functions for serializing and deserializing Kinfer values."""
 
 import numpy as np
+import torch
 
 from kinfer.protos.kinfer_pb2 import DType
 
@@ -31,6 +32,36 @@ def numpy_dtype(dtype: DType) -> type[np.floating] | type[np.integer]:
             return np.uint32
         case DType.UINT64:
             return np.uint64
+        case _:
+            raise ValueError(f"Unsupported dtype: {dtype}")
+
+
+def pytorch_dtype(dtype: DType) -> torch.dtype:
+    match dtype:
+        case DType.FP8:
+            raise NotImplementedError("FP8 is not supported")
+        case DType.FP16:
+            return torch.float16
+        case DType.FP32:
+            return torch.float32
+        case DType.FP64:
+            return torch.float64
+        case DType.INT8:
+            return torch.int8
+        case DType.INT16:
+            return torch.int16
+        case DType.INT32:
+            return torch.int32
+        case DType.INT64:
+            return torch.int64
+        case DType.UINT8:
+            return torch.uint8
+        case DType.UINT16:
+            return torch.uint16
+        case DType.UINT32:
+            return torch.uint32
+        case DType.UINT64:
+            return torch.uint64
         case _:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
