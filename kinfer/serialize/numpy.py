@@ -41,7 +41,7 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
         value: P.JointPositionsValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         array = np.array(
             [
                 convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit)
@@ -80,7 +80,7 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
         value: P.JointVelocitiesValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         array = np.array(
             [
                 convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
@@ -111,7 +111,7 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
         value: P.JointTorquesValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         array = np.array(
             [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in schema.joint_names],
             dtype=self.dtype,
@@ -175,7 +175,7 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
         value: P.JointCommandsValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         array = np.stack(
             [self._convert_value_to_array(value_map[name], schema) for name in schema.joint_names],
             axis=0,

@@ -49,7 +49,7 @@ class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSeria
         value: P.JointPositionsValue,
     ) -> Tensor:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         tensor = torch.tensor(
             [
                 convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit)
@@ -85,7 +85,7 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
         value: P.JointVelocitiesValue,
     ) -> Tensor:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         tensor = torch.tensor(
             [
                 convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
@@ -121,7 +121,7 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
         value: P.JointTorquesValue,
     ) -> Tensor:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         tensor = torch.tensor(
             [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in schema.joint_names],
             dtype=self.dtype,
@@ -191,7 +191,7 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
         value: P.JointCommandsValue,
     ) -> Tensor:
         value_map = {v.joint_name: v for v in value.values}
-        check_names_match("schema", schema.joint_names, "value", value_map.keys())
+        check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
         tensor = torch.stack(
             [self._convert_value_to_tensor(value_map[name], schema) for name in schema.joint_names],
             dim=0,

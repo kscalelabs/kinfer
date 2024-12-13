@@ -9,7 +9,7 @@ import torch
 from kinfer import protos as P
 
 
-def numpy_dtype(dtype: P.DType) -> type[np.floating] | type[np.integer]:
+def numpy_dtype(dtype: P.DType.ValueType) -> type[np.floating] | type[np.integer]:
     match dtype:
         case P.DType.FP8:
             raise NotImplementedError("FP8 is not supported")
@@ -39,7 +39,7 @@ def numpy_dtype(dtype: P.DType) -> type[np.floating] | type[np.integer]:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
 
-def pytorch_dtype(dtype: P.DType) -> torch.dtype:
+def pytorch_dtype(dtype: P.DType.ValueType) -> torch.dtype:
     match dtype:
         case P.DType.FP8:
             raise NotImplementedError("FP8 is not supported")
@@ -69,11 +69,11 @@ def pytorch_dtype(dtype: P.DType) -> torch.dtype:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
 
-def parse_bytes(data: bytes, dtype: P.DType) -> np.ndarray:
+def parse_bytes(data: bytes, dtype: P.DType.ValueType) -> np.ndarray:
     return np.frombuffer(data, dtype=numpy_dtype(dtype))
 
 
-def dtype_num_bytes(dtype: P.DType) -> int:
+def dtype_num_bytes(dtype: P.DType.ValueType) -> int:
     match dtype:
         case P.DType.FP8 | P.DType.INT8 | P.DType.UINT8:
             return 1
@@ -87,7 +87,7 @@ def dtype_num_bytes(dtype: P.DType) -> int:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
 
-def dtype_range(dtype: P.DType) -> tuple[int, int]:
+def dtype_range(dtype: P.DType.ValueType) -> tuple[int, int]:
     match dtype:
         case P.DType.FP8:
             return -1, 1
@@ -117,13 +117,21 @@ def dtype_range(dtype: P.DType) -> tuple[int, int]:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
 
-def convert_torque(value: float, from_unit: P.JointTorqueUnit, to_unit: P.JointTorqueUnit) -> float:
+def convert_torque(
+    value: float,
+    from_unit: P.JointTorqueUnit.ValueType,
+    to_unit: P.JointTorqueUnit.ValueType,
+) -> float:
     if from_unit == to_unit:
         return value
     raise ValueError(f"Unsupported unit: {from_unit}")
 
 
-def convert_angular_velocity(value: float, from_unit: P.JointVelocityUnit, to_unit: P.JointVelocityUnit) -> float:
+def convert_angular_velocity(
+    value: float,
+    from_unit: P.JointVelocityUnit.ValueType,
+    to_unit: P.JointVelocityUnit.ValueType,
+) -> float:
     if from_unit == to_unit:
         return value
     if from_unit == P.JointVelocityUnit.DEGREES_PER_SECOND:
@@ -135,7 +143,11 @@ def convert_angular_velocity(value: float, from_unit: P.JointVelocityUnit, to_un
     raise ValueError(f"Unsupported unit: {from_unit}")
 
 
-def convert_angular_position(value: float, from_unit: P.JointPositionUnit, to_unit: P.JointPositionUnit) -> float:
+def convert_angular_position(
+    value: float,
+    from_unit: P.JointPositionUnit.ValueType,
+    to_unit: P.JointPositionUnit.ValueType,
+) -> float:
     if from_unit == to_unit:
         return value
     if from_unit == P.JointPositionUnit.DEGREES:
