@@ -23,6 +23,7 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesSchema,
     JointVelocitiesValue,
     JointVelocityValue,
+    OutputSchema,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -377,6 +378,6 @@ class NumpySerializer(
         Serializer.__init__(self, schema=schema)
 
 
-class NumpyInputSerializer(MultiSerializer[np.ndarray]):
-    def __init__(self, schema: InputSchema) -> None:
+class NumpyMultiSerializer(MultiSerializer[np.ndarray]):
+    def __init__(self, schema: InputSchema | OutputSchema) -> None:
         super().__init__([NumpySerializer(schema=s) for s in schema.inputs])

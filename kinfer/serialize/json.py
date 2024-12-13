@@ -22,6 +22,7 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesSchema,
     JointVelocitiesValue,
     JointVelocityValue,
+    OutputSchema,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -329,6 +330,6 @@ class JsonSerializer(
         Serializer.__init__(self, schema=schema)
 
 
-class JsonInputSerializer(MultiSerializer[JsonValue]):
-    def __init__(self, schema: InputSchema) -> None:
+class JsonMultiSerializer(MultiSerializer[JsonValue]):
+    def __init__(self, schema: InputSchema | OutputSchema) -> None:
         super().__init__([JsonSerializer(schema=s) for s in schema.inputs])

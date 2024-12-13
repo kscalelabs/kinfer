@@ -25,6 +25,7 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesSchema,
     JointVelocitiesValue,
     JointVelocityValue,
+    OutputSchema,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -396,6 +397,6 @@ class PyTorchSerializer(
         Serializer.__init__(self, schema=schema)
 
 
-class PyTorchInputSerializer(MultiSerializer[Tensor]):
-    def __init__(self, schema: InputSchema) -> None:
+class PyTorchMultiSerializer(MultiSerializer[Tensor]):
+    def __init__(self, schema: InputSchema | OutputSchema) -> None:
         super().__init__([PyTorchSerializer(schema=s) for s in schema.inputs])

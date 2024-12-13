@@ -19,6 +19,7 @@ from kinfer.protos.kinfer_pb2 import (
     JointTorquesValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
+    Output,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -520,8 +521,14 @@ class MultiSerializer(Generic[T]):
     def __init__(self, serializers: Sequence[Serializer[T]]) -> None:
         self.serializers = list(serializers)
 
-    def serialize(self, input: Input) -> dict[str, T]:
+    def serialize_input(self, input: Input) -> dict[str, T]:
         return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
 
-    def deserialize(self, input: dict[str, T]) -> Input:
+    def serialize_output(self, output: Output) -> dict[str, T]:
+        return {s.schema.value_name: s.serialize(o) for s, o in zip(self.serializers, output.outputs)}
+
+    def deserialize_input(self, input: dict[str, T]) -> Input:
         return Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])
+
+    def deserialize_output(self, output: dict[str, T]) -> Output:
+        return Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])
