@@ -5,62 +5,31 @@ import random
 import numpy as np
 import pytest
 
-from kinfer.protos.kinfer_pb2 import (
-    AudioFrameSchema,
-    AudioFrameValue,
-    CameraFrameSchema,
-    CameraFrameValue,
-    DType,
-    IMUAccelerometerValue,
-    IMUGyroscopeValue,
-    IMUMagnetometerValue,
-    IMUSchema,
-    IMUValue,
-    JointCommandsSchema,
-    JointCommandsValue,
-    JointCommandValue,
-    JointPositionsSchema,
-    JointPositionsValue,
-    JointPositionUnit,
-    JointPositionValue,
-    JointTorquesSchema,
-    JointTorquesValue,
-    JointTorqueUnit,
-    JointTorqueValue,
-    JointVelocitiesSchema,
-    JointVelocitiesValue,
-    JointVelocityUnit,
-    JointVelocityValue,
-    StateTensorSchema,
-    StateTensorValue,
-    TimestampSchema,
-    TimestampValue,
-    Value,
-    ValueSchema,
-    VectorCommandSchema,
-    VectorCommandValue,
-)
+from kinfer import protos as P
 from kinfer.serialize.numpy import NumpySerializer
 
 
-@pytest.mark.parametrize("schema_unit", [JointPositionUnit.DEGREES, JointPositionUnit.RADIANS])
-@pytest.mark.parametrize("value_unit", [JointPositionUnit.DEGREES, JointPositionUnit.RADIANS])
-def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: JointPositionUnit) -> None:
+@pytest.mark.parametrize("schema_unit", [P.JointPositionUnit.DEGREES, P.JointPositionUnit.RADIANS])
+@pytest.mark.parametrize("value_unit", [P.JointPositionUnit.DEGREES, P.JointPositionUnit.RADIANS])
+def test_serialize_joint_positions(
+    schema_unit: P.JointPositionUnit.ValueType,
+    value_unit: P.JointPositionUnit.ValueType,
+) -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            joint_positions=JointPositionsSchema(
+        schema=P.ValueSchema(
+            joint_positions=P.JointPositionsSchema(
                 unit=schema_unit,
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
         )
     )
 
-    value = Value(
-        joint_positions=JointPositionsValue(
+    value = P.Value(
+        joint_positions=P.JointPositionsValue(
             values=[
-                JointPositionValue(joint_name="joint_2", value=60, unit=value_unit),
-                JointPositionValue(joint_name="joint_1", value=30, unit=value_unit),
-                JointPositionValue(joint_name="joint_3", value=90, unit=value_unit),
+                P.JointPositionValue(joint_name="joint_2", value=60, unit=value_unit),
+                P.JointPositionValue(joint_name="joint_1", value=30, unit=value_unit),
+                P.JointPositionValue(joint_name="joint_3", value=90, unit=value_unit),
             ]
         )
     )
@@ -71,24 +40,29 @@ def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: J
     assert len(new_value.joint_positions.values) == len(value.joint_positions.values)
 
 
-@pytest.mark.parametrize("schema_unit", [JointVelocityUnit.DEGREES_PER_SECOND, JointVelocityUnit.RADIANS_PER_SECOND])
-@pytest.mark.parametrize("value_unit", [JointVelocityUnit.DEGREES_PER_SECOND, JointVelocityUnit.RADIANS_PER_SECOND])
-def test_serialize_joint_velocities(schema_unit: JointVelocityUnit, value_unit: JointVelocityUnit) -> None:
+@pytest.mark.parametrize(
+    "schema_unit", [P.JointVelocityUnit.DEGREES_PER_SECOND, P.JointVelocityUnit.RADIANS_PER_SECOND]
+)
+@pytest.mark.parametrize("value_unit", [P.JointVelocityUnit.DEGREES_PER_SECOND, P.JointVelocityUnit.RADIANS_PER_SECOND])
+def test_serialize_joint_velocities(
+    schema_unit: P.JointVelocityUnit.ValueType,
+    value_unit: P.JointVelocityUnit.ValueType,
+) -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            joint_velocities=JointVelocitiesSchema(
+        schema=P.ValueSchema(
+            joint_velocities=P.JointVelocitiesSchema(
                 unit=schema_unit,
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
         )
     )
 
-    value = Value(
-        joint_velocities=JointVelocitiesValue(
+    value = P.Value(
+        joint_velocities=P.JointVelocitiesValue(
             values=[
-                JointVelocityValue(joint_name="joint_2", value=60, unit=value_unit),
-                JointVelocityValue(joint_name="joint_1", value=30, unit=value_unit),
-                JointVelocityValue(joint_name="joint_3", value=90, unit=value_unit),
+                P.JointVelocityValue(joint_name="joint_2", value=60, unit=value_unit),
+                P.JointVelocityValue(joint_name="joint_1", value=30, unit=value_unit),
+                P.JointVelocityValue(joint_name="joint_3", value=90, unit=value_unit),
             ]
         )
     )
@@ -99,24 +73,27 @@ def test_serialize_joint_velocities(schema_unit: JointVelocityUnit, value_unit: 
     assert len(new_value.joint_velocities.values) == len(value.joint_velocities.values)
 
 
-@pytest.mark.parametrize("schema_unit", [JointTorqueUnit.NEWTON_METERS])
-@pytest.mark.parametrize("value_unit", [JointTorqueUnit.NEWTON_METERS])
-def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: JointTorqueUnit) -> None:
+@pytest.mark.parametrize("schema_unit", [P.JointTorqueUnit.NEWTON_METERS])
+@pytest.mark.parametrize("value_unit", [P.JointTorqueUnit.NEWTON_METERS])
+def test_serialize_joint_torques(
+    schema_unit: P.JointTorqueUnit.ValueType,
+    value_unit: P.JointTorqueUnit.ValueType,
+) -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            joint_torques=JointTorquesSchema(
+        schema=P.ValueSchema(
+            joint_torques=P.JointTorquesSchema(
                 unit=schema_unit,
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
         )
     )
 
-    value = Value(
-        joint_torques=JointTorquesValue(
+    value = P.Value(
+        joint_torques=P.JointTorquesValue(
             values=[
-                JointTorqueValue(joint_name="joint_1", value=1, unit=value_unit),
-                JointTorqueValue(joint_name="joint_2", value=2, unit=value_unit),
-                JointTorqueValue(joint_name="joint_3", value=3, unit=value_unit),
+                P.JointTorqueValue(joint_name="joint_1", value=1, unit=value_unit),
+                P.JointTorqueValue(joint_name="joint_2", value=2, unit=value_unit),
+                P.JointTorqueValue(joint_name="joint_3", value=3, unit=value_unit),
             ]
         )
     )
@@ -129,51 +106,51 @@ def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: Joint
 
 def test_serialize_joint_commands() -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            joint_commands=JointCommandsSchema(
+        schema=P.ValueSchema(
+            joint_commands=P.JointCommandsSchema(
                 joint_names=["joint_1", "joint_2", "joint_3"],
-                torque_unit=JointTorqueUnit.NEWTON_METERS,
-                velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
-                position_unit=JointPositionUnit.RADIANS,
+                torque_unit=P.JointTorqueUnit.NEWTON_METERS,
+                velocity_unit=P.JointVelocityUnit.RADIANS_PER_SECOND,
+                position_unit=P.JointPositionUnit.RADIANS,
             )
         )
     )
 
-    value = Value(
-        joint_commands=JointCommandsValue(
+    value = P.Value(
+        joint_commands=P.JointCommandsValue(
             values=[
-                JointCommandValue(
+                P.JointCommandValue(
                     joint_name="joint_1",
                     torque=1,
                     velocity=2,
                     position=3,
                     kp=4,
                     kd=5,
-                    torque_unit=JointTorqueUnit.NEWTON_METERS,
-                    velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
-                    position_unit=JointPositionUnit.RADIANS,
+                    torque_unit=P.JointTorqueUnit.NEWTON_METERS,
+                    velocity_unit=P.JointVelocityUnit.RADIANS_PER_SECOND,
+                    position_unit=P.JointPositionUnit.RADIANS,
                 ),
-                JointCommandValue(
+                P.JointCommandValue(
                     joint_name="joint_2",
                     torque=2,
                     velocity=3,
                     position=4,
                     kp=5,
                     kd=6,
-                    torque_unit=JointTorqueUnit.NEWTON_METERS,
-                    velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
-                    position_unit=JointPositionUnit.RADIANS,
+                    torque_unit=P.JointTorqueUnit.NEWTON_METERS,
+                    velocity_unit=P.JointVelocityUnit.RADIANS_PER_SECOND,
+                    position_unit=P.JointPositionUnit.RADIANS,
                 ),
-                JointCommandValue(
+                P.JointCommandValue(
                     joint_name="joint_3",
                     torque=3,
                     velocity=4,
                     position=5,
                     kp=6,
                     kd=7,
-                    torque_unit=JointTorqueUnit.NEWTON_METERS,
-                    velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
-                    position_unit=JointPositionUnit.RADIANS,
+                    torque_unit=P.JointTorqueUnit.NEWTON_METERS,
+                    velocity_unit=P.JointVelocityUnit.RADIANS_PER_SECOND,
+                    position_unit=P.JointPositionUnit.RADIANS,
                 ),
             ]
         )
@@ -188,8 +165,8 @@ def test_serialize_joint_commands() -> None:
 
 def test_serialize_camera_frame() -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            camera_frame=CameraFrameSchema(
+        schema=P.ValueSchema(
+            camera_frame=P.CameraFrameSchema(
                 width=32,
                 height=64,
                 channels=3,
@@ -197,8 +174,8 @@ def test_serialize_camera_frame() -> None:
         )
     )
 
-    value = Value(
-        camera_frame=CameraFrameValue(
+    value = P.Value(
+        camera_frame=P.CameraFrameValue(
             data=bytes([random.randint(0, 255) for _ in range(32 * 64 * 3)]),
         )
     )
@@ -207,23 +184,23 @@ def test_serialize_camera_frame() -> None:
     assert array.shape == (3, 64, 32)
 
     new_value = serializer.deserialize(array)
-    assert isinstance(new_value, Value)
+    assert isinstance(new_value, P.Value)
     assert new_value == value
 
 
 def test_serialize_audio_frame() -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            audio_frame=AudioFrameSchema(
+        schema=P.ValueSchema(
+            audio_frame=P.AudioFrameSchema(
                 channels=2,
                 sample_rate=44100,
-                dtype=DType.UINT16,
+                dtype=P.DType.UINT16,
             )
         )
     )
 
-    value = Value(
-        audio_frame=AudioFrameValue(
+    value = P.Value(
+        audio_frame=P.AudioFrameValue(
             data=bytes([random.randint(0, 255) for _ in range(44100 * 2 * 2)]),
         )
     )
@@ -231,14 +208,14 @@ def test_serialize_audio_frame() -> None:
     assert isinstance(array, np.ndarray)
 
     new_value = serializer.deserialize(array)
-    assert isinstance(new_value, Value)
+    assert isinstance(new_value, P.Value)
     assert new_value == value
 
 
 def test_serialize_imu() -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            imu=IMUSchema(
+        schema=P.ValueSchema(
+            imu=P.IMUSchema(
                 use_accelerometer=True,
                 use_gyroscope=True,
                 use_magnetometer=True,
@@ -246,11 +223,11 @@ def test_serialize_imu() -> None:
         )
     )
 
-    value = Value(
-        imu=IMUValue(
-            linear_acceleration=IMUAccelerometerValue(x=1.0, y=2.0, z=3.0),
-            angular_velocity=IMUGyroscopeValue(x=4.0, y=5.0, z=6.0),
-            magnetic_field=IMUMagnetometerValue(x=7.0, y=8.0, z=9.0),
+    value = P.Value(
+        imu=P.IMUValue(
+            linear_acceleration=P.IMUAccelerometerValue(x=1.0, y=2.0, z=3.0),
+            angular_velocity=P.IMUGyroscopeValue(x=4.0, y=5.0, z=6.0),
+            magnetic_field=P.IMUMagnetometerValue(x=7.0, y=8.0, z=9.0),
         )
     )
     array = serializer.serialize(value)
@@ -261,26 +238,26 @@ def test_serialize_imu() -> None:
 
 
 def test_serialize_timestamp() -> None:
-    serializer = NumpySerializer(schema=ValueSchema(timestamp=TimestampSchema()))
+    serializer = NumpySerializer(schema=P.ValueSchema(timestamp=P.TimestampSchema()))
 
-    value = Value(
-        timestamp=TimestampValue(
+    value = P.Value(
+        timestamp=P.TimestampValue(
             seconds=1,
             nanos=500_000_000,
         ),
     )
     array = serializer.serialize(value)
     assert isinstance(array, np.ndarray)
-    assert array.item() == 1.5
+    assert float(array.item()) == 1.5
 
     new_value = serializer.deserialize(array)
     assert new_value == value
 
 
 def test_serialize_vector_command() -> None:
-    serializer = NumpySerializer(schema=ValueSchema(vector_command=VectorCommandSchema()))
+    serializer = NumpySerializer(schema=P.ValueSchema(vector_command=P.VectorCommandSchema(dimensions=3)))
 
-    value = Value(vector_command=VectorCommandValue(values=[1.0, 2.0, 3.0]))
+    value = P.Value(vector_command=P.VectorCommandValue(values=[1.0, 2.0, 3.0]))
     array = serializer.serialize(value)
     assert isinstance(array, np.ndarray)
     assert array.shape == (3,)
@@ -291,15 +268,15 @@ def test_serialize_vector_command() -> None:
 
 def test_serialize_state_tensor() -> None:
     serializer = NumpySerializer(
-        schema=ValueSchema(
-            state_tensor=StateTensorSchema(
+        schema=P.ValueSchema(
+            state_tensor=P.StateTensorSchema(
                 shape=[2, 2],
-                dtype=DType.INT8,
+                dtype=P.DType.INT8,
             )
         )
     )
 
-    value = Value(state_tensor=StateTensorValue(data=bytes([1, 2, 3, 4])))
+    value = P.Value(state_tensor=P.StateTensorValue(data=bytes([1, 2, 3, 4])))
     array = serializer.serialize(value)
     assert isinstance(array, np.ndarray)
     assert array.shape == (2, 2)

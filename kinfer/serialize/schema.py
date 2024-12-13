@@ -1,5 +1,9 @@
 """Defines utility functions for the schema."""
 
+from typing import Literal, overload
+
+from google.protobuf.json_format import ParseDict
+
 from kinfer.protos.kinfer_pb2 import (
     AudioFrameValue,
     CameraFrameValue,
@@ -23,6 +27,19 @@ from kinfer.protos.kinfer_pb2 import (
     VectorCommandValue,
 )
 from kinfer.serialize.utils import dtype_num_bytes
+
+ValueSchemaType = Literal[
+    "joint_positions",
+    "joint_velocities",
+    "joint_torques",
+    "joint_commands",
+    "camera_frame",
+    "audio_frame",
+    "imu",
+    "timestamp",
+    "vector_command",
+    "state_tensor",
+]
 
 
 def get_dummy_value(value_schema: ValueSchema) -> Value:
@@ -122,3 +139,19 @@ def get_dummy_outputs(output_schema: OutputSchema) -> Output:
     for value_schema in output_schema.outputs:
         output_value.outputs.append(get_dummy_value(value_schema))
     return output_value
+
+
+@overload
+def parse_schema(values: dict[ValueSchemaType, ValueSchema], mode: Literal["input"]) -> InputSchema: ...
+
+
+@overload
+def parse_schema(values: dict[ValueSchemaType, ValueSchema], mode: Literal["output"]) -> OutputSchema: ...
+
+
+def parse_schema(
+    values: dict[ValueSchemaType, ValueSchema],
+    mode: Literal["input", "output"],
+) -> InputSchema | OutputSchema:
+    schema = InputSchema() if mode == "input" else OutputSchema()
+    return ParseDict(values, schema)

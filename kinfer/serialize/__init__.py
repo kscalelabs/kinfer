@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from kinfer.protos.kinfer_pb2 import InputSchema, OutputSchema
+from kinfer import protos as P
 
 from .base import MultiSerializer, Serializer
 from .json import JsonMultiSerializer, JsonSerializer
@@ -12,19 +12,19 @@ from .pytorch import PyTorchMultiSerializer, PyTorchSerializer
 SerializerType = Literal["json", "numpy", "pytorch"]
 
 
-def get_serializer(serializer_type: SerializerType) -> Serializer:
+def get_serializer(schema: P.ValueSchema, serializer_type: SerializerType) -> Serializer:
     match serializer_type:
         case "json":
-            return JsonSerializer()
+            return JsonSerializer(schema=schema)
         case "numpy":
-            return NumpySerializer()
+            return NumpySerializer(schema=schema)
         case "pytorch":
-            return PyTorchSerializer()
+            return PyTorchSerializer(schema=schema)
         case _:
             raise ValueError(f"Unsupported serializer type: {serializer_type}")
 
 
-def get_multi_serializer(schema: InputSchema | OutputSchema, serializer_type: SerializerType) -> MultiSerializer:
+def get_multi_serializer(schema: P.InputSchema | P.OutputSchema, serializer_type: SerializerType) -> MultiSerializer:
     match serializer_type:
         case "json":
             return JsonMultiSerializer(schema=schema)
