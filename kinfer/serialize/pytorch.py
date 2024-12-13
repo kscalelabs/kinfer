@@ -28,6 +28,7 @@ from kinfer.protos.kinfer_pb2 import (
     JointVelocitiesValue,
     JointVelocityUnit,
     JointVelocityValue,
+    OutputSchema,
     StateTensorSchema,
     StateTensorValue,
     TimestampSchema,
@@ -35,6 +36,10 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
     VectorCommandValue,
+    AngularVelocitySchema,
+    AngularVelocityValue,
+    EulerRotationSchema,
+    EulerRotationValue,
 )
 from kinfer.serialize.base import (
     AudioFrameSerializer,
@@ -48,6 +53,8 @@ from kinfer.serialize.base import (
     StateTensorSerializer,
     TimestampSerializer,
     VectorCommandSerializer,
+    AngularVelocitySerializer,
+    EulerRotationSerializer,
 )
 from kinfer.serialize.utils import dtype_num_bytes, dtype_range, numpy_dtype, parse_bytes
 
@@ -152,6 +159,7 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
         names, values = schema.joint_names, value.values
         if set(names) != set(v.joint_name for v in values):
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
+
         value_map = {v.joint_name: v for v in values}
         tensor = torch.tensor(
             [
@@ -311,18 +319,19 @@ class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
 class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tensor]):
     def serialize_timestamp(self, schema: TimestampSchema, value: TimestampValue) -> Tensor:
         elapsed_seconds = value.seconds - schema.start_seconds
-        elapsed_nanos = value.nanos - schema.start_nanos
-        if elapsed_nanos < 0:
-            elapsed_seconds -= 1
-            elapsed_nanos += 1_000_000_000
-        total_elapsed_seconds = elapsed_seconds + elapsed_nanos / 1_000_000_000
-        return torch.tensor([total_elapsed_seconds], dtype=self.dtype, device=self.device, requires_grad=False)
+        # elapsed_nanos = value.nanos - schema.start_nanos
+        # if elapsed_nanos < 0:
+        #     elapsed_seconds -= 1
+        #     elapsed_nanos += 1_000_000_000
+        # total_elapsed_seconds = elapsed_seconds + elapsed_nanos / 1_000_000_000
+        return torch.tensor([value.seconds], dtype=self.dtype, device=self.device, requires_grad=False)
 
     def deserialize_timestamp(self, schema: TimestampSchema, value: Tensor) -> TimestampValue:
         total_elapsed_seconds = value.item()
         elapsed_seconds = int(total_elapsed_seconds)
-        elapsed_nanos = int((total_elapsed_seconds - elapsed_seconds) * 1_000_000_000)
-        return TimestampValue(seconds=elapsed_seconds, nanos=elapsed_nanos)
+        # elapsed_nanos = int((total_elapsed_seconds - elapsed_seconds) * 1_000_000_000)
+        
+        return TimestampValue(seconds=elapsed_seconds) #, nanos=elapsed_nanos)
 
 
 class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSerializer[Tensor]):
@@ -350,6 +359,32 @@ class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[
         return StateTensorValue(data=value.cpu().flatten().numpy().tobytes())
 
 
+class PyTorchAngularVelocitySerializer(PyTorchBaseSerializer, AngularVelocitySerializer[Tensor]):
+    def serialize_angular_velocity(self, schema: AngularVelocitySchema, value: AngularVelocityValue) -> Tensor:
+        return torch.tensor(
+            [value.x, value.y, value.z],
+            dtype=self.dtype,
+            device=self.device,
+        )
+
+    def deserialize_angular_velocity(self, schema: AngularVelocitySchema, value: Tensor) -> AngularVelocityValue:
+        x, y, z = value.tolist()
+        return AngularVelocityValue(x=x, y=y, z=z)
+
+
+class PyTorchEulerRotationSerializer(PyTorchBaseSerializer, EulerRotationSerializer[Tensor]):
+    def serialize_euler_rotation(self, schema: EulerRotationSchema, value: EulerRotationValue) -> Tensor:
+        return torch.tensor(
+            [value.x, value.y, value.z],
+            dtype=self.dtype,
+            device=self.device,
+        )
+
+    def deserialize_euler_rotation(self, schema: EulerRotationSchema, value: Tensor) -> EulerRotationValue:
+        x, y, z = value.tolist()
+        return EulerRotationValue(x=x, y=y, z=z)
+
+
 class PyTorchSerializer(
     PyTorchJointPositionsSerializer,
     PyTorchJointVelocitiesSerializer,
@@ -360,6 +395,8 @@ class PyTorchSerializer(
     PyTorchTimestampSerializer,
     PyTorchVectorCommandSerializer,
     PyTorchStateTensorSerializer,
+    PyTorchAngularVelocitySerializer,
+    PyTorchEulerRotationSerializer,
     Serializer[Tensor],
 ):
     def __init__(
@@ -376,3 +413,45 @@ class PyTorchSerializer(
 class PyTorchInputSerializer(MultiSerializer[Tensor]):
     def __init__(self, schema: InputSchema) -> None:
         super().__init__([PyTorchSerializer(schema=s) for s in schema.inputs])
+
+
+class PyTorchOutputSerializer(MultiSerializer[Tensor]):
+    def __init__(self, schema: OutputSchema) -> None:
+        super().__init__([PyTorchSerializer(schema=s) for s in schema.outputs])
+
+
+if __name__ == "__main__":
+    # Create an example InputSchema with multiple value types
+    schema = InputSchema(inputs=[
+        ValueSchema(
+            joint_positions=JointPositionsSchema(
+                joint_names=["joint1", "joint2"],
+                unit=JointPositionUnit.RADIANS
+            )
+        ),
+        ValueSchema(
+            timestamp=TimestampSchema(
+                start_seconds=0,
+                start_nanos=0
+            )
+        )
+    ])
+
+    # Create example input values
+    joint_positions = JointPositionsValue(values=[
+        JointPositionValue(joint_name="joint1", value=1.5, unit=JointPositionUnit.RADIANS),
+        JointPositionValue(joint_name="joint2", value=0.5, unit=JointPositionUnit.RADIANS)
+    ])
+    timestamp = TimestampValue(seconds=1, nanos=500000000)  # 1.5 seconds
+
+    # Create and use the serializer
+    serializer = PyTorchInputSerializer(schema)
+    tensors = serializer.serialize(timestamp)
+
+    print("Serialized tensors:", tensors)
+    # Expected output will be a list of two tensors:
+    # [tensor([1.5000, 0.5000]), tensor([1.5000])]
+
+    # Deserialize back
+    deserialized = serializer.deserialize(tensors)
+    print("Deserialized values:", deserialized)

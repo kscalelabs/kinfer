@@ -25,6 +25,10 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
     VectorCommandValue,
+    AngularVelocitySchema,
+    AngularVelocityValue,
+    EulerRotationSchema,
+    EulerRotationValue,
 )
 
 T = TypeVar("T")
@@ -329,6 +333,58 @@ class StateTensorSerializer(ABC, Generic[T]):
         """
 
 
+class AngularVelocitySerializer(ABC, Generic[T]):
+    @abstractmethod
+    def serialize_angular_velocity(self, schema: AngularVelocitySchema, value: AngularVelocityValue) -> T:
+        """Serialize an angular velocity value.
+
+        Args:
+            schema: The schema of the angular velocity.
+            value: The angular velocity to serialize.
+
+        Returns:
+            The serialized angular velocity.
+        """
+
+    @abstractmethod
+    def deserialize_angular_velocity(self, schema: AngularVelocitySchema, value: T) -> AngularVelocityValue:
+        """Deserialize an angular velocity value.
+
+        Args:
+            schema: The schema of the angular velocity.
+            value: The serialized angular velocity.
+
+        Returns:
+            The deserialized angular velocity.
+        """
+
+
+class EulerRotationSerializer(ABC, Generic[T]):
+    @abstractmethod
+    def serialize_euler_rotation(self, schema: EulerRotationSchema, value: EulerRotationValue) -> T:
+        """Serialize an euler rotation value.
+
+        Args:
+            schema: The schema of the euler rotation.
+            value: The euler rotation to serialize.
+
+        Returns:
+            The serialized euler rotation.
+        """
+
+    @abstractmethod
+    def deserialize_euler_rotation(self, schema: EulerRotationSchema, value: T) -> EulerRotationValue:
+        """Deserialize an euler rotation value.
+
+        Args:
+            schema: The schema of the euler rotation.
+            value: The serialized euler rotation.
+
+        Returns:
+            The deserialized euler rotation.
+        """
+
+
 class Serializer(
     JointPositionsSerializer[T],
     JointVelocitiesSerializer[T],
@@ -339,6 +395,8 @@ class Serializer(
     TimestampSerializer[T],
     VectorCommandSerializer[T],
     StateTensorSerializer[T],
+    AngularVelocitySerializer[T],
+    EulerRotationSerializer[T],
     Generic[T],
 ):
     def __init__(self, schema: ValueSchema) -> None:
@@ -392,6 +450,21 @@ class Serializer(
                 return self.serialize_state_tensor(
                     schema=self.schema.state_tensor,
                     value=value.state_tensor,
+                )
+            case "state_tensor2":
+                return self.serialize_state_tensor2(
+                    schema=self.schema.state_tensor2,
+                    value=value.state_tensor2,
+                )
+            case "angular_velocity":
+                return self.serialize_angular_velocity(
+                    schema=self.schema.angular_velocity,
+                    value=value.angular_velocity,
+                )
+            case "euler_rotation":
+                return self.serialize_euler_rotation(
+                    schema=self.schema.euler_rotation,
+                    value=value.euler_rotation,
                 )
             case _:
                 raise ValueError(f"Unsupported value type: {value_type}")
@@ -460,6 +533,27 @@ class Serializer(
                 return Value(
                     state_tensor=self.deserialize_state_tensor(
                         schema=self.schema.state_tensor,
+                        value=value,
+                    ),
+                )
+            case "state_tensor2":
+                return Value(
+                    state_tensor2=self.deserialize_state_tensor2(
+                        schema=self.schema.state_tensor2,
+                        value=value,
+                    ),
+                )
+            case "angular_velocity":
+                return Value(
+                    angular_velocity=self.deserialize_angular_velocity(
+                        schema=self.schema.angular_velocity,
+                        value=value,
+                    ),
+                )
+            case "euler_rotation":
+                return Value(
+                    euler_rotation=self.deserialize_euler_rotation(
+                        schema=self.schema.euler_rotation,
                         value=value,
                     ),
                 )

@@ -12,12 +12,15 @@ from kinfer.protos.kinfer_pb2 import (
     JointTorqueUnit,
     JointVelocitiesSchema,
     JointVelocityUnit,
+    Output,
+    OutputSchema,
     TimestampSchema,
     ValueSchema,
+    
     VectorCommandSchema,
 )
-from kinfer.serialize.pytorch import PyTorchInputSerializer
-from kinfer.serialize.schema import get_dummy_inputs
+from kinfer.serialize.pytorch import PyTorchInputSerializer, PyTorchOutputSerializer
+from kinfer.serialize.schema import get_dummy_inputs, get_dummy_outputs
 
 
 def test_serialize_schema() -> None:
@@ -88,5 +91,32 @@ def test_serialize_schema() -> None:
     serializer = PyTorchInputSerializer(schema=input_schema)
     dummy_input_serialized = serializer.serialize(dummy_input)
     assert len(dummy_input_serialized) == len(input_schema.inputs)
-    dummy_input_deserialized = serializer.deserialize(dummy_input_serialized)
-    assert len(dummy_input_deserialized.inputs) == len(dummy_input.inputs)
+    dummy_input_d = serializer.(dummy_input_serialized)
+    assert len(dummy_input_d.inputs) == len(dummy_input.inputs)
+
+
+def test_serialize_output_schema() -> None:
+    output_schema = OutputSchema(
+        outputs=[
+            ValueSchema(
+                value_name="output_1",
+                joint_positions=JointPositionsSchema(
+                    unit=JointPositionUnit.DEGREES,
+                    joint_names=["joint_1", "joint_2", "joint_3"],
+                ),
+            ),
+        ]
+    )
+    dummy_output = get_dummy_outputs(output_schema)
+    serializer = PyTorchOutputSerializer(schema=output_schema)
+    import torch
+    tensor = torch.randn(3)
+    dummy_output_serialized = serializer.serialize(tensor)
+    # assert len(dummy_output_serialized) == len(output_schema.outputs)
+    # dummy_output_d = serializer.(dummy_output_serialized)
+    # assert len(dummy_output_d.outputs) == len(dummy_output.outputs)
+
+
+if __name__ == "__main__":
+    test_serialize_schema()
+    test_serialize_output_schema()

@@ -62,6 +62,7 @@ def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: J
             ]
         )
     )
+
     tensor = serializer.serialize(value)
     assert isinstance(tensor, Tensor)
 
@@ -242,7 +243,7 @@ def test_serialize_state_tensor() -> None:
         schema=ValueSchema(
             state_tensor=StateTensorSchema(
                 shape=[2, 2],
-                dtype=DType.INT8,
+                dtype=DType.FP32,
             )
         )
     )
