@@ -110,6 +110,9 @@ message JointCommandValue {
     float position = 4;
     float kp = 5;
     float kd = 6;
+    JointTorqueUnit torque_unit = 7;
+    JointVelocityUnit velocity_unit = 8;
+    JointPositionUnit position_unit = 9;
 }
 
 message JointCommandsValue {

@@ -137,6 +137,10 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
         schema: JointVelocitiesSchema,
         value: Tensor,
     ) -> JointVelocitiesValue:
+        if value.shape != (len(schema.joint_names),):
+            raise ValueError(
+                f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
+            )
         value_list = value.detach().cpu().flatten().numpy().tolist()
         return JointVelocitiesValue(
             values=[
@@ -168,6 +172,10 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
         schema: JointTorquesSchema,
         value: Tensor,
     ) -> JointTorquesValue:
+        if value.shape != (len(schema.joint_names),):
+            raise ValueError(
+                f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
+            )
         value_list = value.detach().cpu().flatten().numpy().tolist()
         return JointTorquesValue(
             values=[
@@ -178,6 +186,43 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
 
 
 class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSerializer[Tensor]):
+    def _convert_value_to_tensor(
+        self,
+        value: JointCommandValue,
+        schema: JointCommandsSchema,
+    ) -> Tensor:
+        return torch.tensor(
+            [
+                convert_torque(value.torque, value.torque_unit, schema.torque_unit),
+                convert_angular_velocity(value.velocity, value.velocity_unit, schema.velocity_unit),
+                convert_angular_position(value.position, value.position_unit, schema.position_unit),
+                value.kp,
+                value.kd,
+            ],
+            dtype=self.dtype,
+            device=self.device,
+        )
+
+    def _convert_tensor_to_value(
+        self,
+        values: list[float],
+        schema: JointCommandsSchema,
+        name: str,
+    ) -> JointCommandValue:
+        if len(values) != 5:
+            raise ValueError(f"Shape of tensor must match number of joint commands: {len(values)} != 5")
+        return JointCommandValue(
+            joint_name=name,
+            torque=values[0],
+            velocity=values[1],
+            position=values[2],
+            kp=values[3],
+            kd=values[4],
+            torque_unit=schema.torque_unit,
+            velocity_unit=schema.velocity_unit,
+            position_unit=schema.position_unit,
+        )
+
     def serialize_joint_commands(
         self,
         schema: JointCommandsSchema,
@@ -187,24 +232,22 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
         if set(names) != set(v.joint_name for v in values):
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
-        tensor = torch.tensor(
-            [
-                convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
-                for name in names
-            ],
-            dtype=self.dtype,
-            device=self.device,
+        tensor = torch.stack(
+            [self._convert_value_to_tensor(value_map[name], schema) for name in names],
+            dim=0,
         )
         return tensor
 
     def deserialize_joint_commands(self, schema: JointCommandsSchema, value: Tensor) -> JointCommandsValue:
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        if value.shape != (len(schema.joint_names), 5):
+            raise ValueError(
+                "Shape of tensor must match number of joint names and commands: "
+                f"{value.shape} != ({len(schema.joint_names)}, 5)"
+            )
+        value_list = value.detach().cpu().numpy().tolist()
         return JointCommandsValue(
             values=[
-                JointCommandValue(
-                    joint_name=name,
-                )
-                for i, name in enumerate(schema.joint_names)
+                self._convert_tensor_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
             ]
         )
 
@@ -345,6 +388,7 @@ class PyTorchSerializer(
     PyTorchJointPositionsSerializer,
     PyTorchJointVelocitiesSerializer,
     PyTorchJointTorquesSerializer,
+    PyTorchJointCommandsSerializer,
     PyTorchCameraFrameSerializer,
     PyTorchAudioFrameSerializer,
     PyTorchIMUSerializer,

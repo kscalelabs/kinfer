@@ -1,6 +1,5 @@
 """Defines a serializer for Numpy arrays."""
 
-import math
 from typing import Sequence
 
 import numpy as np
@@ -14,17 +13,17 @@ from kinfer.protos.kinfer_pb2 import (
     IMUSchema,
     IMUValue,
     InputSchema,
+    JointCommandsSchema,
+    JointCommandsValue,
+    JointCommandValue,
     JointPositionsSchema,
     JointPositionsValue,
-    JointPositionUnit,
     JointPositionValue,
     JointTorquesSchema,
     JointTorquesValue,
-    JointTorqueUnit,
     JointTorqueValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
-    JointVelocityUnit,
     JointVelocityValue,
     StateTensorSchema,
     StateTensorValue,
@@ -38,6 +37,7 @@ from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
     IMUSerializer,
+    JointCommandsSerializer,
     JointPositionsSerializer,
     JointTorquesSerializer,
     JointVelocitiesSerializer,
@@ -47,7 +47,15 @@ from kinfer.serialize.base import (
     TimestampSerializer,
     VectorCommandSerializer,
 )
-from kinfer.serialize.utils import dtype_num_bytes, dtype_range, numpy_dtype, parse_bytes
+from kinfer.serialize.utils import (
+    convert_angular_position,
+    convert_angular_velocity,
+    convert_torque,
+    dtype_num_bytes,
+    dtype_range,
+    numpy_dtype,
+    parse_bytes,
+)
 
 
 def check_names_match(names_a: Sequence[str], names_b: Sequence[str]) -> None:
@@ -65,20 +73,6 @@ class NumpyBaseSerializer:
 
 
 class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerializer[np.ndarray]):
-    def _convert_angular_position(
-        self,
-        value: float,
-        from_unit: JointPositionUnit,
-        to_unit: JointPositionUnit,
-    ) -> float:
-        if from_unit == to_unit:
-            return value
-        if from_unit == JointPositionUnit.DEGREES:
-            return value * math.pi / 180
-        if from_unit == JointPositionUnit.RADIANS:
-            return value * 180 / math.pi
-        raise ValueError(f"Unsupported unit: {from_unit}")
-
     def serialize_joint_positions(
         self,
         schema: JointPositionsSchema,
@@ -89,10 +83,7 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
         array = np.array(
-            [
-                self._convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit)
-                for name in names
-            ],
+            [convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
             dtype=self.dtype,
         )
         return array
@@ -120,22 +111,6 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
 
 
 class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSerializer[np.ndarray]):
-    def _convert_angular_velocity(
-        self,
-        value: float,
-        from_unit: JointVelocityUnit,
-        to_unit: JointVelocityUnit,
-    ) -> float:
-        if from_unit == to_unit:
-            return value
-        if from_unit == JointVelocityUnit.DEGREES_PER_SECOND:
-            assert to_unit == JointVelocityUnit.RADIANS_PER_SECOND
-            return value * math.pi / 180
-        if from_unit == JointVelocityUnit.RADIANS_PER_SECOND:
-            assert to_unit == JointVelocityUnit.DEGREES_PER_SECOND
-            return value * 180 / math.pi
-        raise ValueError(f"Unsupported unit: {from_unit}")
-
     def serialize_joint_velocities(
         self,
         schema: JointVelocitiesSchema,
@@ -146,10 +121,7 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
         array = np.array(
-            [
-                self._convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
-                for name in names
-            ],
+            [convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
             dtype=self.dtype,
         )
         return array
@@ -169,16 +141,6 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
 
 
 class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np.ndarray]):
-    def _convert_torque(
-        self,
-        value: float,
-        from_unit: JointTorqueUnit,
-        to_unit: JointTorqueUnit,
-    ) -> float:
-        if from_unit == to_unit:
-            return value
-        raise ValueError(f"Unsupported unit: {from_unit}")
-
     def serialize_joint_torques(
         self,
         schema: JointTorquesSchema,
@@ -189,7 +151,7 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
         array = np.array(
-            [self._convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
+            [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
             dtype=self.dtype,
         )
         return array
@@ -204,6 +166,72 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
             values=[
                 JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
+            ]
+        )
+
+
+class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[np.ndarray]):
+    def _convert_value_to_array(
+        self,
+        value: JointCommandValue,
+        schema: JointCommandsSchema,
+    ) -> np.ndarray:
+        return np.array(
+            [
+                convert_torque(value.torque, value.torque_unit, schema.torque_unit),
+                convert_angular_velocity(value.velocity, value.velocity_unit, schema.velocity_unit),
+                convert_angular_position(value.position, value.position_unit, schema.position_unit),
+                value.kp,
+                value.kd,
+            ],
+            dtype=self.dtype,
+        )
+
+    def _convert_array_to_value(
+        self,
+        values: list[float],
+        schema: JointCommandsSchema,
+        name: str,
+    ) -> JointCommandValue:
+        if len(values) != 5:
+            raise ValueError(f"Shape of array must match number of joint commands: {len(values)} != 5")
+        return JointCommandValue(
+            joint_name=name,
+            torque=values[0],
+            velocity=values[1],
+            position=values[2],
+            kp=values[3],
+            kd=values[4],
+            torque_unit=schema.torque_unit,
+            velocity_unit=schema.velocity_unit,
+            position_unit=schema.position_unit,
+        )
+
+    def serialize_joint_commands(
+        self,
+        schema: JointCommandsSchema,
+        value: JointCommandsValue,
+    ) -> np.ndarray:
+        names, values = schema.joint_names, value.values
+        if set(names) != set(v.joint_name for v in values):
+            raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
+        value_map = {v.joint_name: v for v in values}
+        array = np.stack(
+            [self._convert_value_to_array(value_map[name], schema) for name in names],
+            axis=0,
+        )
+        return array
+
+    def deserialize_joint_commands(self, schema: JointCommandsSchema, value: np.ndarray) -> JointCommandsValue:
+        if value.shape != (len(schema.joint_names), 5):
+            raise ValueError(
+                "Shape of array must match number of joint names and commands: "
+                f"{value.shape} != ({len(schema.joint_names)}, 5)"
+            )
+        value_list = value.tolist()
+        return JointCommandsValue(
+            values=[
+                self._convert_array_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
             ]
         )
 
@@ -342,6 +370,7 @@ class NumpySerializer(
     NumpyJointPositionsSerializer,
     NumpyJointVelocitiesSerializer,
     NumpyJointTorquesSerializer,
+    NumpyJointCommandsSerializer,
     NumpyCameraFrameSerializer,
     NumpyAudioFrameSerializer,
     NumpyIMUSerializer,

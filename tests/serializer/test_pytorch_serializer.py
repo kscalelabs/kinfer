@@ -16,6 +16,9 @@ from kinfer.protos.kinfer_pb2 import (
     IMUMagnetometerValue,
     IMUSchema,
     IMUValue,
+    JointCommandsSchema,
+    JointCommandsValue,
+    JointCommandValue,
     JointPositionsSchema,
     JointPositionsValue,
     JointPositionUnit,
@@ -126,6 +129,65 @@ def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: Joint
     # Back to joint torques value.
     new_value = serializer.deserialize(tensor)
     assert len(new_value.joint_torques.values) == len(value.joint_torques.values)
+
+
+def test_serialize_joint_commands() -> None:
+    serializer = PyTorchSerializer(
+        schema=ValueSchema(
+            joint_commands=JointCommandsSchema(
+                joint_names=["joint_1", "joint_2", "joint_3"],
+                torque_unit=JointTorqueUnit.NEWTON_METERS,
+                velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
+                position_unit=JointPositionUnit.RADIANS,
+            )
+        )
+    )
+
+    value = Value(
+        joint_commands=JointCommandsValue(
+            values=[
+                JointCommandValue(
+                    joint_name="joint_1",
+                    torque=1,
+                    velocity=2,
+                    position=3,
+                    kp=4,
+                    kd=5,
+                    torque_unit=JointTorqueUnit.NEWTON_METERS,
+                    velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
+                    position_unit=JointPositionUnit.RADIANS,
+                ),
+                JointCommandValue(
+                    joint_name="joint_2",
+                    torque=2,
+                    velocity=3,
+                    position=4,
+                    kp=5,
+                    kd=6,
+                    torque_unit=JointTorqueUnit.NEWTON_METERS,
+                    velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
+                    position_unit=JointPositionUnit.RADIANS,
+                ),
+                JointCommandValue(
+                    joint_name="joint_3",
+                    torque=3,
+                    velocity=4,
+                    position=5,
+                    kp=6,
+                    kd=7,
+                    torque_unit=JointTorqueUnit.NEWTON_METERS,
+                    velocity_unit=JointVelocityUnit.RADIANS_PER_SECOND,
+                    position_unit=JointPositionUnit.RADIANS,
+                ),
+            ]
+        )
+    )
+    tensor = serializer.serialize(value)
+    assert isinstance(tensor, Tensor)
+
+    # Back to joint commands value.
+    new_value = serializer.deserialize(tensor)
+    assert len(new_value.joint_commands.values) == len(value.joint_commands.values)
 
 
 def test_serialize_camera_frame() -> None:

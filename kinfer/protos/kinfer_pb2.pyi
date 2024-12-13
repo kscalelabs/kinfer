@@ -321,12 +321,18 @@ class JointCommandValue(google.protobuf.message.Message):
     POSITION_FIELD_NUMBER: builtins.int
     KP_FIELD_NUMBER: builtins.int
     KD_FIELD_NUMBER: builtins.int
+    TORQUE_UNIT_FIELD_NUMBER: builtins.int
+    VELOCITY_UNIT_FIELD_NUMBER: builtins.int
+    POSITION_UNIT_FIELD_NUMBER: builtins.int
     joint_name: builtins.str
     torque: builtins.float
     velocity: builtins.float
     position: builtins.float
     kp: builtins.float
     kd: builtins.float
+    torque_unit: global___JointTorqueUnit.ValueType
+    velocity_unit: global___JointVelocityUnit.ValueType
+    position_unit: global___JointPositionUnit.ValueType
     def __init__(
         self,
         *,
@@ -336,8 +342,11 @@ class JointCommandValue(google.protobuf.message.Message):
         position: builtins.float = ...,
         kp: builtins.float = ...,
         kd: builtins.float = ...,
+        torque_unit: global___JointTorqueUnit.ValueType = ...,
+        velocity_unit: global___JointVelocityUnit.ValueType = ...,
+        position_unit: global___JointPositionUnit.ValueType = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["joint_name", b"joint_name", "kd", b"kd", "kp", b"kp", "position", b"position", "torque", b"torque", "velocity", b"velocity"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["joint_name", b"joint_name", "kd", b"kd", "kp", b"kp", "position", b"position", "position_unit", b"position_unit", "torque", b"torque", "torque_unit", b"torque_unit", "velocity", b"velocity", "velocity_unit", b"velocity_unit"]) -> None: ...
 
 global___JointCommandValue = JointCommandValue
 
