@@ -2,36 +2,7 @@
 
 import numpy as np
 
-from kinfer.protos.kinfer_pb2 import (
-    AudioFrameSchema,
-    AudioFrameValue,
-    CameraFrameSchema,
-    CameraFrameValue,
-    DType,
-    IMUSchema,
-    IMUValue,
-    InputSchema,
-    JointCommandsSchema,
-    JointCommandsValue,
-    JointCommandValue,
-    JointPositionsSchema,
-    JointPositionsValue,
-    JointPositionValue,
-    JointTorquesSchema,
-    JointTorquesValue,
-    JointTorqueValue,
-    JointVelocitiesSchema,
-    JointVelocitiesValue,
-    JointVelocityValue,
-    OutputSchema,
-    StateTensorSchema,
-    StateTensorValue,
-    TimestampSchema,
-    TimestampValue,
-    ValueSchema,
-    VectorCommandSchema,
-    VectorCommandValue,
-)
+from kinfer import protos as P
 from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
@@ -66,8 +37,8 @@ class NumpyBaseSerializer:
 class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerializer[np.ndarray]):
     def serialize_joint_positions(
         self,
-        schema: JointPositionsSchema,
-        value: JointPositionsValue,
+        schema: P.JointPositionsSchema,
+        value: P.JointPositionsValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
@@ -82,17 +53,17 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
 
     def deserialize_joint_positions(
         self,
-        schema: JointPositionsSchema,
+        schema: P.JointPositionsSchema,
         value: np.ndarray,
-    ) -> JointPositionsValue:
+    ) -> P.JointPositionsValue:
         if value.shape != (len(schema.joint_names),):
             raise ValueError(
                 f"Shape of array must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
         value_list = value.flatten().tolist()
-        return JointPositionsValue(
+        return P.JointPositionsValue(
             values=[
-                JointPositionValue(
+                P.JointPositionValue(
                     joint_name=name,
                     value=value_list[i],
                     unit=schema.unit,
@@ -105,8 +76,8 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
 class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSerializer[np.ndarray]):
     def serialize_joint_velocities(
         self,
-        schema: JointVelocitiesSchema,
-        value: JointVelocitiesValue,
+        schema: P.JointVelocitiesSchema,
+        value: P.JointVelocitiesValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
@@ -121,13 +92,13 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
 
     def deserialize_joint_velocities(
         self,
-        schema: JointVelocitiesSchema,
+        schema: P.JointVelocitiesSchema,
         value: np.ndarray,
-    ) -> JointVelocitiesValue:
+    ) -> P.JointVelocitiesValue:
         value_list = value.flatten().tolist()
-        return JointVelocitiesValue(
+        return P.JointVelocitiesValue(
             values=[
-                JointVelocityValue(joint_name=name, value=value_list[i], unit=schema.unit)
+                P.JointVelocityValue(joint_name=name, value=value_list[i], unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
@@ -136,8 +107,8 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
 class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np.ndarray]):
     def serialize_joint_torques(
         self,
-        schema: JointTorquesSchema,
-        value: JointTorquesValue,
+        schema: P.JointTorquesSchema,
+        value: P.JointTorquesValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
@@ -149,13 +120,13 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
 
     def deserialize_joint_torques(
         self,
-        schema: JointTorquesSchema,
+        schema: P.JointTorquesSchema,
         value: np.ndarray,
-    ) -> JointTorquesValue:
+    ) -> P.JointTorquesValue:
         value_list = value.flatten().tolist()
-        return JointTorquesValue(
+        return P.JointTorquesValue(
             values=[
-                JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
+                P.JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
@@ -164,8 +135,8 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
 class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[np.ndarray]):
     def _convert_value_to_array(
         self,
-        value: JointCommandValue,
-        schema: JointCommandsSchema,
+        value: P.JointCommandValue,
+        schema: P.JointCommandsSchema,
     ) -> np.ndarray:
         return np.array(
             [
@@ -181,12 +152,12 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
     def _convert_array_to_value(
         self,
         values: list[float],
-        schema: JointCommandsSchema,
+        schema: P.JointCommandsSchema,
         name: str,
-    ) -> JointCommandValue:
+    ) -> P.JointCommandValue:
         if len(values) != 5:
             raise ValueError(f"Shape of array must match number of joint commands: {len(values)} != 5")
-        return JointCommandValue(
+        return P.JointCommandValue(
             joint_name=name,
             torque=values[0],
             velocity=values[1],
@@ -200,8 +171,8 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
 
     def serialize_joint_commands(
         self,
-        schema: JointCommandsSchema,
-        value: JointCommandsValue,
+        schema: P.JointCommandsSchema,
+        value: P.JointCommandsValue,
     ) -> np.ndarray:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", value_map.keys())
@@ -211,14 +182,14 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
         )
         return array
 
-    def deserialize_joint_commands(self, schema: JointCommandsSchema, value: np.ndarray) -> JointCommandsValue:
+    def deserialize_joint_commands(self, schema: P.JointCommandsSchema, value: np.ndarray) -> P.JointCommandsValue:
         if value.shape != (len(schema.joint_names), 5):
             raise ValueError(
                 "Shape of array must match number of joint names and commands: "
                 f"{value.shape} != ({len(schema.joint_names)}, 5)"
             )
         value_list = value.tolist()
-        return JointCommandsValue(
+        return P.JointCommandsValue(
             values=[
                 self._convert_array_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
             ]
@@ -226,8 +197,8 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
 
 
 class NumpyCameraFrameSerializer(NumpyBaseSerializer, CameraFrameSerializer[np.ndarray]):
-    def serialize_camera_frame(self, schema: CameraFrameSchema, value: CameraFrameValue) -> np.ndarray:
-        np_arr = parse_bytes(value.data, DType.UINT8)
+    def serialize_camera_frame(self, schema: P.CameraFrameSchema, value: P.CameraFrameValue) -> np.ndarray:
+        np_arr = parse_bytes(value.data, P.DType.UINT8)
         array = np_arr.astype(self.dtype) / 255.0
         if array.size != schema.channels * schema.height * schema.width:
             raise ValueError(
@@ -237,13 +208,13 @@ class NumpyCameraFrameSerializer(NumpyBaseSerializer, CameraFrameSerializer[np.n
         array = array.reshape(schema.channels, schema.height, schema.width)
         return array
 
-    def deserialize_camera_frame(self, schema: CameraFrameSchema, value: np.ndarray) -> CameraFrameValue:
+    def deserialize_camera_frame(self, schema: P.CameraFrameSchema, value: np.ndarray) -> P.CameraFrameValue:
         np_arr = (value * 255.0).flatten().astype(np.uint8)
-        return CameraFrameValue(data=np_arr.tobytes())
+        return P.CameraFrameValue(data=np_arr.tobytes())
 
 
 class NumpyAudioFrameSerializer(NumpyBaseSerializer, AudioFrameSerializer[np.ndarray]):
-    def serialize_audio_frame(self, schema: AudioFrameSchema, value: AudioFrameValue) -> np.ndarray:
+    def serialize_audio_frame(self, schema: P.AudioFrameSchema, value: P.AudioFrameValue) -> np.ndarray:
         value_bytes = value.data
         if len(value_bytes) != schema.channels * schema.sample_rate * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -257,14 +228,14 @@ class NumpyAudioFrameSerializer(NumpyBaseSerializer, AudioFrameSerializer[np.nda
         array = array / max_value
         return array
 
-    def deserialize_audio_frame(self, schema: AudioFrameSchema, value: np.ndarray) -> AudioFrameValue:
+    def deserialize_audio_frame(self, schema: P.AudioFrameSchema, value: np.ndarray) -> P.AudioFrameValue:
         _, max_value = dtype_range(schema.dtype)
         np_arr = (value * max_value).flatten().astype(numpy_dtype(schema.dtype))
-        return AudioFrameValue(data=np_arr.tobytes())
+        return P.AudioFrameValue(data=np_arr.tobytes())
 
 
 class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
-    def serialize_imu(self, schema: IMUSchema, value: IMUValue) -> np.ndarray:
+    def serialize_imu(self, schema: P.IMUSchema, value: P.IMUValue) -> np.ndarray:
         vectors = []
         if schema.use_accelerometer:
             vectors.append(
@@ -291,9 +262,9 @@ class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
             raise ValueError("IMU has nothing to serialize")
         return np.stack(vectors, axis=0)
 
-    def deserialize_imu(self, schema: IMUSchema, value: np.ndarray) -> IMUValue:
+    def deserialize_imu(self, schema: P.IMUSchema, value: np.ndarray) -> P.IMUValue:
         vectors = value.tolist()
-        imu_value = IMUValue()
+        imu_value = P.IMUValue()
         if schema.use_accelerometer:
             (x, y, z), vectors = vectors[0], vectors[1:]
             imu_value.linear_acceleration.x = x
@@ -313,7 +284,7 @@ class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
 
 
 class NumpyTimestampSerializer(NumpyBaseSerializer, TimestampSerializer[np.ndarray]):
-    def serialize_timestamp(self, schema: TimestampSchema, value: TimestampValue) -> np.ndarray:
+    def serialize_timestamp(self, schema: P.TimestampSchema, value: P.TimestampValue) -> np.ndarray:
         elapsed_seconds = value.seconds - schema.start_seconds
         elapsed_nanos = value.nanos - schema.start_nanos
         if elapsed_nanos < 0:
@@ -322,23 +293,23 @@ class NumpyTimestampSerializer(NumpyBaseSerializer, TimestampSerializer[np.ndarr
         total_elapsed_seconds = elapsed_seconds + elapsed_nanos / 1_000_000_000
         return np.array([total_elapsed_seconds], dtype=self.dtype)
 
-    def deserialize_timestamp(self, schema: TimestampSchema, value: np.ndarray) -> TimestampValue:
+    def deserialize_timestamp(self, schema: P.TimestampSchema, value: np.ndarray) -> P.TimestampValue:
         total_elapsed_seconds = value.item()
         elapsed_seconds = int(total_elapsed_seconds)
         elapsed_nanos = int((total_elapsed_seconds - elapsed_seconds) * 1_000_000_000)
-        return TimestampValue(seconds=elapsed_seconds, nanos=elapsed_nanos)
+        return P.TimestampValue(seconds=elapsed_seconds, nanos=elapsed_nanos)
 
 
 class NumpyVectorCommandSerializer(NumpyBaseSerializer, VectorCommandSerializer[np.ndarray]):
-    def serialize_vector_command(self, schema: VectorCommandSchema, value: VectorCommandValue) -> np.ndarray:
+    def serialize_vector_command(self, schema: P.VectorCommandSchema, value: P.VectorCommandValue) -> np.ndarray:
         return np.array(value.values, dtype=self.dtype)
 
-    def deserialize_vector_command(self, schema: VectorCommandSchema, value: np.ndarray) -> VectorCommandValue:
-        return VectorCommandValue(values=value.tolist())
+    def deserialize_vector_command(self, schema: P.VectorCommandSchema, value: np.ndarray) -> P.VectorCommandValue:
+        return P.VectorCommandValue(values=value.tolist())
 
 
 class NumpyStateTensorSerializer(NumpyBaseSerializer, StateTensorSerializer[np.ndarray]):
-    def serialize_state_tensor(self, schema: StateTensorSchema, value: StateTensorValue) -> np.ndarray:
+    def serialize_state_tensor(self, schema: P.StateTensorSchema, value: P.StateTensorValue) -> np.ndarray:
         value_bytes = value.data
         if len(value_bytes) != np.prod(schema.shape) * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -350,9 +321,9 @@ class NumpyStateTensorSerializer(NumpyBaseSerializer, StateTensorSerializer[np.n
         array = array.reshape(tuple(schema.shape))
         return array
 
-    def deserialize_state_tensor(self, schema: StateTensorSchema, value: np.ndarray) -> StateTensorValue:
+    def deserialize_state_tensor(self, schema: P.StateTensorSchema, value: np.ndarray) -> P.StateTensorValue:
         contiguous_value = np.ascontiguousarray(value)
-        return StateTensorValue(data=contiguous_value.flatten().tobytes())
+        return P.StateTensorValue(data=contiguous_value.flatten().tobytes())
 
 
 class NumpySerializer(
@@ -370,7 +341,7 @@ class NumpySerializer(
 ):
     def __init__(
         self,
-        schema: ValueSchema,
+        schema: P.ValueSchema,
         *,
         dtype: np.dtype | None = None,
     ) -> None:
@@ -379,5 +350,5 @@ class NumpySerializer(
 
 
 class NumpyMultiSerializer(MultiSerializer[np.ndarray]):
-    def __init__(self, schema: InputSchema | OutputSchema) -> None:
+    def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
         super().__init__([NumpySerializer(schema=s) for s in schema.inputs])

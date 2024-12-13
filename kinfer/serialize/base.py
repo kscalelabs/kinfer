@@ -3,32 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, Sequence, TypeVar
 
-from kinfer.protos.kinfer_pb2 import (
-    AudioFrameSchema,
-    AudioFrameValue,
-    CameraFrameSchema,
-    CameraFrameValue,
-    IMUSchema,
-    IMUValue,
-    Input,
-    JointCommandsSchema,
-    JointCommandsValue,
-    JointPositionsSchema,
-    JointPositionsValue,
-    JointTorquesSchema,
-    JointTorquesValue,
-    JointVelocitiesSchema,
-    JointVelocitiesValue,
-    Output,
-    StateTensorSchema,
-    StateTensorValue,
-    TimestampSchema,
-    TimestampValue,
-    Value,
-    ValueSchema,
-    VectorCommandSchema,
-    VectorCommandValue,
-)
+from kinfer import protos as P
 
 T = TypeVar("T")
 
@@ -37,8 +12,8 @@ class JointPositionsSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_positions(
         self,
-        schema: JointPositionsSchema,
-        value: JointPositionsValue,
+        schema: P.JointPositionsSchema,
+        value: P.JointPositionsValue,
     ) -> T:
         """Serialize a joint positions value.
 
@@ -53,9 +28,9 @@ class JointPositionsSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_joint_positions(
         self,
-        schema: JointPositionsSchema,
+        schema: P.JointPositionsSchema,
         value: T,
-    ) -> JointPositionsValue:
+    ) -> P.JointPositionsValue:
         """Deserialize a joint positions value.
 
         Args:
@@ -72,8 +47,8 @@ class JointVelocitiesSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_velocities(
         self,
-        schema: JointVelocitiesSchema,
-        value: JointVelocitiesValue,
+        schema: P.JointVelocitiesSchema,
+        value: P.JointVelocitiesValue,
     ) -> T:
         """Serialize a joint velocities value.
 
@@ -88,9 +63,9 @@ class JointVelocitiesSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_joint_velocities(
         self,
-        schema: JointVelocitiesSchema,
+        schema: P.JointVelocitiesSchema,
         value: T,
-    ) -> JointVelocitiesValue:
+    ) -> P.JointVelocitiesValue:
         """Deserialize a joint velocities value.
 
         Args:
@@ -106,8 +81,8 @@ class JointTorquesSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_torques(
         self,
-        schema: JointTorquesSchema,
-        value: JointTorquesValue,
+        schema: P.JointTorquesSchema,
+        value: P.JointTorquesValue,
     ) -> T:
         """Serialize a joint torques value.
 
@@ -122,9 +97,9 @@ class JointTorquesSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_joint_torques(
         self,
-        schema: JointTorquesSchema,
+        schema: P.JointTorquesSchema,
         value: T,
-    ) -> JointTorquesValue:
+    ) -> P.JointTorquesValue:
         """Deserialize a joint torques value.
 
         Args:
@@ -140,8 +115,8 @@ class JointCommandsSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_commands(
         self,
-        schema: JointCommandsSchema,
-        value: JointCommandsValue,
+        schema: P.JointCommandsSchema,
+        value: P.JointCommandsValue,
     ) -> T:
         """Serialize a joint commands value.
 
@@ -156,9 +131,9 @@ class JointCommandsSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_joint_commands(
         self,
-        schema: JointCommandsSchema,
+        schema: P.JointCommandsSchema,
         value: T,
-    ) -> JointCommandsValue:
+    ) -> P.JointCommandsValue:
         """Deserialize a joint commands value.
 
         Args:
@@ -174,8 +149,8 @@ class CameraFrameSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_camera_frame(
         self,
-        schema: CameraFrameSchema,
-        value: CameraFrameValue,
+        schema: P.CameraFrameSchema,
+        value: P.CameraFrameValue,
     ) -> T:
         """Serialize a camera frame value.
 
@@ -190,9 +165,9 @@ class CameraFrameSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_camera_frame(
         self,
-        schema: CameraFrameSchema,
+        schema: P.CameraFrameSchema,
         value: T,
-    ) -> CameraFrameValue:
+    ) -> P.CameraFrameValue:
         """Deserialize a camera frame value.
 
         Args:
@@ -208,8 +183,8 @@ class AudioFrameSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_audio_frame(
         self,
-        schema: AudioFrameSchema,
-        value: AudioFrameValue,
+        schema: P.AudioFrameSchema,
+        value: P.AudioFrameValue,
     ) -> T:
         """Serialize an audio frame value.
 
@@ -224,9 +199,9 @@ class AudioFrameSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_audio_frame(
         self,
-        schema: AudioFrameSchema,
+        schema: P.AudioFrameSchema,
         value: T,
-    ) -> AudioFrameValue:
+    ) -> P.AudioFrameValue:
         """Deserialize an audio frame value.
 
         Args:
@@ -242,8 +217,8 @@ class IMUSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_imu(
         self,
-        schema: IMUSchema,
-        value: IMUValue,
+        schema: P.IMUSchema,
+        value: P.IMUValue,
     ) -> T:
         """Serialize an IMU value.
 
@@ -258,9 +233,9 @@ class IMUSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_imu(
         self,
-        schema: IMUSchema,
+        schema: P.IMUSchema,
         value: T,
-    ) -> IMUValue:
+    ) -> P.IMUValue:
         """Deserialize an IMU value.
 
         Args:
@@ -276,8 +251,8 @@ class TimestampSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_timestamp(
         self,
-        schema: TimestampSchema,
-        value: TimestampValue,
+        schema: P.TimestampSchema,
+        value: P.TimestampValue,
     ) -> T:
         """Serialize a timestamp value.
 
@@ -292,9 +267,9 @@ class TimestampSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_timestamp(
         self,
-        schema: TimestampSchema,
+        schema: P.TimestampSchema,
         value: T,
-    ) -> TimestampValue:
+    ) -> P.TimestampValue:
         """Deserialize a timestamp value.
 
         Args:
@@ -310,8 +285,8 @@ class VectorCommandSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_vector_command(
         self,
-        schema: VectorCommandSchema,
-        value: VectorCommandValue,
+        schema: P.VectorCommandSchema,
+        value: P.VectorCommandValue,
     ) -> T:
         """Serialize an XY command value.
 
@@ -326,9 +301,9 @@ class VectorCommandSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_vector_command(
         self,
-        schema: VectorCommandSchema,
+        schema: P.VectorCommandSchema,
         value: T,
-    ) -> VectorCommandValue:
+    ) -> P.VectorCommandValue:
         """Deserialize a vector command value.
 
         Args:
@@ -342,7 +317,7 @@ class VectorCommandSerializer(ABC, Generic[T]):
 
 class StateTensorSerializer(ABC, Generic[T]):
     @abstractmethod
-    def serialize_state_tensor(self, schema: StateTensorSchema, value: StateTensorValue) -> T:
+    def serialize_state_tensor(self, schema: P.StateTensorSchema, value: P.StateTensorValue) -> T:
         """Serialize a state tensor value.
 
         Args:
@@ -354,7 +329,7 @@ class StateTensorSerializer(ABC, Generic[T]):
         """
 
     @abstractmethod
-    def deserialize_state_tensor(self, schema: StateTensorSchema, value: T) -> StateTensorValue:
+    def deserialize_state_tensor(self, schema: P.StateTensorSchema, value: T) -> P.StateTensorValue:
         """Deserialize a state tensor value.
 
         Args:
@@ -379,10 +354,10 @@ class Serializer(
     StateTensorSerializer[T],
     Generic[T],
 ):
-    def __init__(self, schema: ValueSchema) -> None:
+    def __init__(self, schema: P.ValueSchema) -> None:
         self.schema = schema
 
-    def serialize(self, value: Value) -> T:
+    def serialize(self, value: P.Value) -> T:
         value_type = value.WhichOneof("value")
 
         match value_type:
@@ -439,75 +414,75 @@ class Serializer(
             case _:
                 raise ValueError(f"Unsupported value type: {value_type}")
 
-    def deserialize(self, value: T) -> Value:
+    def deserialize(self, value: T) -> P.Value:
         value_type = self.schema.WhichOneof("value_type")
 
         match value_type:
             case "joint_positions":
-                return Value(
+                return P.Value(
                     joint_positions=self.deserialize_joint_positions(
                         schema=self.schema.joint_positions,
                         value=value,
                     ),
                 )
             case "joint_velocities":
-                return Value(
+                return P.Value(
                     joint_velocities=self.deserialize_joint_velocities(
                         schema=self.schema.joint_velocities,
                         value=value,
                     ),
                 )
             case "joint_torques":
-                return Value(
+                return P.Value(
                     joint_torques=self.deserialize_joint_torques(
                         schema=self.schema.joint_torques,
                         value=value,
                     ),
                 )
             case "joint_commands":
-                return Value(
+                return P.Value(
                     joint_commands=self.deserialize_joint_commands(
                         schema=self.schema.joint_commands,
                         value=value,
                     ),
                 )
             case "camera_frame":
-                return Value(
+                return P.Value(
                     camera_frame=self.deserialize_camera_frame(
                         schema=self.schema.camera_frame,
                         value=value,
                     ),
                 )
             case "audio_frame":
-                return Value(
+                return P.Value(
                     audio_frame=self.deserialize_audio_frame(
                         schema=self.schema.audio_frame,
                         value=value,
                     ),
                 )
             case "imu":
-                return Value(
+                return P.Value(
                     imu=self.deserialize_imu(
                         schema=self.schema.imu,
                         value=value,
                     ),
                 )
             case "timestamp":
-                return Value(
+                return P.Value(
                     timestamp=self.deserialize_timestamp(
                         schema=self.schema.timestamp,
                         value=value,
                     ),
                 )
             case "vector_command":
-                return Value(
+                return P.Value(
                     vector_command=self.deserialize_vector_command(
                         schema=self.schema.vector_command,
                         value=value,
                     ),
                 )
             case "state_tensor":
-                return Value(
+                return P.Value(
                     state_tensor=self.deserialize_state_tensor(
                         schema=self.schema.state_tensor,
                         value=value,
@@ -521,14 +496,14 @@ class MultiSerializer(Generic[T]):
     def __init__(self, serializers: Sequence[Serializer[T]]) -> None:
         self.serializers = list(serializers)
 
-    def serialize_input(self, input: Input) -> dict[str, T]:
+    def serialize_input(self, input: P.Input) -> dict[str, T]:
         return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
 
-    def serialize_output(self, output: Output) -> dict[str, T]:
+    def serialize_output(self, output: P.Output) -> dict[str, T]:
         return {s.schema.value_name: s.serialize(o) for s, o in zip(self.serializers, output.outputs)}
 
-    def deserialize_input(self, input: dict[str, T]) -> Input:
-        return Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])
+    def deserialize_input(self, input: dict[str, T]) -> P.Input:
+        return P.Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])
 
-    def deserialize_output(self, output: dict[str, T]) -> Output:
-        return Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])
+    def deserialize_output(self, output: dict[str, T]) -> P.Output:
+        return P.Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])
