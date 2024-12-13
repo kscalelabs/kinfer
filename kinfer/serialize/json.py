@@ -311,6 +311,8 @@ class JsonVectorCommandSerializer(VectorCommandSerializer[JsonValue]):
         values = value["values"]
         if not isinstance(values, list):
             raise ValueError("Key 'values' must be a list")
+        if len(values) != schema.dimensions:
+            raise ValueError(f"Length of list must match number of dimensions: {len(values)} != {schema.dimensions}")
         return P.VectorCommandValue(values=[as_float(v) for v in values])
 
 

@@ -326,7 +326,10 @@ class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSeriali
         return torch.tensor(value.values, dtype=self.dtype, device=self.device)
 
     def deserialize_vector_command(self, schema: P.VectorCommandSchema, value: Tensor) -> P.VectorCommandValue:
-        return P.VectorCommandValue(values=value.tolist())
+        if value.shape != (schema.dimensions,):
+            raise ValueError(f"Shape of tensor must match number of dimensions: {value.shape} != {schema.dimensions}")
+        values = cast(list[float], value.tolist())
+        return P.VectorCommandValue(values=values)
 
 
 class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[Tensor]):

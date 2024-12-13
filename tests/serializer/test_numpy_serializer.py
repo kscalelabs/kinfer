@@ -255,7 +255,7 @@ def test_serialize_timestamp() -> None:
 
 
 def test_serialize_vector_command() -> None:
-    serializer = NumpySerializer(schema=P.ValueSchema(vector_command=P.VectorCommandSchema()))
+    serializer = NumpySerializer(schema=P.ValueSchema(vector_command=P.VectorCommandSchema(dimensions=3)))
 
     value = P.Value(vector_command=P.VectorCommandValue(values=[1.0, 2.0, 3.0]))
     array = serializer.serialize(value)

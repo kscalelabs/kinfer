@@ -321,8 +321,8 @@ class NumpyVectorCommandSerializer(NumpyBaseSerializer, VectorCommandSerializer[
         return np.array(value.values, dtype=self.dtype)
 
     def deserialize_vector_command(self, schema: P.VectorCommandSchema, value: np.ndarray) -> P.VectorCommandValue:
-        if value.shape != (len(schema.values),):
-            raise ValueError(f"Shape of array must match number of values: {value.shape} != {len(schema.values)}")
+        if value.shape != (schema.dimensions,):
+            raise ValueError(f"Shape of array must match number of dimensions: {value.shape} != {schema.dimensions}")
         values = cast(list[float], value.astype(float).tolist())
         return P.VectorCommandValue(values=values)
 
