@@ -67,7 +67,7 @@ def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: J
     assert isinstance(tensor, Tensor)
 
     # Back to joint positions value.
-    new_value = serializer.(tensor)
+    new_value = serializer.deserialize(tensor)
     assert len(new_value.joint_positions.values) == len(value.joint_positions.values)
 
 
@@ -150,7 +150,7 @@ def test_serialize_camera_frame() -> None:
     assert tensor.shape == (3, 64, 32)
 
     # Back to camera frame value.
-    new_value = serializer.(tensor)
+    new_value = serializer.deserialize(tensor)
     assert isinstance(new_value, Value)
     assert new_value == value
 
@@ -243,7 +243,7 @@ def test_serialize_state_tensor() -> None:
         schema=ValueSchema(
             state_tensor=StateTensorSchema(
                 shape=[2, 2],
-                dtype=DType.INT8,
+                dtype=DType.FP32,
             )
         )
     )
