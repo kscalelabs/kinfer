@@ -248,7 +248,7 @@ def test_serialize_timestamp() -> None:
     )
     array = serializer.serialize(value)
     assert isinstance(array, np.ndarray)
-    assert array.item() == 1.5
+    assert float(array.item()) == 1.5
 
     new_value = serializer.deserialize(array)
     assert new_value == value

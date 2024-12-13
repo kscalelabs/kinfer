@@ -1,5 +1,7 @@
 """Defines a serializer for PyTorch tensors."""
 
+from typing import cast
+
 import numpy as np
 import torch
 from torch import Tensor
@@ -69,7 +71,7 @@ class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSeria
             raise ValueError(
                 f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        value_list = cast(list[float], value.detach().cpu().numpy().astype(float).tolist())
         return P.JointPositionsValue(
             values=[
                 P.JointPositionValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -105,7 +107,7 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
             raise ValueError(
                 f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        value_list = cast(list[float], value.detach().cpu().numpy().astype(float).tolist())
         return P.JointVelocitiesValue(
             values=[
                 P.JointVelocityValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -138,7 +140,7 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
             raise ValueError(
                 f"Shape of tensor must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
-        value_list = value.detach().cpu().flatten().numpy().tolist()
+        value_list = cast(list[float], value.detach().cpu().numpy().astype(float).tolist())
         return P.JointTorquesValue(
             values=[
                 P.JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -204,7 +206,7 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
                 "Shape of tensor must match number of joint names and commands: "
                 f"{value.shape} != ({len(schema.joint_names)}, 5)"
             )
-        value_list = value.detach().cpu().numpy().tolist()
+        value_list = cast(list[list[float]], value.detach().cpu().numpy().astype(float).tolist())
         return P.JointCommandsValue(
             values=[
                 self._convert_tensor_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)

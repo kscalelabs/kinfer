@@ -63,12 +63,12 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
             raise ValueError(
                 f"Shape of array must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
-        value_list = value.flatten().astype(float).tolist()
+        value_list = cast(list[float], value.astype(float).tolist())
         return P.JointPositionsValue(
             values=[
                 P.JointPositionValue(
                     joint_name=name,
-                    value=value_list[i],
+                    value=float(value_list[i]),
                     unit=schema.unit,
                 )
                 for i, name in enumerate(schema.joint_names)
@@ -98,7 +98,11 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
         schema: P.JointVelocitiesSchema,
         value: np.ndarray,
     ) -> P.JointVelocitiesValue:
-        value_list = value.flatten().astype(float).tolist()
+        if value.shape != (len(schema.joint_names),):
+            raise ValueError(
+                f"Shape of array must match number of joint names: {value.shape} != {len(schema.joint_names)}"
+            )
+        value_list = cast(list[float], value.astype(float).tolist())
         return P.JointVelocitiesValue(
             values=[
                 P.JointVelocityValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -126,10 +130,14 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
         schema: P.JointTorquesSchema,
         value: np.ndarray,
     ) -> P.JointTorquesValue:
-        value_list = value.flatten().astype(float).tolist()
+        if value.shape != (len(schema.joint_names),):
+            raise ValueError(
+                f"Shape of array must match number of joint names: {value.shape} != {len(schema.joint_names)}"
+            )
+        value_list = cast(list[float], value.astype(float).tolist())
         return P.JointTorquesValue(
             values=[
-                P.JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
+                P.JointTorqueValue(joint_name=name, value=float(value_list[i]), unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
@@ -191,7 +199,7 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
                 "Shape of array must match number of joint names and commands: "
                 f"{value.shape} != ({len(schema.joint_names)}, 5)"
             )
-        value_list = value.astype(float).tolist()
+        value_list = cast(list[list[float]], value.astype(float).tolist())
         return P.JointCommandsValue(
             values=[
                 self._convert_array_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
@@ -313,7 +321,10 @@ class NumpyVectorCommandSerializer(NumpyBaseSerializer, VectorCommandSerializer[
         return np.array(value.values, dtype=self.dtype)
 
     def deserialize_vector_command(self, schema: P.VectorCommandSchema, value: np.ndarray) -> P.VectorCommandValue:
-        return P.VectorCommandValue(values=value.astype(float).tolist())
+        if value.shape != (len(schema.values),):
+            raise ValueError(f"Shape of array must match number of values: {value.shape} != {len(schema.values)}")
+        values = cast(list[float], value.astype(float).tolist())
+        return P.VectorCommandValue(values=values)
 
 
 class NumpyStateTensorSerializer(NumpyBaseSerializer, StateTensorSerializer[np.ndarray]):
