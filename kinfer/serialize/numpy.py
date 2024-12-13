@@ -1,5 +1,7 @@
 """Defines a serializer for Numpy arrays."""
 
+from typing import cast
+
 import numpy as np
 
 from kinfer import protos as P
@@ -18,6 +20,7 @@ from kinfer.serialize.base import (
     VectorCommandSerializer,
 )
 from kinfer.serialize.utils import (
+    as_float,
     check_names_match,
     convert_angular_position,
     convert_angular_velocity,
@@ -60,7 +63,7 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
             raise ValueError(
                 f"Shape of array must match number of joint names: {value.shape} != {len(schema.joint_names)}"
             )
-        value_list = value.flatten().tolist()
+        value_list = value.flatten().astype(float).tolist()
         return P.JointPositionsValue(
             values=[
                 P.JointPositionValue(
@@ -95,7 +98,7 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
         schema: P.JointVelocitiesSchema,
         value: np.ndarray,
     ) -> P.JointVelocitiesValue:
-        value_list = value.flatten().tolist()
+        value_list = value.flatten().astype(float).tolist()
         return P.JointVelocitiesValue(
             values=[
                 P.JointVelocityValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -123,7 +126,7 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
         schema: P.JointTorquesSchema,
         value: np.ndarray,
     ) -> P.JointTorquesValue:
-        value_list = value.flatten().tolist()
+        value_list = value.flatten().astype(float).tolist()
         return P.JointTorquesValue(
             values=[
                 P.JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
@@ -188,7 +191,7 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
                 "Shape of array must match number of joint names and commands: "
                 f"{value.shape} != ({len(schema.joint_names)}, 5)"
             )
-        value_list = value.tolist()
+        value_list = value.astype(float).tolist()
         return P.JointCommandsValue(
             values=[
                 self._convert_array_to_value(value_list[i], schema, name) for i, name in enumerate(schema.joint_names)
@@ -263,23 +266,28 @@ class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
         return np.stack(vectors, axis=0)
 
     def deserialize_imu(self, schema: P.IMUSchema, value: np.ndarray) -> P.IMUValue:
-        vectors = value.tolist()
+        num_vectors = sum([schema.use_accelerometer, schema.use_gyroscope, schema.use_magnetometer])
+        if value.shape != (num_vectors, 3):
+            raise ValueError(
+                f"Shape of array must match number of vectors and components: {value.shape} != ({num_vectors}, 3)"
+            )
+        vectors = cast(list[list[float]], value.astype(float).tolist())
         imu_value = P.IMUValue()
         if schema.use_accelerometer:
-            (x, y, z), vectors = vectors[0], vectors[1:]
-            imu_value.linear_acceleration.x = x
-            imu_value.linear_acceleration.y = y
-            imu_value.linear_acceleration.z = z
+            x, y, z = vectors.pop(0)
+            imu_value.linear_acceleration.x = as_float(x)
+            imu_value.linear_acceleration.y = as_float(y)
+            imu_value.linear_acceleration.z = as_float(z)
         if schema.use_gyroscope:
-            (x, y, z), vectors = vectors[0], vectors[1:]
-            imu_value.angular_velocity.x = x
-            imu_value.angular_velocity.y = y
-            imu_value.angular_velocity.z = z
+            x, y, z = vectors.pop(0)
+            imu_value.angular_velocity.x = as_float(x)
+            imu_value.angular_velocity.y = as_float(y)
+            imu_value.angular_velocity.z = as_float(z)
         if schema.use_magnetometer:
-            (x, y, z), vectors = vectors[0], vectors[1:]
-            imu_value.magnetic_field.x = x
-            imu_value.magnetic_field.y = y
-            imu_value.magnetic_field.z = z
+            x, y, z = vectors.pop(0)
+            imu_value.magnetic_field.x = as_float(x)
+            imu_value.magnetic_field.y = as_float(y)
+            imu_value.magnetic_field.z = as_float(z)
         return imu_value
 
 
@@ -294,7 +302,7 @@ class NumpyTimestampSerializer(NumpyBaseSerializer, TimestampSerializer[np.ndarr
         return np.array([total_elapsed_seconds], dtype=self.dtype)
 
     def deserialize_timestamp(self, schema: P.TimestampSchema, value: np.ndarray) -> P.TimestampValue:
-        total_elapsed_seconds = value.item()
+        total_elapsed_seconds = float(value.item())
         elapsed_seconds = int(total_elapsed_seconds)
         elapsed_nanos = int((total_elapsed_seconds - elapsed_seconds) * 1_000_000_000)
         return P.TimestampValue(seconds=elapsed_seconds, nanos=elapsed_nanos)
@@ -305,7 +313,7 @@ class NumpyVectorCommandSerializer(NumpyBaseSerializer, VectorCommandSerializer[
         return np.array(value.values, dtype=self.dtype)
 
     def deserialize_vector_command(self, schema: P.VectorCommandSchema, value: np.ndarray) -> P.VectorCommandValue:
-        return P.VectorCommandValue(values=value.tolist())
+        return P.VectorCommandValue(values=value.astype(float).tolist())
 
 
 class NumpyStateTensorSerializer(NumpyBaseSerializer, StateTensorSerializer[np.ndarray]):

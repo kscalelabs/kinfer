@@ -1,7 +1,7 @@
 """Utility functions for serializing and deserializing Kinfer values."""
 
 import math
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import torch
@@ -169,3 +169,9 @@ def check_names_match(a_name: str, a: Sequence[str], b_name: str, b: Sequence[st
         if only_in_b:
             message += f" Only in {b_name}: {only_in_b}"
         raise ValueError(message)
+
+
+def as_float(value: Any) -> float:  # noqa: ANN401
+    if not isinstance(value, (float, int)):
+        raise ValueError(f"Value must be a float or int: {value}")
+    return float(value)

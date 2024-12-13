@@ -19,6 +19,7 @@ from kinfer.serialize.base import (
     VectorCommandSerializer,
 )
 from kinfer.serialize.utils import (
+    as_float,
     check_names_match,
     convert_angular_position,
     convert_angular_velocity,
@@ -36,12 +37,6 @@ JsonValue = Mapping[
     | Mapping[str, Sequence[Prim]]
     | Mapping[str, Mapping[str, Prim]],
 ]
-
-
-def as_float(value: Any) -> float:  # noqa: ANN401
-    if not isinstance(value, (float, int)):
-        raise ValueError(f"Value must be a float or int: {value}")
-    return float(value)
 
 
 class JsonJointPositionsSerializer(JointPositionsSerializer[JsonValue]):
