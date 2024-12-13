@@ -11,6 +11,8 @@ from kinfer.protos.kinfer_pb2 import (
     IMUSchema,
     IMUValue,
     Input,
+    JointCommandsSchema,
+    JointCommandsValue,
     JointPositionsSchema,
     JointPositionsValue,
     JointTorquesSchema,
@@ -25,9 +27,6 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
     VectorCommandValue,
-    JointCommandsSchema,
-    JointCommandValue,
-    JointCommandsValue,
 )
 
 T = TypeVar("T")
