@@ -1,9 +1,11 @@
 """Utility functions for serializing and deserializing Kinfer values."""
 
+import math
+
 import numpy as np
 import torch
 
-from kinfer.protos.kinfer_pb2 import DType
+from kinfer.protos.kinfer_pb2 import DType, JointPositionUnit, JointTorqueUnit, JointVelocityUnit
 
 
 def numpy_dtype(dtype: DType) -> type[np.floating] | type[np.integer]:
@@ -112,3 +114,31 @@ def dtype_range(dtype: DType) -> tuple[int, int]:
             return 0, 2**64 - 1
         case _:
             raise ValueError(f"Unsupported dtype: {dtype}")
+
+
+def convert_torque(value: float, from_unit: JointTorqueUnit, to_unit: JointTorqueUnit) -> float:
+    if from_unit == to_unit:
+        return value
+    raise ValueError(f"Unsupported unit: {from_unit}")
+
+
+def convert_angular_velocity(value: float, from_unit: JointVelocityUnit, to_unit: JointVelocityUnit) -> float:
+    if from_unit == to_unit:
+        return value
+    if from_unit == JointVelocityUnit.DEGREES_PER_SECOND:
+        assert to_unit == JointVelocityUnit.RADIANS_PER_SECOND
+        return value * math.pi / 180
+    if from_unit == JointVelocityUnit.RADIANS_PER_SECOND:
+        assert to_unit == JointVelocityUnit.DEGREES_PER_SECOND
+        return value * 180 / math.pi
+    raise ValueError(f"Unsupported unit: {from_unit}")
+
+
+def convert_angular_position(value: float, from_unit: JointPositionUnit, to_unit: JointPositionUnit) -> float:
+    if from_unit == to_unit:
+        return value
+    if from_unit == JointPositionUnit.DEGREES:
+        return value * math.pi / 180
+    if from_unit == JointPositionUnit.RADIANS:
+        return value * 180 / math.pi
+    raise ValueError(f"Unsupported unit: {from_unit}")

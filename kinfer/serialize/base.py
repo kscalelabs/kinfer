@@ -25,6 +25,9 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
     VectorCommandValue,
+    JointCommandsSchema,
+    JointCommandValue,
+    JointCommandsValue,
 )
 
 T = TypeVar("T")
@@ -130,6 +133,40 @@ class JointTorquesSerializer(ABC, Generic[T]):
 
         Returns:
             The deserialized joint torques.
+        """
+
+
+class JointCommandsSerializer(ABC, Generic[T]):
+    @abstractmethod
+    def serialize_joint_commands(
+        self,
+        schema: JointCommandsSchema,
+        value: JointCommandsValue,
+    ) -> T:
+        """Serialize a joint commands value.
+
+        Args:
+            schema: The schema of the joint commands.
+            value: The joint commands to serialize.
+
+        Returns:
+            The serialized joint commands.
+        """
+
+    @abstractmethod
+    def deserialize_joint_commands(
+        self,
+        schema: JointCommandsSchema,
+        value: T,
+    ) -> JointCommandsValue:
+        """Deserialize a joint commands value.
+
+        Args:
+            schema: The schema of the joint commands.
+            value: The serialized joint commands.
+
+        Returns:
+            The deserialized joint commands.
         """
 
 
@@ -333,6 +370,7 @@ class Serializer(
     JointPositionsSerializer[T],
     JointVelocitiesSerializer[T],
     JointTorquesSerializer[T],
+    JointCommandsSerializer[T],
     CameraFrameSerializer[T],
     AudioFrameSerializer[T],
     IMUSerializer[T],
@@ -362,6 +400,11 @@ class Serializer(
                 return self.serialize_joint_torques(
                     schema=self.schema.joint_torques,
                     value=value.joint_torques,
+                )
+            case "joint_commands":
+                return self.serialize_joint_commands(
+                    schema=self.schema.joint_commands,
+                    value=value.joint_commands,
                 )
             case "camera_frame":
                 return self.serialize_camera_frame(
@@ -418,6 +461,13 @@ class Serializer(
                 return Value(
                     joint_torques=self.deserialize_joint_torques(
                         schema=self.schema.joint_torques,
+                        value=value,
+                    ),
+                )
+            case "joint_commands":
+                return Value(
+                    joint_commands=self.deserialize_joint_commands(
+                        schema=self.schema.joint_commands,
                         value=value,
                     ),
                 )

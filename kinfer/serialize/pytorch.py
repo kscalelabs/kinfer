@@ -1,6 +1,5 @@
 """Defines a serializer for PyTorch tensors."""
 
-import math
 from typing import Sequence
 
 import numpy as np
@@ -16,17 +15,17 @@ from kinfer.protos.kinfer_pb2 import (
     IMUSchema,
     IMUValue,
     InputSchema,
+    JointCommandsSchema,
+    JointCommandsValue,
+    JointCommandValue,
     JointPositionsSchema,
     JointPositionsValue,
-    JointPositionUnit,
     JointPositionValue,
     JointTorquesSchema,
     JointTorquesValue,
-    JointTorqueUnit,
     JointTorqueValue,
     JointVelocitiesSchema,
     JointVelocitiesValue,
-    JointVelocityUnit,
     JointVelocityValue,
     StateTensorSchema,
     StateTensorValue,
@@ -40,6 +39,7 @@ from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
     IMUSerializer,
+    JointCommandsSerializer,
     JointPositionsSerializer,
     JointTorquesSerializer,
     JointVelocitiesSerializer,
@@ -49,7 +49,16 @@ from kinfer.serialize.base import (
     TimestampSerializer,
     VectorCommandSerializer,
 )
-from kinfer.serialize.utils import dtype_num_bytes, dtype_range, numpy_dtype, parse_bytes, pytorch_dtype
+from kinfer.serialize.utils import (
+    convert_angular_position,
+    convert_angular_velocity,
+    convert_torque,
+    dtype_num_bytes,
+    dtype_range,
+    numpy_dtype,
+    parse_bytes,
+    pytorch_dtype,
+)
 
 
 def check_names_match(names_a: Sequence[str], names_b: Sequence[str]) -> None:
@@ -72,20 +81,6 @@ class PyTorchBaseSerializer:
 
 
 class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSerializer[Tensor]):
-    def _convert_angular_position(
-        self,
-        value: float,
-        from_unit: JointPositionUnit,
-        to_unit: JointPositionUnit,
-    ) -> float:
-        if from_unit == to_unit:
-            return value
-        if from_unit == JointPositionUnit.DEGREES:
-            return value * math.pi / 180
-        if from_unit == JointPositionUnit.RADIANS:
-            return value * 180 / math.pi
-        raise ValueError(f"Unsupported unit: {from_unit}")
-
     def serialize_joint_positions(
         self,
         schema: JointPositionsSchema,
@@ -96,10 +91,7 @@ class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSeria
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
         tensor = torch.tensor(
-            [
-                self._convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit)
-                for name in names
-            ],
+            [convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
             dtype=self.dtype,
             device=self.device,
         )
@@ -117,33 +109,13 @@ class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSeria
         value_list = value.detach().cpu().flatten().numpy().tolist()
         return JointPositionsValue(
             values=[
-                JointPositionValue(
-                    joint_name=name,
-                    value=value_list[i],
-                    unit=schema.unit,
-                )
+                JointPositionValue(joint_name=name, value=value_list[i], unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
 
 
 class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSerializer[Tensor]):
-    def _convert_angular_velocity(
-        self,
-        value: float,
-        from_unit: JointVelocityUnit,
-        to_unit: JointVelocityUnit,
-    ) -> float:
-        if from_unit == to_unit:
-            return value
-        if from_unit == JointVelocityUnit.DEGREES_PER_SECOND:
-            assert to_unit == JointVelocityUnit.RADIANS_PER_SECOND
-            return value * math.pi / 180
-        if from_unit == JointVelocityUnit.RADIANS_PER_SECOND:
-            assert to_unit == JointVelocityUnit.DEGREES_PER_SECOND
-            return value * 180 / math.pi
-        raise ValueError(f"Unsupported unit: {from_unit}")
-
     def serialize_joint_velocities(
         self,
         schema: JointVelocitiesSchema,
@@ -154,10 +126,7 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
         tensor = torch.tensor(
-            [
-                self._convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
-                for name in names
-            ],
+            [convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
             dtype=self.dtype,
             device=self.device,
         )
@@ -178,16 +147,6 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
 
 
 class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerializer[Tensor]):
-    def _convert_torque(
-        self,
-        value: float,
-        from_unit: JointTorqueUnit,
-        to_unit: JointTorqueUnit,
-    ) -> float:
-        if from_unit == to_unit:
-            return value
-        raise ValueError(f"Unsupported unit: {from_unit}")
-
     def serialize_joint_torques(
         self,
         schema: JointTorquesSchema,
@@ -198,7 +157,7 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
             raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
         value_map = {v.joint_name: v for v in values}
         tensor = torch.tensor(
-            [self._convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
+            [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
             dtype=self.dtype,
             device=self.device,
         )
@@ -213,6 +172,38 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
         return JointTorquesValue(
             values=[
                 JointTorqueValue(joint_name=name, value=value_list[i], unit=schema.unit)
+                for i, name in enumerate(schema.joint_names)
+            ]
+        )
+
+
+class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSerializer[Tensor]):
+    def serialize_joint_commands(
+        self,
+        schema: JointCommandsSchema,
+        value: JointCommandsValue,
+    ) -> Tensor:
+        names, values = schema.joint_names, value.values
+        if set(names) != set(v.joint_name for v in values):
+            raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
+        value_map = {v.joint_name: v for v in values}
+        tensor = torch.tensor(
+            [
+                convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
+                for name in names
+            ],
+            dtype=self.dtype,
+            device=self.device,
+        )
+        return tensor
+
+    def deserialize_joint_commands(self, schema: JointCommandsSchema, value: Tensor) -> JointCommandsValue:
+        value_list = value.detach().cpu().flatten().numpy().tolist()
+        return JointCommandsValue(
+            values=[
+                JointCommandValue(
+                    joint_name=name,
+                )
                 for i, name in enumerate(schema.joint_names)
             ]
         )
