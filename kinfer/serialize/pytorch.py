@@ -36,8 +36,6 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
     VectorCommandValue,
-    StateTensorSchema2,
-    StateTensorValue2,
     AngularVelocitySchema,
     AngularVelocityValue,
     EulerRotationSchema,
@@ -55,7 +53,6 @@ from kinfer.serialize.base import (
     StateTensorSerializer,
     TimestampSerializer,
     VectorCommandSerializer,
-    StateTensor2Serializer,
     AngularVelocitySerializer,
     EulerRotationSerializer,
 )
@@ -347,7 +344,6 @@ class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSeriali
 
 class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[Tensor]):
     def serialize_state_tensor(self, schema: StateTensorSchema, value: StateTensorValue) -> Tensor:
-        breakpoint()
         value_bytes = value.data
         if len(value_bytes) != np.prod(schema.shape) * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -361,14 +357,6 @@ class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[
 
     def deserialize_state_tensor(self, schema: StateTensorSchema, value: Tensor) -> StateTensorValue:
         return StateTensorValue(data=value.cpu().flatten().numpy().tobytes())
-
-
-class PyTorchStateTensor2Serializer(PyTorchBaseSerializer, StateTensor2Serializer[Tensor]):
-    def serialize_state_tensor2(self, schema: StateTensorSchema2, value: StateTensorValue2) -> Tensor:
-        return torch.tensor(value.values, dtype=self.dtype, device=self.device)
-
-    def deserialize_state_tensor2(self, schema: StateTensorSchema2, value: Tensor) -> StateTensorValue2:
-        return StateTensorValue2(values=value.tolist())
 
 
 class PyTorchAngularVelocitySerializer(PyTorchBaseSerializer, AngularVelocitySerializer[Tensor]):
@@ -407,7 +395,6 @@ class PyTorchSerializer(
     PyTorchTimestampSerializer,
     PyTorchVectorCommandSerializer,
     PyTorchStateTensorSerializer,
-    PyTorchStateTensor2Serializer,
     PyTorchAngularVelocitySerializer,
     PyTorchEulerRotationSerializer,
     Serializer[Tensor],
@@ -459,7 +446,6 @@ if __name__ == "__main__":
 
     # Create and use the serializer
     serializer = PyTorchInputSerializer(schema)
-    breakpoint()
     tensors = serializer.serialize(timestamp)
 
     print("Serialized tensors:", tensors)

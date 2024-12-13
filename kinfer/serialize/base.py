@@ -25,8 +25,6 @@ from kinfer.protos.kinfer_pb2 import (
     ValueSchema,
     VectorCommandSchema,
     VectorCommandValue,
-    StateTensorSchema2,
-    StateTensorValue2,
     AngularVelocitySchema,
     AngularVelocityValue,
     EulerRotationSchema,
@@ -335,31 +333,6 @@ class StateTensorSerializer(ABC, Generic[T]):
         """
 
 
-class StateTensor2Serializer(ABC, Generic[T]):
-    @abstractmethod
-    def serialize_state_tensor2(self, schema: StateTensorSchema2, value: StateTensorValue2) -> T:
-        """Serialize a state tensor value.
-
-        Args:
-            schema: The schema of the state.
-            value: The state to serialize.
-
-        Returns:
-            The serialized state.
-        """
-
-    @abstractmethod
-    def deserialize_state_tensor2(self, schema: StateTensorSchema2, value: T) -> StateTensorValue2:
-        """Deserialize a state tensor value.
-
-        Args:
-            schema: The schema of the state.
-            value: The serialized state.
-
-        Returns:
-            The deserialized state.
-        """
-
 class AngularVelocitySerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_angular_velocity(self, schema: AngularVelocitySchema, value: AngularVelocityValue) -> T:
@@ -422,7 +395,6 @@ class Serializer(
     TimestampSerializer[T],
     VectorCommandSerializer[T],
     StateTensorSerializer[T],
-    StateTensor2Serializer[T],
     AngularVelocitySerializer[T],
     EulerRotationSerializer[T],
     Generic[T],

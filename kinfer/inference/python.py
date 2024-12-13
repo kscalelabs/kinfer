@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 import numpy as np
 import onnx
@@ -69,8 +69,6 @@ class ONNXModel:
         """
         serialized_inputs = self.input_serializer.serialize(input)
 
-        breakpoint()
-        # Run inference - pass None to output_names param to get all outputs
         outputs = self.session.run(None, serialized_inputs)
 
         return self.output_serializer.deserialize(outputs)
