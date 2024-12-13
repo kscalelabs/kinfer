@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from kinfer.export.pytorch import export_to_onnx
+from kinfer.export.pytorch import export_model
 
 
 @dataclass
@@ -47,7 +47,7 @@ def main() -> None:
     # input_tensor = torch.randn(batch_size, 10)
 
     # Export model to ONNX
-    session = export_to_onnx(model=model, input_tensors=None, config=config, save_path="simple_model.onnx")
+    session = export_model(model=model, input_tensors=None, config=config, save_path="simple_model.onnx")
 
     logger.info("Model exported successfully!")
     inputs = [{"name": node.name, "shape": node.shape, "type": node.type} for node in session.get_inputs()]
