@@ -2,7 +2,6 @@
 
 import random
 
-import numpy as np
 import pytest
 
 from kinfer.protos.kinfer_pb2 import (
