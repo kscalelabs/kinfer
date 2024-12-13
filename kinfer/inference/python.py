@@ -1,21 +1,19 @@
 """ONNX model inference utilities for Python."""
 
-import json
-import logging
-from typing import Any, Dict, List, Union
+from pathlib import Path
 
 import numpy as np
 import onnx
 import onnxruntime as ort
 
+from kinfer import protos as P
+from kinfer.export.pytorch import KINFER_METADATA_KEY
+
 
 class ONNXModel:
     """Wrapper for ONNX model inference."""
 
-    def __init__(
-        self,
-        model_path: str,
-    ) -> None:
+    def __init__(self, model_path: str | Path) -> None:
         """Initialize ONNX model.
 
         Args:
@@ -26,92 +24,43 @@ class ONNXModel:
 
         # Load model and create inference session
         self.model = onnx.load(model_path)
-        self.session = ort.InferenceSession(
-            model_path,
-        )
+        self.session = ort.InferenceSession(model_path)
 
         # Extract metadata and attempt to parse JSON values
-        self.metadata = {}
-        self.attached_metadata = {}
         for prop in self.model.metadata_props:
-            if prop.key == "kinfer_metadata":
+            if prop.key == KINFER_METADATA_KEY:
                 try:
-                    self.metadata = json.loads(prop.value)
-                except json.JSONDecodeError:
-                    logging.warning(
-                        "Failed to parse kinfer_metadata value with JSON parser. Saving as string: %s",
-                        prop.value,
-                    )
-                    self.metadata = prop.value
+                    metadata = P.ModelSchema.FromString(prop.value.encode("utf-8"))
+                except Exception as e:
+                    raise ValueError("Failed to parse kinfer_metadata value") from e
+                break
+            else:
+                self.attached_metadata[prop.key] = prop.value
+        else:
+            raise ValueError("kinfer_metadata not found in model metadata")
 
-            self.attached_metadata[prop.key] = prop.value
+        self._input_schema = metadata.input_schema
+        self._output_schema = metadata.output_schema
 
-        # Get input and output details
-        self.input_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_inputs()]
-        self.output_details = [{"name": x.name, "shape": x.shape, "type": x.type} for x in self.session.get_outputs()]
-
-    def __call__(
-        self, inputs: Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]
-    ) -> Union[np.ndarray, Dict[str, np.ndarray], List[np.ndarray]]:
+    def __call__(self, inputs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         """Run inference on input data.
 
         Args:
-            inputs: Input data as numpy array, dictionary of arrays, or list of arrays
+            inputs: Input data, matching the input schema.
 
         Returns:
-            Model outputs in the same format as inputs
+            Model outputs, matching the output schema.
         """
-        # Convert single array to dict
-        if isinstance(inputs, np.ndarray):
-            input_dict = {self.input_details[0]["name"]: inputs}
-        # Convert list to dict
-        elif isinstance(inputs, list):
-            input_dict = {detail["name"]: arr for detail, arr in zip(self.input_details, inputs)}
-        else:
-            input_dict = inputs
-
         # Run inference - pass None to output_names param to get all outputs
-        outputs = self.session.run(None, input_dict)
+        outputs = self.session.run(None, inputs)
+        return outputs
 
-        # Convert output format to match input
-        if isinstance(inputs, np.ndarray):
-            return outputs[0]
-        elif isinstance(inputs, list):
-            return outputs
-        else:
-            return {detail["name"]: arr for detail, arr in zip(self.output_details, outputs)}
+    @property
+    def input_schema(self) -> P.InputSchema:
+        """Get the input schema."""
+        return self._input_schema
 
-    def run(self, inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-        """Directly passes inputs to the model and returns outputs.
-
-        Args:
-            inputs: Input data as dictionary of arrays
-
-        Returns:
-            Model outputs as dictionary of arrays
-        """
-        return self.session.run(None, inputs)
-
-    def get_metadata(self) -> Dict[str, Any]:
-        """Get model metadata.
-
-        Returns:
-            Dictionary of metadata key-value pairs
-        """
-        return self.metadata
-
-    def get_input_details(self) -> List[Dict[str, Any]]:
-        """Get input tensor details.
-
-        Returns:
-            List of dictionaries containing input tensor information
-        """
-        return self.input_details
-
-    def get_output_details(self) -> List[Dict[str, Any]]:
-        """Get output tensor details.
-
-        Returns:
-            List of dictionaries containing output tensor information
-        """
-        return self.output_details
+    @property
+    def output_schema(self) -> P.OutputSchema:
+        """Get the output schema."""
+        return self._output_schema

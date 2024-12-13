@@ -28,6 +28,7 @@ from .kinfer_pb2 import (
     JointVelocitiesValue,
     JointVelocityUnit,
     JointVelocityValue,
+    ModelSchema,
     Output,
     OutputSchema,
     StateTensorSchema,

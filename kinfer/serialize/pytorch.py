@@ -346,7 +346,7 @@ class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[
         return tensor
 
     def deserialize_state_tensor(self, schema: P.StateTensorSchema, value: Tensor) -> P.StateTensorValue:
-        return P.StateTensorValue(data=value.cpu().flatten().numpy().tobytes())
+        return P.StateTensorValue(data=value.detach().cpu().flatten().numpy().tobytes())
 
 
 class PyTorchSerializer(
@@ -375,4 +375,5 @@ class PyTorchSerializer(
 
 class PyTorchMultiSerializer(MultiSerializer[Tensor]):
     def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
-        super().__init__([PyTorchSerializer(schema=s) for s in schema.inputs])
+        values = schema.inputs if isinstance(schema, P.InputSchema) else schema.outputs
+        super().__init__([PyTorchSerializer(schema=s) for s in values])
