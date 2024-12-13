@@ -1,226 +1,112 @@
 """PyTorch model export utilities."""
 
 import inspect
-import json
-import logging
-import sys
-from dataclasses import fields, is_dataclass
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import Sequence
 
 import onnx
 import onnxruntime as ort
 import torch
-from torch import nn
+from torch import Tensor
 
+from kinfer import protos as P
+from kinfer.serialize.pytorch import PyTorchMultiSerializer
+from kinfer.serialize.schema import get_dummy_inputs
 
-def get_model_info(model: nn.Module) -> Dict[str, Any]:
-    """Extract model information including input parameters and their types.
-
-    Args:
-        model: PyTorch model to analyze
-
-    Returns:
-        Dictionary containing model information
-    """
-    # Get model's forward method signature
-    signature = inspect.signature(model.forward)
-
-    # Extract parameter information
-    params_info = {}
-    for name, param in signature.parameters.items():
-        if name == "self":
-            continue
-        params_info[name] = {
-            "default": None if param.default is param.empty else str(param.default),
-        }
-
-    return {
-        "input_params": params_info,
-        "num_parameters": sum(p.numel() for p in model.parameters()),
-    }
+KINFER_METADATA_KEY = "kinfer_metadata"
 
 
 def add_metadata_to_onnx(
     model_proto: onnx.ModelProto,
-    metadata: Dict[str, Any],
-    config: Optional[object] = None,
+    input_schema: P.InputSchema,
+    output_schema: P.OutputSchema,
 ) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
     Args:
         model_proto: ONNX model prototype
-        metadata: Dictionary of metadata to add
-        config: Optional configuration dataclass to add to metadata
+        input_schema: Input schema to use for model export.
+        output_schema: Output schema to use for model export.
 
     Returns:
         ONNX model with added metadata
     """
-    # Build metadata dictionary
-    metadata_dict = metadata.copy()
-
-    # Add configuration if provided
-    if config is not None:
-        if is_dataclass(config):
-            for field in fields(config):
-                metadata_dict[field.name] = getattr(config, field.name)
-        elif not isinstance(config, dict):
-            raise ValueError("config must be a dataclass or dict. Got: " + str(type(config)))
-
-    # Add metadata as JSON string
+    model_schema = P.ModelSchema(input_schema=input_schema, output_schema=output_schema)
+    schema_bytes = model_schema.SerializeToString()
     meta = model_proto.metadata_props.add()
-    meta.key = "kinfer_metadata"
-    meta.value = json.dumps(metadata_dict)
-
+    meta.key = KINFER_METADATA_KEY
+    meta.value = schema_bytes
     return model_proto
 
 
-def infer_input_shapes(model: nn.Module) -> Union[torch.Size, List[torch.Size]]:
-    """Infer input shapes from model architecture.
-
-    Args:
-        model: PyTorch model to analyze
-
-    Returns:
-        Single input shape or list of input shapes
-    """
-    # Check if model is Sequential or has Sequential as first child
-    if isinstance(model, nn.Sequential):
-        first_layer = model[0]
-    else:
-        # Get the first immediate child
-        children = list(model.children())
-        first_layer = children[0] if children else None
-
-        # Unwrap if the first child is Sequential
-        if isinstance(first_layer, nn.Sequential):
-            first_layer = first_layer[0]
-    # Check if first layer is a type we can infer from
-    if not isinstance(first_layer, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d)):
-        raise ValueError("First layer must be Linear or Conv layer to infer input shape")
-
-    # Get input dimensions
-    if isinstance(first_layer, nn.Linear):
-        return torch.Size([1, first_layer.in_features])
-    elif isinstance(first_layer, nn.Conv1d):
-        raise ValueError("Cannot infer sequence length for Conv1d layer. Please provide input_tensors explicitly.")
-    elif isinstance(first_layer, nn.Conv2d):
-        raise ValueError("Cannot infer image dimensions for Conv2d layer. Please provide input_tensors explicitly.")
-    elif isinstance(first_layer, nn.Conv3d):
-        raise ValueError("Cannot infer volume dimensions for Conv3d layer. Please provide input_tensors explicitly.")
-
-    raise ValueError("Could not infer input shape from model architecture")
-
-
-def create_example_inputs(model: nn.Module) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
-    """Create example input tensors based on model's forward signature and architecture.
-
-    Args:
-        model: PyTorch model to analyze
-
-    Returns:
-        Single tensor or tuple of tensors matching the model's expected input
-    """
-    signature = inspect.signature(model.forward)
-    params = [p for p in signature.parameters.items() if p[0] != "self"]
-
-    # If single parameter (besides self), try to infer shape
-    if len(params) == 1:
-        shape = infer_input_shapes(model)
-        return torch.randn(*shape) if isinstance(shape, torch.Size) else torch.randn(*shape[0])
-
-    # For multiple parameters, try to infer from parameter annotations
-    input_tensors = []
-    for name, param in params:
-        # Try to get shape from annotation
-        if hasattr(param.annotation, "__origin__") and param.annotation.__origin__ is torch.Tensor:
-            # If annotation includes size information (e.g., Tensor[batch_size, channels, height, width])
-            if hasattr(param.annotation, "__args__"):
-                shape = param.annotation.__args__
-                input_tensors.append(torch.randn(*shape) if isinstance(shape, torch.Size) else torch.randn(*shape[0]))
-            else:
-                # Default to a vector if no size info
-                input_tensors.append(torch.randn(1, 32))
-        else:
-            # Default fallback
-            input_tensors.append(torch.randn(1, 32))
-
-    return tuple(input_tensors)
-
-
 def export_model(
-    model: nn.Module,
-    input_tensors: Optional[Union[torch.Tensor, Tuple[torch.Tensor, ...]]] = None,
-    config: Optional[object] = None,
-    save_path: Optional[str] = None,
-) -> ort.InferenceSession:
+    model: torch.jit.ScriptModule,
+    input_schema: P.InputSchema,
+    output_schema: P.OutputSchema,
+) -> onnx.ModelProto:
     """Export PyTorch model to ONNX format with metadata.
 
     Args:
-        model: PyTorch model to export
-        input_tensors: Optional example input tensors for model tracing. If None, will attempt to infer.
-        config: Optional configuration dataclass to add to metadata
-        save_path: Optional path to save the ONNX model
+        model: PyTorch model to export.
+        input_schema: Input schema to use for model export.
+        output_schema: Output schema to use for model export.
 
     Returns:
         ONNX inference session
     """
-    # Get model information
-    model_info = get_model_info(model)
+    input_serializer = PyTorchMultiSerializer(input_schema)
+    output_serializer = PyTorchMultiSerializer(output_schema)
 
-    # Create example inputs if not provided
-    if input_tensors is None:
-        logging.warning(
-            "No input_tensors provided. Attempting to automatically infer input shapes. "
-            "Note: Input shape inference is *highly* experimental and may not work correctly for all models."
-        )
-        try:
-            input_tensors = create_example_inputs(model)
-            model_info["inferred_input_shapes"] = str(
-                input_tensors.shape if isinstance(input_tensors, torch.Tensor) else [t.shape for t in input_tensors]
-            )
-        except ValueError as e:
-            raise ValueError(
-                f"Could not automatically infer input shapes. Please provide input_tensors. Error: {str(e)}"
-            )
+    input_dummy_values = get_dummy_inputs(input_schema)
+    input_tensors = input_serializer.serialize_input(input_dummy_values)
 
-    # Convert model to JIT if not already
-    if not isinstance(model, torch.jit.ScriptModule):
-        model = torch.jit.script(model)
+    # Attempts to run the model with the dummy inputs.
+    try:
+        pred_output_tensors = model(**input_tensors)
+    except Exception as e:
+        signature = inspect.signature(model.forward)
+        model_input_names = [
+            p.name for p in signature.parameters.values() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+        ]
+        raise ValueError(
+            f"Failed to run model with dummy inputs; input names are {model_input_names} while "
+            f"input schema is {input_schema}"
+        ) from e
+
+    # Attempts to parse the output tensors using the output schema.
+    if isinstance(pred_output_tensors, Tensor):
+        pred_output_tensors = (pred_output_tensors,)
+    if isinstance(pred_output_tensors, Sequence):
+        pred_output_tensors = output_serializer.assign_output_names(pred_output_tensors)
+    if not isinstance(pred_output_tensors, dict):
+        raise ValueError("Output tensors could not be converted to dictionary")
+    try:
+        pred_output_tensors = output_serializer.deserialize_output(pred_output_tensors)
+    except Exception as e:
+        raise ValueError("Failed to parse output tensors using output schema; are you sure it is correct?") from e
 
     # Export model to buffer
     buffer = BytesIO()
-    if TYPE_CHECKING and sys.version_info >= (3, 11):
-        torch.onnx.export(
-            model,
-            (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors,
-            buffer,  # type: ignore[arg-type]
-        )
-    else:
-        torch.onnx.export(
-            model,
-            (input_tensors,) if isinstance(input_tensors, torch.Tensor) else input_tensors,
-            buffer,
-        )
+    torch.onnx.export(model, input_tensors, buffer)  # type: ignore[arg-type]
     buffer.seek(0)
 
-    # Load as ONNX model
+    # Loads the model from the buffer and adds metadata.
     model_proto = onnx.load_model(buffer)
+    model_proto = add_metadata_to_onnx(model_proto, input_schema, output_schema)
 
-    # Add config dict to model info if provided
-    if isinstance(config, dict):
-        model_info.update(config)
+    return model_proto
 
-    # Add metadata
-    model_proto = add_metadata_to_onnx(model_proto, model_info, config)
 
-    # Save if path provided
-    if save_path:
-        onnx.save_model(model_proto, save_path)
+def get_model(model_proto: onnx.ModelProto) -> ort.InferenceSession:
+    """Converts a model proto to an inference session.
 
-    # Convert to inference session
+    Args:
+        model_proto: ONNX model proto to convert to inference session.
+
+    Returns:
+        ONNX inference session
+    """
     buffer = BytesIO()
     onnx.save_model(model_proto, buffer)
     buffer.seek(0)
-
     return ort.InferenceSession(buffer.read())

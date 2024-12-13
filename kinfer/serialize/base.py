@@ -507,3 +507,13 @@ class MultiSerializer(Generic[T]):
 
     def deserialize_output(self, output: dict[str, T]) -> P.Output:
         return P.Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])
+
+    def assign_input_names(self, input: Sequence[T]) -> dict[str, T]:
+        if len(input) != len(self.serializers):
+            raise ValueError(f"Expected {len(self.serializers)} inputs, got {len(input)}")
+        return {s.schema.value_name: i for s, i in zip(self.serializers, input)}
+
+    def assign_output_names(self, output: Sequence[T]) -> dict[str, T]:
+        if len(output) != len(self.serializers):
+            raise ValueError(f"Expected {len(self.serializers)} outputs, got {len(output)}")
+        return {s.schema.value_name: o for s, o in zip(self.serializers, output)}

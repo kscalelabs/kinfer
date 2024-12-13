@@ -1,56 +1,20 @@
 """Defines utility functions for the schema."""
 
-from typing import Literal, overload
+import numpy as np
 
-from google.protobuf.json_format import ParseDict
-
-from kinfer.protos.kinfer_pb2 import (
-    AudioFrameValue,
-    CameraFrameValue,
-    IMUAccelerometerValue,
-    IMUGyroscopeValue,
-    IMUMagnetometerValue,
-    IMUValue,
-    Input,
-    InputSchema,
-    JointPositionsValue,
-    JointPositionValue,
-    JointTorquesValue,
-    JointTorqueValue,
-    JointVelocitiesValue,
-    JointVelocityValue,
-    Output,
-    OutputSchema,
-    TimestampValue,
-    Value,
-    ValueSchema,
-    VectorCommandValue,
-)
+from kinfer import protos as P
 from kinfer.serialize.utils import dtype_num_bytes
 
-ValueSchemaType = Literal[
-    "joint_positions",
-    "joint_velocities",
-    "joint_torques",
-    "joint_commands",
-    "camera_frame",
-    "audio_frame",
-    "imu",
-    "timestamp",
-    "vector_command",
-    "state_tensor",
-]
 
-
-def get_dummy_value(value_schema: ValueSchema) -> Value:
+def get_dummy_value(value_schema: P.ValueSchema) -> P.Value:
     value_type = value_schema.WhichOneof("value_type")
 
     match value_type:
         case "joint_positions":
-            return Value(
-                joint_positions=JointPositionsValue(
+            return P.Value(
+                joint_positions=P.JointPositionsValue(
                     values=[
-                        JointPositionValue(
+                        P.JointPositionValue(
                             joint_name=joint_name,
                             value=0.0,
                             unit=value_schema.joint_positions.unit,
@@ -60,10 +24,10 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
                 ),
             )
         case "joint_velocities":
-            return Value(
-                joint_velocities=JointVelocitiesValue(
+            return P.Value(
+                joint_velocities=P.JointVelocitiesValue(
                     values=[
-                        JointVelocityValue(
+                        P.JointVelocityValue(
                             joint_name=joint_name,
                             value=0.0,
                             unit=value_schema.joint_velocities.unit,
@@ -73,10 +37,10 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
                 ),
             )
         case "joint_torques":
-            return Value(
-                joint_torques=JointTorquesValue(
+            return P.Value(
+                joint_torques=P.JointTorquesValue(
                     values=[
-                        JointTorqueValue(
+                        P.JointTorqueValue(
                             joint_name=joint_name,
                             value=0.0,
                             unit=value_schema.joint_torques.unit,
@@ -85,9 +49,28 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
                     ]
                 ),
             )
+        case "joint_commands":
+            return P.Value(
+                joint_commands=P.JointCommandsValue(
+                    values=[
+                        P.JointCommandValue(
+                            joint_name=joint_name,
+                            torque=0.0,
+                            velocity=0.0,
+                            position=0.0,
+                            kp=0.0,
+                            kd=0.0,
+                            torque_unit=value_schema.joint_commands.torque_unit,
+                            velocity_unit=value_schema.joint_commands.velocity_unit,
+                            position_unit=value_schema.joint_commands.position_unit,
+                        )
+                        for joint_name in value_schema.joint_commands.joint_names
+                    ]
+                ),
+            )
         case "camera_frame":
-            return Value(
-                camera_frame=CameraFrameValue(
+            return P.Value(
+                camera_frame=P.CameraFrameValue(
                     data=b"\x00"
                     * (
                         value_schema.camera_frame.width
@@ -97,8 +80,8 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
                 ),
             )
         case "audio_frame":
-            return Value(
-                audio_frame=AudioFrameValue(
+            return P.Value(
+                audio_frame=P.AudioFrameValue(
                     data=b"\x00"
                     * (
                         value_schema.audio_frame.channels
@@ -108,50 +91,42 @@ def get_dummy_value(value_schema: ValueSchema) -> Value:
                 ),
             )
         case "imu":
-            return Value(
-                imu=IMUValue(
-                    linear_acceleration=IMUAccelerometerValue(x=0.0, y=0.0, z=0.0),
-                    angular_velocity=IMUGyroscopeValue(x=0.0, y=0.0, z=0.0),
-                    magnetic_field=IMUMagnetometerValue(x=0.0, y=0.0, z=0.0),
+            return P.Value(
+                imu=P.IMUValue(
+                    linear_acceleration=P.IMUAccelerometerValue(x=0.0, y=0.0, z=0.0),
+                    angular_velocity=P.IMUGyroscopeValue(x=0.0, y=0.0, z=0.0),
+                    magnetic_field=P.IMUMagnetometerValue(x=0.0, y=0.0, z=0.0),
                 ),
             )
         case "timestamp":
-            return Value(
-                timestamp=TimestampValue(seconds=1728000000, nanos=0),
+            return P.Value(
+                timestamp=P.TimestampValue(seconds=1728000000, nanos=0),
             )
         case "vector_command":
-            return Value(
-                vector_command=VectorCommandValue(values=[0.0, 0.0, 0.0]),
+            return P.Value(
+                vector_command=P.VectorCommandValue(values=[0.0] * value_schema.vector_command.dimensions),
+            )
+        case "state_tensor":
+            return P.Value(
+                state_tensor=P.StateTensorValue(
+                    data=b"\x00"
+                    * np.prod(value_schema.state_tensor.shape)
+                    * dtype_num_bytes(value_schema.state_tensor.dtype)
+                ),
             )
         case _:
             raise ValueError(f"Invalid value type: {value_type}")
 
 
-def get_dummy_inputs(input_schema: InputSchema) -> Input:
-    input_value = Input()
+def get_dummy_inputs(input_schema: P.InputSchema) -> P.Input:
+    input_value = P.Input()
     for value_schema in input_schema.inputs:
         input_value.inputs.append(get_dummy_value(value_schema))
     return input_value
 
 
-def get_dummy_outputs(output_schema: OutputSchema) -> Output:
-    output_value = Output()
+def get_dummy_outputs(output_schema: P.OutputSchema) -> P.Output:
+    output_value = P.Output()
     for value_schema in output_schema.outputs:
         output_value.outputs.append(get_dummy_value(value_schema))
     return output_value
-
-
-@overload
-def parse_schema(values: dict[ValueSchemaType, ValueSchema], mode: Literal["input"]) -> InputSchema: ...
-
-
-@overload
-def parse_schema(values: dict[ValueSchemaType, ValueSchema], mode: Literal["output"]) -> OutputSchema: ...
-
-
-def parse_schema(
-    values: dict[ValueSchemaType, ValueSchema],
-    mode: Literal["input", "output"],
-) -> InputSchema | OutputSchema:
-    schema = InputSchema() if mode == "input" else OutputSchema()
-    return ParseDict(values, schema)

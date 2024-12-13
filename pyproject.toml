@@ -7,7 +7,7 @@ exclude = "kinfer/protos/"
 
 [tool.pytest.ini_options]
 
-addopts = "-rx -rf -x -q --full-trace"
+addopts = "-x -rf"
 testpaths = ["tests"]
 
 markers = [
