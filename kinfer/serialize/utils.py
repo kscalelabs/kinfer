@@ -1,6 +1,7 @@
 """Utility functions for serializing and deserializing Kinfer values."""
 
 import math
+from typing import Sequence
 
 import numpy as np
 import torch
@@ -142,3 +143,17 @@ def convert_angular_position(value: float, from_unit: JointPositionUnit, to_unit
     if from_unit == JointPositionUnit.RADIANS:
         return value * 180 / math.pi
     raise ValueError(f"Unsupported unit: {from_unit}")
+
+
+def check_names_match(a_name: str, a: Sequence[str], b_name: str, b: Sequence[str]) -> None:
+    name_set_a = set(a)
+    name_set_b = set(b)
+    if name_set_a != name_set_b:
+        only_in_a = name_set_a - name_set_b
+        only_in_b = name_set_b - name_set_a
+        message = "Names must match!"
+        if only_in_a:
+            message += f" Only in {a_name}: {only_in_a}"
+        if only_in_b:
+            message += f" Only in {b_name}: {only_in_b}"
+        raise ValueError(message)

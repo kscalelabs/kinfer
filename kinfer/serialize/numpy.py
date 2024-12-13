@@ -1,7 +1,5 @@
 """Defines a serializer for Numpy arrays."""
 
-from typing import Sequence
-
 import numpy as np
 
 from kinfer.protos.kinfer_pb2 import (
@@ -48,6 +46,7 @@ from kinfer.serialize.base import (
     VectorCommandSerializer,
 )
 from kinfer.serialize.utils import (
+    check_names_match,
     convert_angular_position,
     convert_angular_velocity,
     convert_torque,
@@ -56,15 +55,6 @@ from kinfer.serialize.utils import (
     numpy_dtype,
     parse_bytes,
 )
-
-
-def check_names_match(names_a: Sequence[str], names_b: Sequence[str]) -> None:
-    name_set_a = set(names_a)
-    name_set_b = set(names_b)
-    if name_set_a != name_set_b:
-        only_in_a = name_set_a - name_set_b
-        only_in_b = name_set_b - name_set_a
-        raise ValueError(f"Names must match: {only_in_a} != {only_in_b}")
 
 
 class NumpyBaseSerializer:
@@ -78,12 +68,13 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
         schema: JointPositionsSchema,
         value: JointPositionsValue,
     ) -> np.ndarray:
-        names, values = schema.joint_names, value.values
-        if set(names) != set(v.joint_name for v in values):
-            raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
-        value_map = {v.joint_name: v for v in values}
+        value_map = {v.joint_name: v for v in value.values}
+        check_names_match("schema", schema.joint_names, "value", value_map.keys())
         array = np.array(
-            [convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
+            [
+                convert_angular_position(value_map[name].value, value_map[name].unit, schema.unit)
+                for name in schema.joint_names
+            ],
             dtype=self.dtype,
         )
         return array
@@ -116,12 +107,13 @@ class NumpyJointVelocitiesSerializer(NumpyBaseSerializer, JointVelocitiesSeriali
         schema: JointVelocitiesSchema,
         value: JointVelocitiesValue,
     ) -> np.ndarray:
-        names, values = schema.joint_names, value.values
-        if set(names) != set(v.joint_name for v in values):
-            raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
-        value_map = {v.joint_name: v for v in values}
+        value_map = {v.joint_name: v for v in value.values}
+        check_names_match("schema", schema.joint_names, "value", value_map.keys())
         array = np.array(
-            [convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
+            [
+                convert_angular_velocity(value_map[name].value, value_map[name].unit, schema.unit)
+                for name in schema.joint_names
+            ],
             dtype=self.dtype,
         )
         return array
@@ -146,12 +138,10 @@ class NumpyJointTorquesSerializer(NumpyBaseSerializer, JointTorquesSerializer[np
         schema: JointTorquesSchema,
         value: JointTorquesValue,
     ) -> np.ndarray:
-        names, values = schema.joint_names, value.values
-        if set(names) != set(v.joint_name for v in values):
-            raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
-        value_map = {v.joint_name: v for v in values}
+        value_map = {v.joint_name: v for v in value.values}
+        check_names_match("schema", schema.joint_names, "value", value_map.keys())
         array = np.array(
-            [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in names],
+            [convert_torque(value_map[name].value, value_map[name].unit, schema.unit) for name in schema.joint_names],
             dtype=self.dtype,
         )
         return array
@@ -212,12 +202,10 @@ class NumpyJointCommandsSerializer(NumpyBaseSerializer, JointCommandsSerializer[
         schema: JointCommandsSchema,
         value: JointCommandsValue,
     ) -> np.ndarray:
-        names, values = schema.joint_names, value.values
-        if set(names) != set(v.joint_name for v in values):
-            raise ValueError(f"Number of joint names and values must match: {len(names)} != {len(values)}")
-        value_map = {v.joint_name: v for v in values}
+        value_map = {v.joint_name: v for v in value.values}
+        check_names_match("schema", schema.joint_names, "value", value_map.keys())
         array = np.stack(
-            [self._convert_value_to_array(value_map[name], schema) for name in names],
+            [self._convert_value_to_array(value_map[name], schema) for name in schema.joint_names],
             axis=0,
         )
         return array

@@ -40,13 +40,13 @@ from kinfer.protos.kinfer_pb2 import (
     VectorCommandSchema,
     VectorCommandValue,
 )
-from kinfer.serialize.numpy import NumpySerializer
+from kinfer.serialize.json import JsonSerializer
 
 
 @pytest.mark.parametrize("schema_unit", [JointPositionUnit.DEGREES, JointPositionUnit.RADIANS])
 @pytest.mark.parametrize("value_unit", [JointPositionUnit.DEGREES, JointPositionUnit.RADIANS])
 def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: JointPositionUnit) -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             joint_positions=JointPositionsSchema(
                 unit=schema_unit,
@@ -64,17 +64,17 @@ def test_serialize_joint_positions(schema_unit: JointPositionUnit, value_unit: J
             ]
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert len(new_value.joint_positions.values) == len(value.joint_positions.values)
 
 
 @pytest.mark.parametrize("schema_unit", [JointVelocityUnit.DEGREES_PER_SECOND, JointVelocityUnit.RADIANS_PER_SECOND])
 @pytest.mark.parametrize("value_unit", [JointVelocityUnit.DEGREES_PER_SECOND, JointVelocityUnit.RADIANS_PER_SECOND])
 def test_serialize_joint_velocities(schema_unit: JointVelocityUnit, value_unit: JointVelocityUnit) -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             joint_velocities=JointVelocitiesSchema(
                 unit=schema_unit,
@@ -92,17 +92,17 @@ def test_serialize_joint_velocities(schema_unit: JointVelocityUnit, value_unit: 
             ]
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert len(new_value.joint_velocities.values) == len(value.joint_velocities.values)
 
 
 @pytest.mark.parametrize("schema_unit", [JointTorqueUnit.NEWTON_METERS])
 @pytest.mark.parametrize("value_unit", [JointTorqueUnit.NEWTON_METERS])
 def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: JointTorqueUnit) -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             joint_torques=JointTorquesSchema(
                 unit=schema_unit,
@@ -120,15 +120,15 @@ def test_serialize_joint_torques(schema_unit: JointTorqueUnit, value_unit: Joint
             ]
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert len(new_value.joint_torques.values) == len(value.joint_torques.values)
 
 
 def test_serialize_joint_commands() -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             joint_commands=JointCommandsSchema(
                 joint_names=["joint_1", "joint_2", "joint_3"],
@@ -178,16 +178,16 @@ def test_serialize_joint_commands() -> None:
             ]
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
     # Back to joint commands value.
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert len(new_value.joint_commands.values) == len(value.joint_commands.values)
 
 
 def test_serialize_camera_frame() -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             camera_frame=CameraFrameSchema(
                 width=32,
@@ -202,17 +202,16 @@ def test_serialize_camera_frame() -> None:
             data=bytes([random.randint(0, 255) for _ in range(32 * 64 * 3)]),
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
-    assert array.shape == (3, 64, 32)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert isinstance(new_value, Value)
     assert new_value == value
 
 
 def test_serialize_audio_frame() -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             audio_frame=AudioFrameSchema(
                 channels=2,
@@ -227,16 +226,16 @@ def test_serialize_audio_frame() -> None:
             data=bytes([random.randint(0, 255) for _ in range(44100 * 2 * 2)]),
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert isinstance(new_value, Value)
     assert new_value == value
 
 
 def test_serialize_imu() -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             imu=IMUSchema(
                 use_accelerometer=True,
@@ -253,15 +252,15 @@ def test_serialize_imu() -> None:
             magnetic_field=IMUMagnetometerValue(x=7.0, y=8.0, z=9.0),
         )
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert new_value == value
 
 
 def test_serialize_timestamp() -> None:
-    serializer = NumpySerializer(schema=ValueSchema(timestamp=TimestampSchema()))
+    serializer = JsonSerializer(schema=ValueSchema(timestamp=TimestampSchema()))
 
     value = Value(
         timestamp=TimestampValue(
@@ -269,28 +268,28 @@ def test_serialize_timestamp() -> None:
             nanos=500_000_000,
         ),
     )
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
-    assert array.item() == 1.5
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
+    assert mapping["seconds"] == 1
+    assert mapping["nanos"] == 500_000_000
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert new_value == value
 
 
 def test_serialize_vector_command() -> None:
-    serializer = NumpySerializer(schema=ValueSchema(vector_command=VectorCommandSchema()))
+    serializer = JsonSerializer(schema=ValueSchema(vector_command=VectorCommandSchema()))
 
     value = Value(vector_command=VectorCommandValue(values=[1.0, 2.0, 3.0]))
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
-    assert array.shape == (3,)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert new_value == value
 
 
 def test_serialize_state_tensor() -> None:
-    serializer = NumpySerializer(
+    serializer = JsonSerializer(
         schema=ValueSchema(
             state_tensor=StateTensorSchema(
                 shape=[2, 2],
@@ -300,9 +299,9 @@ def test_serialize_state_tensor() -> None:
     )
 
     value = Value(state_tensor=StateTensorValue(data=bytes([1, 2, 3, 4])))
-    array = serializer.serialize(value)
-    assert isinstance(array, np.ndarray)
-    assert array.shape == (2, 2)
+    mapping = serializer.serialize(value)
+    assert isinstance(mapping, dict)
+    assert mapping["data"] == "AQIDBA=="
 
-    new_value = serializer.deserialize(array)
+    new_value = serializer.deserialize(mapping)
     assert new_value == value
