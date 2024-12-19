@@ -31,7 +31,7 @@ class ONNXModel:
         for prop in self.model.metadata_props:
             if prop.key == KINFER_METADATA_KEY:
                 try:
-                    metadata = P.ModelSchema.FromString(prop.value.encode("utf-8"))
+                    schema = P.ModelSchema.FromString(prop.value.encode("utf-8"))
                 except Exception as e:
                     raise ValueError("Failed to parse kinfer_metadata value") from e
                 break
@@ -41,14 +41,13 @@ class ONNXModel:
             raise ValueError("kinfer_metadata not found in model metadata")
 
         # Extract input and output schemas from metadata
-        self._input_schema = metadata.input_schema
-        self._output_schema = metadata.output_schema
+        self._schema = schema
 
         # Create serializers for input and output.
-        self._input_serializer = NumpyMultiSerializer(self._input_schema)
-        self._output_serializer = NumpyMultiSerializer(self._output_schema)
+        self._input_serializer = NumpyMultiSerializer(self._schema.input_schema)
+        self._output_serializer = NumpyMultiSerializer(self._schema.output_schema)
 
-    def __call__(self, inputs: P.Input) -> P.Output:
+    def __call__(self, inputs: P.IO) -> P.IO:
         """Run inference on input data.
 
         Args:
@@ -57,17 +56,17 @@ class ONNXModel:
         Returns:
             Model outputs, matching the output schema.
         """
-        inputs_np = self._input_serializer.serialize_input(inputs, as_dict=True)
+        inputs_np = self._input_serializer.serialize_io(inputs, as_dict=True)
         outputs_np = self.session.run(None, inputs_np)
-        outputs = self._output_serializer.deserialize_output(outputs_np)
+        outputs = self._output_serializer.deserialize_io(outputs_np)
         return outputs
 
     @property
-    def input_schema(self) -> P.InputSchema:
+    def input_schema(self) -> P.IOSchema:
         """Get the input schema."""
-        return self._input_schema
+        return self._schema.input_schema
 
     @property
-    def output_schema(self) -> P.OutputSchema:
+    def output_schema(self) -> P.IOSchema:
         """Get the output schema."""
-        return self._output_schema
+        return self._schema.output_schema

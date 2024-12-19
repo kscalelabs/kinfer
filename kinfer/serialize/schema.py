@@ -118,15 +118,8 @@ def get_dummy_value(value_schema: P.ValueSchema) -> P.Value:
             raise ValueError(f"Invalid value type: {value_type}")
 
 
-def get_dummy_inputs(input_schema: P.InputSchema) -> P.Input:
-    input_value = P.Input()
-    for value_schema in input_schema.inputs:
-        input_value.inputs.append(get_dummy_value(value_schema))
-    return input_value
-
-
-def get_dummy_outputs(output_schema: P.OutputSchema) -> P.Output:
-    output_value = P.Output()
-    for value_schema in output_schema.outputs:
-        output_value.outputs.append(get_dummy_value(value_schema))
-    return output_value
+def get_dummy_io(schema: P.IOSchema) -> P.IO:
+    io_value = P.IO()
+    for value_schema in schema.values:
+        io_value.values.append(get_dummy_value(value_schema))
+    return io_value

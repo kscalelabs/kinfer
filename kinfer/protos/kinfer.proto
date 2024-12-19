@@ -256,28 +256,16 @@ message ValueSchema {
     }
 }
 
-/* ------ *
- * Inputs *
- * ------ */
+/* ---------------- *
+ * Inputs / Outputs *
+ * ---------------- */
 
-message InputSchema {
-    repeated ValueSchema inputs = 1;
+message IOSchema {
+    repeated ValueSchema values = 1;
 }
 
-message Input {
-    repeated Value inputs = 1;
-}
-
-/* ------- *
- * Outputs *
- * ------- */
-
-message OutputSchema {
-    repeated ValueSchema outputs = 1;
-}
-
-message Output {
-    repeated Value outputs = 1;
+message IO {
+    repeated Value values = 1;
 }
 
 /* ----- *
@@ -285,6 +273,6 @@ message Output {
  * ----- */
 
 message ModelSchema {
-    InputSchema input_schema = 1;
-    OutputSchema output_schema = 2;
+    IOSchema input_schema = 1;
+    IOSchema output_schema = 2;
 }

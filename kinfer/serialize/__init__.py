@@ -24,7 +24,7 @@ def get_serializer(schema: P.ValueSchema, serializer_type: SerializerType) -> Se
             raise ValueError(f"Unsupported serializer type: {serializer_type}")
 
 
-def get_multi_serializer(schema: P.InputSchema | P.OutputSchema, serializer_type: SerializerType) -> MultiSerializer:
+def get_multi_serializer(schema: P.IOSchema, serializer_type: SerializerType) -> MultiSerializer:
     match serializer_type:
         case "json":
             return JsonMultiSerializer(schema=schema)

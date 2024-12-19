@@ -374,6 +374,5 @@ class PyTorchSerializer(
 
 
 class PyTorchMultiSerializer(MultiSerializer[Tensor]):
-    def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
-        values = schema.inputs if isinstance(schema, P.InputSchema) else schema.outputs
-        super().__init__([PyTorchSerializer(schema=s) for s in values])
+    def __init__(self, schema: P.IOSchema) -> None:
+        super().__init__([PyTorchSerializer(schema=s) for s in schema.values])

@@ -2,6 +2,7 @@
 
 members = [
     "kinfer/rust",
+    "kinfer/rust_bindings",
 ]
 resolver = "2"
 

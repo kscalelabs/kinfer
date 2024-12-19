@@ -1,0 +1,9 @@
+[package]
+
+name = "kinfer_rust_bindings"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+kinfer = { path = "../rust" }

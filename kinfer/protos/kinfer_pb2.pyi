@@ -798,78 +798,41 @@ class ValueSchema(google.protobuf.message.Message):
 global___ValueSchema = ValueSchema
 
 @typing.final
-class InputSchema(google.protobuf.message.Message):
-    """------ *
-    Inputs *
-    ------
+class IOSchema(google.protobuf.message.Message):
+    """---------------- *
+    Inputs / Outputs *
+    ----------------
     """
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    INPUTS_FIELD_NUMBER: builtins.int
+    VALUES_FIELD_NUMBER: builtins.int
     @property
-    def inputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ValueSchema]: ...
+    def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ValueSchema]: ...
     def __init__(
         self,
         *,
-        inputs: collections.abc.Iterable[global___ValueSchema] | None = ...,
+        values: collections.abc.Iterable[global___ValueSchema] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["inputs", b"inputs"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["values", b"values"]) -> None: ...
 
-global___InputSchema = InputSchema
+global___IOSchema = IOSchema
 
 @typing.final
-class Input(google.protobuf.message.Message):
+class IO(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    INPUTS_FIELD_NUMBER: builtins.int
+    VALUES_FIELD_NUMBER: builtins.int
     @property
-    def inputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
+    def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
     def __init__(
         self,
         *,
-        inputs: collections.abc.Iterable[global___Value] | None = ...,
+        values: collections.abc.Iterable[global___Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["inputs", b"inputs"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["values", b"values"]) -> None: ...
 
-global___Input = Input
-
-@typing.final
-class OutputSchema(google.protobuf.message.Message):
-    """------- *
-    Outputs *
-    -------
-    """
-
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    OUTPUTS_FIELD_NUMBER: builtins.int
-    @property
-    def outputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ValueSchema]: ...
-    def __init__(
-        self,
-        *,
-        outputs: collections.abc.Iterable[global___ValueSchema] | None = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["outputs", b"outputs"]) -> None: ...
-
-global___OutputSchema = OutputSchema
-
-@typing.final
-class Output(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    OUTPUTS_FIELD_NUMBER: builtins.int
-    @property
-    def outputs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
-    def __init__(
-        self,
-        *,
-        outputs: collections.abc.Iterable[global___Value] | None = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["outputs", b"outputs"]) -> None: ...
-
-global___Output = Output
+global___IO = IO
 
 @typing.final
 class ModelSchema(google.protobuf.message.Message):
@@ -883,14 +846,14 @@ class ModelSchema(google.protobuf.message.Message):
     INPUT_SCHEMA_FIELD_NUMBER: builtins.int
     OUTPUT_SCHEMA_FIELD_NUMBER: builtins.int
     @property
-    def input_schema(self) -> global___InputSchema: ...
+    def input_schema(self) -> global___IOSchema: ...
     @property
-    def output_schema(self) -> global___OutputSchema: ...
+    def output_schema(self) -> global___IOSchema: ...
     def __init__(
         self,
         *,
-        input_schema: global___InputSchema | None = ...,
-        output_schema: global___OutputSchema | None = ...,
+        input_schema: global___IOSchema | None = ...,
+        output_schema: global___IOSchema | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing.Literal["input_schema", b"input_schema", "output_schema", b"output_schema"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing.Literal["input_schema", b"input_schema", "output_schema", b"output_schema"]) -> None: ...
