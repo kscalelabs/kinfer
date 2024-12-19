@@ -370,4 +370,5 @@ class NumpySerializer(
 
 class NumpyMultiSerializer(MultiSerializer[np.ndarray]):
     def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
-        super().__init__([NumpySerializer(schema=s) for s in schema.inputs])
+        values = schema.inputs if isinstance(schema, P.InputSchema) else schema.outputs
+        super().__init__([NumpySerializer(schema=s) for s in values])

@@ -1,7 +1,7 @@
 """Utility functions for serializing and deserializing Kinfer values."""
 
 import math
-from typing import Any, Sequence
+from typing import Any, Collection
 
 import numpy as np
 import torch
@@ -157,7 +157,7 @@ def convert_angular_position(
     raise ValueError(f"Unsupported unit: {from_unit}")
 
 
-def check_names_match(a_name: str, a: Sequence[str], b_name: str, b: Sequence[str]) -> None:
+def check_names_match(a_name: str, a: Collection[str], b_name: str, b: Collection[str]) -> None:
     name_set_a = set(a)
     name_set_b = set(b)
     if name_set_a != name_set_b:

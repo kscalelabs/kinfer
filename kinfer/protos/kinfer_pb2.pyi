@@ -870,3 +870,29 @@ class Output(google.protobuf.message.Message):
     def ClearField(self, field_name: typing.Literal["outputs", b"outputs"]) -> None: ...
 
 global___Output = Output
+
+@typing.final
+class ModelSchema(google.protobuf.message.Message):
+    """----- *
+    Model *
+    -----
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    INPUT_SCHEMA_FIELD_NUMBER: builtins.int
+    OUTPUT_SCHEMA_FIELD_NUMBER: builtins.int
+    @property
+    def input_schema(self) -> global___InputSchema: ...
+    @property
+    def output_schema(self) -> global___OutputSchema: ...
+    def __init__(
+        self,
+        *,
+        input_schema: global___InputSchema | None = ...,
+        output_schema: global___OutputSchema | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing.Literal["input_schema", b"input_schema", "output_schema", b"output_schema"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["input_schema", b"input_schema", "output_schema", b"output_schema"]) -> None: ...
+
+global___ModelSchema = ModelSchema

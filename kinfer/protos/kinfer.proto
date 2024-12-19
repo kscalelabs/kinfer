@@ -279,3 +279,12 @@ message OutputSchema {
 message Output {
     repeated Value outputs = 1;
 }
+
+/* ----- *
+ * Model *
+ * ----- */
+
+message ModelSchema {
+    InputSchema input_schema = 1;
+    OutputSchema output_schema = 2;
+}
