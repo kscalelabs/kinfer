@@ -22,3 +22,7 @@ out*/
 
 # References
 ref/
+
+# Rust
+target/
+Cargo.lock

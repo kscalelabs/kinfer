@@ -1,0 +1,17 @@
+[workspace]
+
+members = [
+    "kinfer/rust",
+]
+resolver = "2"
+
+[workspace.package]
+
+version = "0.3.0"
+authors = ["Wesley Maa <wesley@kscale.dev>", "Benjamin Bolte <ben@kscale.dev>"]
+edition = "2021"
+description = "K-Scale Inference Library"
+license = "MIT"
+repository = "https://github.com/kscalelabs/kinfer"
+documentation = "https://docs.kscale.dev"
+readme = "README.md"
