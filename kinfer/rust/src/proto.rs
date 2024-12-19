@@ -1,5 +1,5 @@
 pub mod proto {
-    include!(concat!(env!("OUT_DIR"), "/kinfer.proto.rs"));
+    include!(concat!(env!("OUT_DIR"), "/proto/kinfer.proto.rs"));
 }
 
 pub use proto::{
