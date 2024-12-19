@@ -92,10 +92,10 @@ def get_dummy_value(value_schema: P.ValueSchema) -> P.Value:
             )
         case "imu":
             return P.Value(
-                imu=P.IMUValue(
-                    linear_acceleration=P.IMUAccelerometerValue(x=0.0, y=0.0, z=0.0),
-                    angular_velocity=P.IMUGyroscopeValue(x=0.0, y=0.0, z=0.0),
-                    magnetic_field=P.IMUMagnetometerValue(x=0.0, y=0.0, z=0.0),
+                imu=P.ImuValue(
+                    linear_acceleration=P.ImuAccelerometerValue(x=0.0, y=0.0, z=0.0),
+                    angular_velocity=P.ImuGyroscopeValue(x=0.0, y=0.0, z=0.0),
+                    magnetic_field=P.ImuMagnetometerValue(x=0.0, y=0.0, z=0.0),
                 ),
             )
         case "timestamp":

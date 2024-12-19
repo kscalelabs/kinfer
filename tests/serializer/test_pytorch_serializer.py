@@ -213,7 +213,7 @@ def test_serialize_audio_frame() -> None:
 def test_serialize_imu() -> None:
     serializer = PyTorchSerializer(
         schema=P.ValueSchema(
-            imu=P.IMUSchema(
+            imu=P.ImuSchema(
                 use_accelerometer=True,
                 use_gyroscope=True,
                 use_magnetometer=True,
@@ -222,10 +222,10 @@ def test_serialize_imu() -> None:
     )
 
     value = P.Value(
-        imu=P.IMUValue(
-            linear_acceleration=P.IMUAccelerometerValue(x=1.0, y=2.0, z=3.0),
-            angular_velocity=P.IMUGyroscopeValue(x=4.0, y=5.0, z=6.0),
-            magnetic_field=P.IMUMagnetometerValue(x=7.0, y=8.0, z=9.0),
+        imu=P.ImuValue(
+            linear_acceleration=P.ImuAccelerometerValue(x=1.0, y=2.0, z=3.0),
+            angular_velocity=P.ImuGyroscopeValue(x=4.0, y=5.0, z=6.0),
+            magnetic_field=P.ImuMagnetometerValue(x=7.0, y=8.0, z=9.0),
         )
     )
     tensor = serializer.serialize(value)

@@ -47,7 +47,7 @@ def test_serialize_schema() -> None:
             ),
             P.ValueSchema(
                 value_name="input_6",
-                imu=P.IMUSchema(
+                imu=P.ImuSchema(
                     use_accelerometer=True,
                     use_gyroscope=True,
                     use_magnetometer=True,

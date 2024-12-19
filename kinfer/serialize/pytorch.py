@@ -283,9 +283,9 @@ class PyTorchImuSerializer(PyTorchBaseSerializer, ImuSerializer[Tensor]):
             raise ValueError("IMU has nothing to serialize")
         return torch.stack(vectors, dim=0)
 
-    def deserialize_imu(self, schema: P.IMUSchema, value: Tensor) -> P.IMUValue:
+    def deserialize_imu(self, schema: P.ImuSchema, value: Tensor) -> P.ImuValue:
         vectors = value.tolist()
-        imu_value = P.IMUValue()
+        imu_value = P.ImuValue()
         if schema.use_accelerometer:
             (x, y, z), vectors = vectors[0], vectors[1:]
             imu_value.linear_acceleration.x = x

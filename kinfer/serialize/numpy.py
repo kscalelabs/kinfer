@@ -280,7 +280,7 @@ class NumpyImuSerializer(NumpyBaseSerializer, ImuSerializer[np.ndarray]):
                 f"Shape of array must match number of vectors and components: {value.shape} != ({num_vectors}, 3)"
             )
         vectors = cast(list[list[float]], value.astype(float).tolist())
-        imu_value = P.IMUValue()
+        imu_value = P.ImuValue()
         if schema.use_accelerometer:
             x, y, z = vectors.pop(0)
             imu_value.linear_acceleration.x = as_float(x)
