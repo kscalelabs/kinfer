@@ -17,7 +17,7 @@ from kinfer.serialize.utils import check_names_match
 KINFER_METADATA_KEY = "kinfer_metadata"
 
 
-def add_metadata_to_onnx(
+def _add_metadata_to_onnx(
     model_proto: onnx.ModelProto,
     input_schema: P.InputSchema,
     output_schema: P.OutputSchema,
@@ -105,8 +105,8 @@ def export_model(
     buffer = BytesIO()
     torch.onnx.export(
         model=model,
-        args=input_tensors,
         f=buffer,  # type: ignore[arg-type]
+        kwargs=input_tensors,
         input_names=input_schema_names,
         output_names=output_schema_names,
     )
@@ -114,7 +114,7 @@ def export_model(
 
     # Loads the model from the buffer and adds metadata.
     model_proto = onnx.load_model(buffer)
-    model_proto = add_metadata_to_onnx(model_proto, input_schema, output_schema)
+    model_proto = _add_metadata_to_onnx(model_proto, input_schema, output_schema)
 
     return model_proto
 

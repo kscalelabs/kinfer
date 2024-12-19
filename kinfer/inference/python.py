@@ -25,6 +25,7 @@ class ONNXModel:
         # Load model and create inference session
         self.model = onnx.load(model_path)
         self.session = ort.InferenceSession(model_path)
+        self.attached_metadata: dict[str, str] = {}
 
         # Extract metadata and attempt to parse JSON values
         for prop in self.model.metadata_props:
