@@ -1,20 +1,20 @@
-use crate::proto::*;
+use crate::proto::proto::*;
 use ndarray::Array1;
-use ort::Value;
-use std::collections::HashMap;
+use ort::value::Value as OrtValue;
+use std::error::Error;
 
 pub trait JointPositionsSerializer {
     fn serialize_joint_positions(
         &self,
         schema: &JointPositionsSchema,
         value: JointPositionsValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_joint_positions(
         &self,
         schema: &JointPositionsSchema,
-        value: Value,
-    ) -> Result<JointPositionsValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<JointPositionsValue, Box<dyn Error>>;
 }
 
 pub trait JointVelocitiesSerializer {
@@ -22,13 +22,13 @@ pub trait JointVelocitiesSerializer {
         &self,
         schema: &JointVelocitiesSchema,
         value: JointVelocitiesValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_joint_velocities(
         &self,
         schema: &JointVelocitiesSchema,
-        value: Value,
-    ) -> Result<JointVelocitiesValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<JointVelocitiesValue, Box<dyn Error>>;
 }
 
 pub trait JointTorquesSerializer {
@@ -36,13 +36,13 @@ pub trait JointTorquesSerializer {
         &self,
         schema: &JointTorquesSchema,
         value: JointTorquesValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_joint_torques(
         &self,
         schema: &JointTorquesSchema,
-        value: Value,
-    ) -> Result<JointTorquesValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<JointTorquesValue, Box<dyn Error>>;
 }
 
 pub trait JointCommandsSerializer {
@@ -50,13 +50,13 @@ pub trait JointCommandsSerializer {
         &self,
         schema: &JointCommandsSchema,
         value: JointCommandsValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_joint_commands(
         &self,
         schema: &JointCommandsSchema,
-        value: Value,
-    ) -> Result<JointCommandsValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<JointCommandsValue, Box<dyn Error>>;
 }
 
 pub trait CameraFrameSerializer {
@@ -64,13 +64,13 @@ pub trait CameraFrameSerializer {
         &self,
         schema: &CameraFrameSchema,
         value: CameraFrameValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_camera_frame(
         &self,
         schema: &CameraFrameSchema,
-        value: Value,
-    ) -> Result<CameraFrameValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<CameraFrameValue, Box<dyn Error>>;
 }
 
 pub trait AudioFrameSerializer {
@@ -78,13 +78,13 @@ pub trait AudioFrameSerializer {
         &self,
         schema: &AudioFrameSchema,
         value: AudioFrameValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_audio_frame(
         &self,
         schema: &AudioFrameSchema,
-        value: Value,
-    ) -> Result<AudioFrameValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<AudioFrameValue, Box<dyn Error>>;
 }
 
 pub trait ImuSerializer {
@@ -92,13 +92,13 @@ pub trait ImuSerializer {
         &self,
         schema: &ImuSchema,
         value: ImuValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_imu(
         &self,
-        schema: &IMUSchema,
-        value: Value,
-    ) -> Result<IMUValue, Box<dyn std::error::Error>>;
+        schema: &ImuSchema,
+        value: OrtValue,
+    ) -> Result<ImuValue, Box<dyn Error>>;
 }
 
 pub trait TimestampSerializer {
@@ -106,13 +106,13 @@ pub trait TimestampSerializer {
         &self,
         schema: &TimestampSchema,
         value: TimestampValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_timestamp(
         &self,
         schema: &TimestampSchema,
-        value: Value,
-    ) -> Result<TimestampValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<TimestampValue, Box<dyn Error>>;
 }
 
 pub trait VectorCommandSerializer {
@@ -120,13 +120,13 @@ pub trait VectorCommandSerializer {
         &self,
         schema: &VectorCommandSchema,
         value: VectorCommandValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_vector_command(
         &self,
         schema: &VectorCommandSchema,
-        value: Value,
-    ) -> Result<VectorCommandValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<VectorCommandValue, Box<dyn Error>>;
 }
 
 pub trait StateTensorSerializer {
@@ -134,13 +134,13 @@ pub trait StateTensorSerializer {
         &self,
         schema: &StateTensorSchema,
         value: StateTensorValue,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize_state_tensor(
         &self,
         schema: &StateTensorSchema,
-        value: Value,
-    ) -> Result<StateTensorValue, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<StateTensorValue, Box<dyn Error>>;
 }
 
 pub trait Serializer:
@@ -158,14 +158,14 @@ pub trait Serializer:
     fn serialize(
         &self,
         schema: &ValueSchema,
-        value: Value,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+        value: value::Value,
+    ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize(
         &self,
         schema: &ValueSchema,
-        value: Value,
-    ) -> Result<Value, Box<dyn std::error::Error>>;
+        value: OrtValue,
+    ) -> Result<value::Value, Box<dyn Error>>;
 }
 
 pub fn convert_position(
