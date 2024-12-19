@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
-    IMUSerializer,
+    ImuSerializer,
     JointCommandsSerializer,
     JointPositionsSerializer,
     JointTorquesSerializer,
@@ -252,8 +252,8 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
         return P.AudioFrameValue(data=np_arr.tobytes())
 
 
-class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
-    def serialize_imu(self, schema: P.IMUSchema, value: P.IMUValue) -> Tensor:
+class PyTorchImuSerializer(PyTorchBaseSerializer, ImuSerializer[Tensor]):
+    def serialize_imu(self, schema: P.ImuSchema, value: P.ImuValue) -> Tensor:
         vectors: list[Tensor] = []
         if schema.use_accelerometer:
             vectors.append(
@@ -283,9 +283,9 @@ class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
             raise ValueError("IMU has nothing to serialize")
         return torch.stack(vectors, dim=0)
 
-    def deserialize_imu(self, schema: P.IMUSchema, value: Tensor) -> P.IMUValue:
+    def deserialize_imu(self, schema: P.ImuSchema, value: Tensor) -> P.ImuValue:
         vectors = value.tolist()
-        imu_value = P.IMUValue()
+        imu_value = P.ImuValue()
         if schema.use_accelerometer:
             (x, y, z), vectors = vectors[0], vectors[1:]
             imu_value.linear_acceleration.x = x
@@ -356,7 +356,7 @@ class PyTorchSerializer(
     PyTorchJointCommandsSerializer,
     PyTorchCameraFrameSerializer,
     PyTorchAudioFrameSerializer,
-    PyTorchIMUSerializer,
+    PyTorchImuSerializer,
     PyTorchTimestampSerializer,
     PyTorchVectorCommandSerializer,
     PyTorchStateTensorSerializer,
@@ -374,6 +374,5 @@ class PyTorchSerializer(
 
 
 class PyTorchMultiSerializer(MultiSerializer[Tensor]):
-    def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
-        values = schema.inputs if isinstance(schema, P.InputSchema) else schema.outputs
-        super().__init__([PyTorchSerializer(schema=s) for s in values])
+    def __init__(self, schema: P.IOSchema) -> None:
+        super().__init__([PyTorchSerializer(schema=s) for s in schema.values])

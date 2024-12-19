@@ -9,31 +9,25 @@ import onnxruntime as ort
 import torch
 from torch import Tensor
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
-from kinfer.serialize.schema import get_dummy_inputs
+from kinfer.serialize.schema import get_dummy_io
 from kinfer.serialize.utils import check_names_match
 
 KINFER_METADATA_KEY = "kinfer_metadata"
 
 
-def _add_metadata_to_onnx(
-    model_proto: onnx.ModelProto,
-    input_schema: P.InputSchema,
-    output_schema: P.OutputSchema,
-) -> onnx.ModelProto:
+def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: P.ModelSchema) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
     Args:
         model_proto: ONNX model prototype
-        input_schema: Input schema to use for model export.
-        output_schema: Output schema to use for model export.
+        schema: Model schema to use for model export.
 
     Returns:
         ONNX model with added metadata
     """
-    model_schema = P.ModelSchema(input_schema=input_schema, output_schema=output_schema)
-    schema_bytes = model_schema.SerializeToString()
+    schema_bytes = schema.SerializeToString()
     meta = model_proto.metadata_props.add()
     meta.key = KINFER_METADATA_KEY
     meta.value = schema_bytes
@@ -42,15 +36,13 @@ def _add_metadata_to_onnx(
 
 def export_model(
     model: torch.jit.ScriptModule,
-    input_schema: P.InputSchema,
-    output_schema: P.OutputSchema,
+    schema: P.ModelSchema,
 ) -> onnx.ModelProto:
     """Export PyTorch model to ONNX format with metadata.
 
     Args:
         model: PyTorch model to export.
-        input_schema: Input schema to use for model export.
-        output_schema: Output schema to use for model export.
+        schema: Model schema to use for model export.
 
     Returns:
         ONNX inference session
@@ -60,18 +52,18 @@ def export_model(
     model_input_names = [
         p.name for p in signature.parameters.values() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
     ]
-    if len(model_input_names) != len(input_schema.inputs):
-        raise ValueError(f"Expected {len(model_input_names)} inputs, but schema has {len(input_schema.inputs)}")
-    input_schema_names = [i.value_name for i in input_schema.inputs]
-    output_schema_names = [o.value_name for o in output_schema.outputs]
+    if len(model_input_names) != len(schema.input_schema.values):
+        raise ValueError(f"Expected {len(model_input_names)} inputs, but schema has {len(schema.input_schema.values)}")
+    input_schema_names = [i.value_name for i in schema.input_schema.values]
+    output_schema_names = [o.value_name for o in schema.output_schema.values]
     if model_input_names != input_schema_names:
         raise ValueError(f"Expected input names {model_input_names} to match schema names {input_schema_names}")
 
-    input_serializer = PyTorchMultiSerializer(input_schema)
-    output_serializer = PyTorchMultiSerializer(output_schema)
+    input_serializer = PyTorchMultiSerializer(schema.input_schema)
+    output_serializer = PyTorchMultiSerializer(schema.output_schema)
 
-    input_dummy_values = get_dummy_inputs(input_schema)
-    input_tensors = input_serializer.serialize_input(input_dummy_values, as_dict=True)
+    input_dummy_values = get_dummy_io(schema.input_schema)
+    input_tensors = input_serializer.serialize_io(input_dummy_values, as_dict=True)
 
     check_names_match("model_input_names", model_input_names, "input_schema", list(input_tensors.keys()))
     input_tensor_list = [input_tensors[name] for name in model_input_names]
@@ -86,18 +78,18 @@ def export_model(
         ]
         raise ValueError(
             f"Failed to run model with dummy inputs; input names are {model_input_names} while "
-            f"input schema is {input_schema}"
+            f"input schema is {schema.input_schema}"
         ) from e
 
     # Attempts to parse the output tensors using the output schema.
     if isinstance(pred_output_tensors, Tensor):
         pred_output_tensors = (pred_output_tensors,)
     if isinstance(pred_output_tensors, Sequence):
-        pred_output_tensors = output_serializer.assign_output_names(pred_output_tensors)
+        pred_output_tensors = output_serializer.assign_names(pred_output_tensors)
     if not isinstance(pred_output_tensors, dict):
         raise ValueError("Output tensors could not be converted to dictionary")
     try:
-        pred_output_tensors = output_serializer.deserialize_output(pred_output_tensors)
+        pred_output_tensors = output_serializer.deserialize_io(pred_output_tensors)
     except Exception as e:
         raise ValueError("Failed to parse output tensors using output schema; are you sure it is correct?") from e
 
@@ -114,7 +106,7 @@ def export_model(
 
     # Loads the model from the buffer and adds metadata.
     model_proto = onnx.load_model(buffer)
-    model_proto = _add_metadata_to_onnx(model_proto, input_schema, output_schema)
+    model_proto = _add_metadata_to_onnx(model_proto, schema)
 
     return model_proto
 

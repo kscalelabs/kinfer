@@ -1,4 +1,5 @@
-use ort::{Error as OrtError, GraphOptimizationLevel, Session};
+use ort::session::builder::GraphOptimizationLevel;
+use ort::{session::Session, Error as OrtError};
 
 pub fn load_onnx_model(model_path: &str) -> Result<Session, OrtError> {
     let model = Session::builder()?

@@ -3,11 +3,11 @@
 import base64
 from typing import Any, Mapping, Sequence
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
-    IMUSerializer,
+    ImuSerializer,
     JointCommandsSerializer,
     JointPositionsSerializer,
     JointTorquesSerializer,
@@ -234,8 +234,8 @@ class JsonAudioFrameSerializer(AudioFrameSerializer[JsonValue]):
         return P.AudioFrameValue(data=base64.b64decode(data))
 
 
-class JsonIMUSerializer(IMUSerializer[JsonValue]):
-    def serialize_imu(self, schema: P.IMUSchema, value: P.IMUValue) -> dict[str, list[float]]:
+class JsonImuSerializer(ImuSerializer[JsonValue]):
+    def serialize_imu(self, schema: P.ImuSchema, value: P.ImuValue) -> dict[str, list[float]]:
         data: dict[str, list[float]] = {}
         if schema.use_accelerometer:
             data["linear_acceleration"] = [
@@ -257,8 +257,8 @@ class JsonIMUSerializer(IMUSerializer[JsonValue]):
             ]
         return data
 
-    def deserialize_imu(self, schema: P.IMUSchema, value: JsonValue) -> P.IMUValue:
-        imu_value = P.IMUValue()
+    def deserialize_imu(self, schema: P.ImuSchema, value: JsonValue) -> P.ImuValue:
+        imu_value = P.ImuValue()
         if schema.use_accelerometer:
             if not isinstance(linear_acceleration := value["linear_acceleration"], list):
                 raise ValueError("Key 'linear_acceleration' must be a list")
@@ -340,7 +340,7 @@ class JsonSerializer(
     JsonJointCommandsSerializer,
     JsonCameraFrameSerializer,
     JsonAudioFrameSerializer,
-    JsonIMUSerializer,
+    JsonImuSerializer,
     JsonTimestampSerializer,
     JsonVectorCommandSerializer,
     JsonStateTensorSerializer,
@@ -351,6 +351,5 @@ class JsonSerializer(
 
 
 class JsonMultiSerializer(MultiSerializer[JsonValue]):
-    def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
-        values = schema.inputs if isinstance(schema, P.InputSchema) else schema.outputs
-        super().__init__([JsonSerializer(schema=s) for s in values])
+    def __init__(self, schema: P.IOSchema) -> None:
+        super().__init__([JsonSerializer(schema=s) for s in schema.values])

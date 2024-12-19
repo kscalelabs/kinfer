@@ -4,11 +4,11 @@ from typing import cast
 
 import numpy as np
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
-    IMUSerializer,
+    ImuSerializer,
     JointCommandsSerializer,
     JointPositionsSerializer,
     JointTorquesSerializer,
@@ -245,8 +245,8 @@ class NumpyAudioFrameSerializer(NumpyBaseSerializer, AudioFrameSerializer[np.nda
         return P.AudioFrameValue(data=np_arr.tobytes())
 
 
-class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
-    def serialize_imu(self, schema: P.IMUSchema, value: P.IMUValue) -> np.ndarray:
+class NumpyImuSerializer(NumpyBaseSerializer, ImuSerializer[np.ndarray]):
+    def serialize_imu(self, schema: P.ImuSchema, value: P.ImuValue) -> np.ndarray:
         vectors = []
         if schema.use_accelerometer:
             vectors.append(
@@ -273,14 +273,14 @@ class NumpyIMUSerializer(NumpyBaseSerializer, IMUSerializer[np.ndarray]):
             raise ValueError("IMU has nothing to serialize")
         return np.stack(vectors, axis=0)
 
-    def deserialize_imu(self, schema: P.IMUSchema, value: np.ndarray) -> P.IMUValue:
+    def deserialize_imu(self, schema: P.ImuSchema, value: np.ndarray) -> P.ImuValue:
         num_vectors = sum([schema.use_accelerometer, schema.use_gyroscope, schema.use_magnetometer])
         if value.shape != (num_vectors, 3):
             raise ValueError(
                 f"Shape of array must match number of vectors and components: {value.shape} != ({num_vectors}, 3)"
             )
         vectors = cast(list[list[float]], value.astype(float).tolist())
-        imu_value = P.IMUValue()
+        imu_value = P.ImuValue()
         if schema.use_accelerometer:
             x, y, z = vectors.pop(0)
             imu_value.linear_acceleration.x = as_float(x)
@@ -352,7 +352,7 @@ class NumpySerializer(
     NumpyJointCommandsSerializer,
     NumpyCameraFrameSerializer,
     NumpyAudioFrameSerializer,
-    NumpyIMUSerializer,
+    NumpyImuSerializer,
     NumpyTimestampSerializer,
     NumpyVectorCommandSerializer,
     NumpyStateTensorSerializer,
@@ -369,6 +369,5 @@ class NumpySerializer(
 
 
 class NumpyMultiSerializer(MultiSerializer[np.ndarray]):
-    def __init__(self, schema: P.InputSchema | P.OutputSchema) -> None:
-        values = schema.inputs if isinstance(schema, P.InputSchema) else schema.outputs
-        super().__init__([NumpySerializer(schema=s) for s in values])
+    def __init__(self, schema: P.IOSchema) -> None:
+        super().__init__([NumpySerializer(schema=s) for s in schema.values])

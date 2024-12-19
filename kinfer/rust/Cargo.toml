@@ -1,9 +1,17 @@
 [package]
+
 name = "kinfer"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
 futures-util = "0.3.30"
 ndarray = "0.16.1"
 ort = { version = "2.0.0-rc.6", features = [ "load-dynamic" ] }
+prost = "0.12"
+thiserror = "1.0"
+
+[build-dependencies]
+
+prost-build = "0.12"

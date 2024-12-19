@@ -2,7 +2,7 @@
 
 from typing import Type, TypeVar, cast
 
-from kinfer import protos as P
+from kinfer import proto as P
 
 T = TypeVar("T")
 

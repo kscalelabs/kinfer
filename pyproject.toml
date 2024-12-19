@@ -3,7 +3,7 @@
 line-length = 120
 target-version = ["py311"]
 include = '\.pyi?$'
-exclude = "kinfer/protos/"
+exclude = "kinfer/proto/"
 
 [tool.pytest.ini_options]
 
@@ -37,7 +37,7 @@ exclude = "build/"
 
 module = [
     "google.*",
-    "kinfer.protos.*",
+    "kinfer.proto.*",
     "onnxruntime.*",
 ]
 
@@ -51,7 +51,7 @@ profile = "black"
 
 line-length = 120
 target-version = "py310"
-exclude = ["kinfer/protos/"]
+exclude = ["kinfer/proto/"]
 
 [tool.ruff.lint]
 

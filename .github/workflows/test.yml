@@ -55,6 +55,21 @@ jobs:
         run: |
           make test
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Run Cargo fmt
+        run: cargo fmt -- --check
+
+      - name: Run Cargo clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run Cargo tests
+        run: cargo test
+
       - name: Save cache
         uses: actions/cache/save@v3
         if: github.ref == 'refs/heads/master'

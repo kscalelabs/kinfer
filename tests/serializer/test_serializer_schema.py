@@ -1,13 +1,13 @@
 """Tests the schema serializer."""
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
-from kinfer.serialize.schema import get_dummy_inputs
+from kinfer.serialize.schema import get_dummy_io
 
 
 def test_serialize_schema() -> None:
-    input_schema = P.InputSchema(
-        inputs=[
+    input_schema = P.IOSchema(
+        values=[
             P.ValueSchema(
                 value_name="input_1",
                 joint_positions=P.JointPositionsSchema(
@@ -47,7 +47,7 @@ def test_serialize_schema() -> None:
             ),
             P.ValueSchema(
                 value_name="input_6",
-                imu=P.IMUSchema(
+                imu=P.ImuSchema(
                     use_accelerometer=True,
                     use_gyroscope=True,
                     use_magnetometer=True,
@@ -69,9 +69,9 @@ def test_serialize_schema() -> None:
         ]
     )
 
-    dummy_input = get_dummy_inputs(input_schema)
+    dummy_input = get_dummy_io(input_schema)
     serializer = PyTorchMultiSerializer(schema=input_schema)
-    dummy_input_serialized = serializer.serialize_input(dummy_input)
-    assert len(dummy_input_serialized) == len(input_schema.inputs)
-    dummy_input_deserialized = serializer.deserialize_input(dummy_input_serialized)
-    assert len(dummy_input_deserialized.inputs) == len(dummy_input.inputs)
+    dummy_input_serialized = serializer.serialize_io(dummy_input)
+    assert len(dummy_input_serialized) == len(input_schema.values)
+    dummy_input_deserialized = serializer.deserialize_io(dummy_input_serialized)
+    assert len(dummy_input_deserialized.values) == len(dummy_input.values)
