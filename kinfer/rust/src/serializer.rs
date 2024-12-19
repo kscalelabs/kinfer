@@ -96,9 +96,9 @@ pub trait ImuSerializer {
 
     fn deserialize_imu(
         &self,
-        schema: &ImuSchema,
+        schema: &IMUSchema,
         value: Value,
-    ) -> Result<ImuValue, Box<dyn std::error::Error>>;
+    ) -> Result<IMUValue, Box<dyn std::error::Error>>;
 }
 
 pub trait TimestampSerializer {
@@ -166,4 +166,49 @@ pub trait Serializer:
         schema: &ValueSchema,
         value: Value,
     ) -> Result<Value, Box<dyn std::error::Error>>;
+}
+
+pub fn convert_position(
+    value: f32,
+    from_unit: JointPositionUnit,
+    to_unit: JointPositionUnit,
+) -> Result<f32, Box<dyn Error>> {
+    match (from_unit, to_unit) {
+        (JointPositionUnit::Radians, JointPositionUnit::Degrees) => {
+            Ok(value * 180.0 / std::f32::consts::PI)
+        }
+        (JointPositionUnit::Degrees, JointPositionUnit::Radians) => {
+            Ok(value * std::f32::consts::PI / 180.0)
+        }
+        (a, b) if a == b => Ok(value),
+        _ => Err("Unsupported position unit conversion".into()),
+    }
+}
+
+pub fn convert_velocity(
+    value: f32,
+    from_unit: JointVelocityUnit,
+    to_unit: JointVelocityUnit,
+) -> Result<f32, Box<dyn Error>> {
+    match (from_unit, to_unit) {
+        (JointVelocityUnit::RadiansPerSecond, JointVelocityUnit::DegreesPerSecond) => {
+            Ok(value * 180.0 / std::f32::consts::PI)
+        }
+        (JointVelocityUnit::DegreesPerSecond, JointVelocityUnit::RadiansPerSecond) => {
+            Ok(value * std::f32::consts::PI / 180.0)
+        }
+        (a, b) if a == b => Ok(value),
+        _ => Err("Unsupported velocity unit conversion".into()),
+    }
+}
+
+pub fn convert_torque(
+    value: f32,
+    from_unit: JointTorqueUnit,
+    to_unit: JointTorqueUnit,
+) -> Result<f32, Box<dyn Error>> {
+    match (from_unit, to_unit) {
+        (a, b) if a == b => Ok(value),
+        _ => Err("Unsupported torque unit conversion".into()),
+    }
 }

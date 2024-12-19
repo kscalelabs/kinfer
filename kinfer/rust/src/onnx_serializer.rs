@@ -1,18 +1,24 @@
 use crate::serializer::{
-    AudioFrameSerializer, CameraFrameSerializer, ImuSerializer, JointCommandsSerializer,
-    JointPositionsSerializer, JointTorquesSerializer, JointVelocitiesSerializer, Serializer,
-    StateTensorSerializer, TimestampSerializer, VectorCommandSerializer,
+    convert_position, convert_torque, convert_velocity, AudioFrameSerializer,
+    CameraFrameSerializer, ImuSerializer, JointCommandsSerializer, JointPositionsSerializer,
+    JointTorquesSerializer, JointVelocitiesSerializer, Serializer, StateTensorSerializer,
+    TimestampSerializer, VectorCommandSerializer,
 };
 
 use ndarray::{Array, Array1, Array2, Array3, ArrayView2};
-use ort::{
-    session::Session,
-    tensor::{OrtOwnedTensor, TensorElementType},
-    value::{Value, ValueType},
-};
+use ort::value::{Tensor, Value as OrtValue};
 use std::error::Error;
 
-use crate::proto::*;
+use crate::proto::proto::{
+    value::Value, value_schema::ValueType, AudioFrameSchema, AudioFrameValue, CameraFrameSchema,
+    CameraFrameValue, DType, ImuAccelerometerValue, ImuGyroscopeValue, ImuMagnetometerValue,
+    ImuSchema, ImuValue, JointCommandSchema, JointCommandValue, JointCommandsSchema,
+    JointCommandsValue, JointPositionUnit, JointPositionValue, JointPositionsSchema,
+    JointPositionsValue, JointTorqueUnit, JointTorqueValue, JointTorquesSchema, JointTorquesValue,
+    JointVelocitiesSchema, JointVelocitiesValue, JointVelocityUnit, JointVelocityValue,
+    StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue, Value, ValueSchema,
+    VectorCommandSchema, VectorCommandValue,
+};
 
 pub struct OnnxSerializer {
     schema: ValueSchema,
@@ -23,12 +29,13 @@ impl OnnxSerializer {
         Self { schema }
     }
 
-    fn array_to_value<T, D>(&self, array: Array<T, D>) -> Result<Value, Box<dyn Error>>
+    fn array_to_value<T, D>(&self, array: Array<T, D>) -> Result<OrtValue, Box<dyn Error>>
     where
-        T: TensorElementType,
+        T: Into<f32> + Copy,
         D: ndarray::Dimension,
     {
-        Ok(Value::from_array(array.into_dyn())?)
+        OrtValue::from_array(array.map(|&x| x.into()).into_dyn())
+            .map_err(|e| Box::new(e) as Box<dyn Error>)
     }
 }
 
@@ -37,11 +44,11 @@ impl JointPositionsSerializer for OnnxSerializer {
         &self,
         schema: &JointPositionsSchema,
         value: JointPositionsValue,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<OrtValue, Box<dyn Error>> {
         let mut array = Array1::zeros(schema.joint_names.len());
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(joint) = value.values.iter().find(|v| v.joint_name == *name) {
-                array[i] = convert_angular_position(joint.value, joint.unit, schema.unit);
+                array[i] = convert_position(joint.value, joint.unit, schema.unit)?;
             }
         }
         self.array_to_value(array)
@@ -50,9 +57,9 @@ impl JointPositionsSerializer for OnnxSerializer {
     fn deserialize_joint_positions(
         &self,
         schema: &JointPositionsSchema,
-        value: Value,
+        value: OrtValue,
     ) -> Result<JointPositionsValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor::<f32>()?;
         let array = tensor.view();
 
         if array.len() != schema.joint_names.len() {
@@ -79,11 +86,11 @@ impl JointVelocitiesSerializer for OnnxSerializer {
         &self,
         schema: &JointVelocitiesSchema,
         value: JointVelocitiesValue,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<OrtValue, Box<dyn Error>> {
         let mut array = Array1::zeros(schema.joint_names.len());
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(joint) = value.values.iter().find(|v| v.joint_name == *name) {
-                array[i] = convert_angular_velocity(joint.value, joint.unit, schema.unit);
+                array[i] = convert_velocity(joint.value, joint.unit.clone(), schema.unit.clone())?;
             }
         }
         self.array_to_value(array)
@@ -92,9 +99,9 @@ impl JointVelocitiesSerializer for OnnxSerializer {
     fn deserialize_joint_velocities(
         &self,
         schema: &JointVelocitiesSchema,
-        value: Value,
+        value: OrtValue,
     ) -> Result<JointVelocitiesValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
         if array.len() != schema.joint_names.len() {
@@ -109,7 +116,7 @@ impl JointVelocitiesSerializer for OnnxSerializer {
                 .map(|(i, name)| JointVelocityValue {
                     joint_name: name.clone(),
                     value: array[i],
-                    unit: schema.unit,
+                    unit: schema.unit.clone(),
                 })
                 .collect(),
         })
@@ -121,7 +128,7 @@ impl JointTorquesSerializer for OnnxSerializer {
         &self,
         schema: &JointTorquesSchema,
         value: JointTorquesValue,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<OrtValue, Box<dyn Error>> {
         let mut array = Array1::zeros(schema.joint_names.len());
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(joint) = value.values.iter().find(|v| v.joint_name == *name) {
@@ -134,9 +141,9 @@ impl JointTorquesSerializer for OnnxSerializer {
     fn deserialize_joint_torques(
         &self,
         schema: &JointTorquesSchema,
-        value: Value,
+        value: OrtValue,
     ) -> Result<JointTorquesValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
         if array.len() != schema.joint_names.len() {
@@ -168,16 +175,10 @@ impl JointCommandsSerializer for OnnxSerializer {
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(cmd) = value.values.iter().find(|v| v.joint_name == *name) {
                 array[[i, 0]] = convert_torque(cmd.torque, cmd.torque_unit, schema.torque_unit)?;
-                array[[i, 1]] = convert_angular_velocity(
-                    cmd.velocity,
-                    cmd.velocity_unit,
-                    schema.velocity_unit,
-                )?;
-                array[[i, 2]] = convert_angular_position(
-                    cmd.position,
-                    cmd.position_unit,
-                    schema.position_unit,
-                )?;
+                array[[i, 1]] =
+                    convert_velocity(cmd.velocity, cmd.velocity_unit, schema.velocity_unit)?;
+                array[[i, 2]] =
+                    convert_position(cmd.position, cmd.position_unit, schema.position_unit)?;
                 array[[i, 3]] = cmd.kp;
                 array[[i, 4]] = cmd.kd;
             }
@@ -190,7 +191,7 @@ impl JointCommandsSerializer for OnnxSerializer {
         schema: &JointCommandsSchema,
         value: Value,
     ) -> Result<JointCommandsValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
         if array.shape() != [schema.joint_names.len(), 5] {
@@ -226,7 +227,11 @@ impl CameraFrameSerializer for OnnxSerializer {
     ) -> Result<Value, Box<dyn Error>> {
         let bytes = value.data;
         let array = Array3::from_shape_vec(
-            (schema.channels, schema.height, schema.width),
+            (
+                schema.channels as usize,
+                schema.height as usize,
+                schema.width as usize,
+            ),
             bytes.iter().map(|&x| x as f32 / 255.0).collect(),
         )?;
         self.array_to_value(array)
@@ -237,10 +242,16 @@ impl CameraFrameSerializer for OnnxSerializer {
         schema: &CameraFrameSchema,
         value: Value,
     ) -> Result<CameraFrameValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
-        if array.shape() != [schema.channels, schema.height, schema.width] {
+        if array.shape()
+            != [
+                schema.channels as usize,
+                schema.height as usize,
+                schema.width as usize,
+            ]
+        {
             return Err("Array shape does not match expected dimensions".into());
         }
 
@@ -260,8 +271,8 @@ impl AudioFrameSerializer for OnnxSerializer {
         value: AudioFrameValue,
     ) -> Result<Value, Box<dyn Error>> {
         let array = Array2::from_shape_vec(
-            (schema.channels, schema.sample_rate),
-            parse_audio_bytes(&value.data, schema.dtype)?,
+            (schema.channels as usize, schema.sample_rate as usize),
+            parse_audio_bytes(&value.data, schema.dtype.clone())?,
         )?;
         self.array_to_value(array)
     }
@@ -271,15 +282,15 @@ impl AudioFrameSerializer for OnnxSerializer {
         schema: &AudioFrameSchema,
         value: Value,
     ) -> Result<AudioFrameValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
-        if array.shape() != [schema.channels, schema.sample_rate] {
+        if array.shape() != [schema.channels as usize, schema.sample_rate as usize] {
             return Err("Array shape does not match expected dimensions".into());
         }
 
         Ok(AudioFrameValue {
-            data: audio_array_to_bytes(array, schema.dtype)?,
+            data: audio_array_to_bytes(array, schema.dtype.clone())?,
         })
     }
 }
@@ -289,25 +300,19 @@ impl ImuSerializer for OnnxSerializer {
         let mut vectors = Vec::new();
 
         if schema.use_accelerometer {
-            vectors.push([
-                value.linear_acceleration.x,
-                value.linear_acceleration.y,
-                value.linear_acceleration.z,
-            ]);
+            if let Some(acc) = &value.linear_acceleration {
+                vectors.push([acc.x, acc.y, acc.z]);
+            }
         }
         if schema.use_gyroscope {
-            vectors.push([
-                value.angular_velocity.x,
-                value.angular_velocity.y,
-                value.angular_velocity.z,
-            ]);
+            if let Some(gyro) = &value.angular_velocity {
+                vectors.push([gyro.x, gyro.y, gyro.z]);
+            }
         }
         if schema.use_magnetometer {
-            vectors.push([
-                value.magnetic_field.x,
-                value.magnetic_field.y,
-                value.magnetic_field.z,
-            ]);
+            if let Some(mag) = &value.magnetic_field {
+                vectors.push([mag.x, mag.y, mag.z]);
+            }
         }
 
         let array = Array2::from_shape_vec(
@@ -322,27 +327,33 @@ impl ImuSerializer for OnnxSerializer {
         schema: &ImuSchema,
         value: Value,
     ) -> Result<ImuValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
         let mut result = ImuValue::default();
         let mut idx = 0;
 
         if schema.use_accelerometer {
-            result.linear_acceleration.x = array[[idx, 0]];
-            result.linear_acceleration.y = array[[idx, 1]];
-            result.linear_acceleration.z = array[[idx, 2]];
+            result.linear_acceleration = Some(ImuAccelerometerValue {
+                x: array[[idx, 0]],
+                y: array[[idx, 1]],
+                z: array[[idx, 2]],
+            });
             idx += 1;
         }
         if schema.use_gyroscope {
-            result.angular_velocity.x = array[[idx, 0]];
-            result.angular_velocity.y = array[[idx, 1]];
-            result.angular_velocity.z = array[[idx, 2]];
+            result.angular_velocity = Some(ImuGyroscopeValue {
+                x: array[[idx, 0]],
+                y: array[[idx, 1]],
+                z: array[[idx, 2]],
+            });
             idx += 1;
         }
         if schema.use_magnetometer {
-            result.magnetic_field.x = array[[idx, 0]];
-            result.magnetic_field.y = array[[idx, 1]];
-            result.magnetic_field.z = array[[idx, 2]];
+            result.magnetic_field = Some(ImuMagnetometerValue {
+                x: array[[idx, 0]],
+                y: array[[idx, 1]],
+                z: array[[idx, 2]],
+            });
         }
 
         Ok(result)
@@ -366,10 +377,10 @@ impl TimestampSerializer for OnnxSerializer {
         schema: &TimestampSchema,
         value: Value,
     ) -> Result<TimestampValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let total_seconds = tensor.view()[0];
-        let elapsed_seconds = total_seconds.floor() as i64;
-        let elapsed_nanos = ((total_seconds - elapsed_seconds as f32) * 1_000_000_000.0) as i32;
+        let elapsed_seconds = total_seconds.trunc() as i64;
+        let elapsed_nanos = ((total_seconds.fract() * 1_000_000_000.0).round()) as i32;
 
         Ok(TimestampValue {
             seconds: schema.start_seconds + elapsed_seconds,
@@ -393,7 +404,7 @@ impl VectorCommandSerializer for OnnxSerializer {
         schema: &VectorCommandSchema,
         value: Value,
     ) -> Result<VectorCommandValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
         if array.len() != schema.dimensions {
@@ -412,9 +423,10 @@ impl StateTensorSerializer for OnnxSerializer {
         schema: &StateTensorSchema,
         value: StateTensorValue,
     ) -> Result<Value, Box<dyn Error>> {
+        let shape: Vec<usize> = schema.shape.iter().map(|&x| x as usize).collect();
         let array = Array::from_shape_vec(
-            schema.shape.clone(),
-            parse_tensor_bytes(&value.data, schema.dtype)?,
+            shape,
+            parse_tensor_bytes(&value.data, schema.dtype.clone())?,
         )?;
         self.array_to_value(array)
     }
@@ -424,108 +436,126 @@ impl StateTensorSerializer for OnnxSerializer {
         schema: &StateTensorSchema,
         value: Value,
     ) -> Result<StateTensorValue, Box<dyn Error>> {
-        let tensor: OrtOwnedTensor<f32> = value.try_extract()?;
+        let tensor: Tensor = value.try_extract()?;
         let array = tensor.view();
 
-        if array.shape() != schema.shape.as_slice() {
+        let expected_shape: Vec<usize> = schema.shape.iter().map(|&x| x as usize).collect();
+        if array.shape() != expected_shape.as_slice() {
             return Err("Array shape does not match expected dimensions".into());
         }
 
         Ok(StateTensorValue {
-            data: tensor_array_to_bytes(array, schema.dtype)?,
+            data: tensor_array_to_bytes(array, schema.dtype.clone())?,
         })
     }
 }
 
-// Helper functions for audio and tensor data conversion
-fn parse_audio_bytes(bytes: &[u8], dtype: DType) -> Result<Vec<f32>, Box<dyn Error>> {
+// Helper functions for parsing bytes
+fn parse_audio_bytes(_bytes: &[u8], _dtype: DType) -> Result<Vec<f32>, Box<dyn Error>> {
     // Implementation needed
     unimplemented!()
 }
 
-fn audio_array_to_bytes(array: ArrayView2<f32>, dtype: DType) -> Result<Vec<u8>, Box<dyn Error>> {
+fn audio_array_to_bytes(_array: ArrayView2<f32>, _dtype: DType) -> Result<Vec<u8>, Box<dyn Error>> {
     // Implementation needed
     unimplemented!()
 }
 
-fn parse_tensor_bytes(bytes: &[u8], dtype: DType) -> Result<Vec<f32>, Box<dyn Error>> {
+fn parse_tensor_bytes(_bytes: &[u8], _dtype: DType) -> Result<Vec<f32>, Box<dyn Error>> {
     // Implementation needed
     unimplemented!()
 }
 
-fn tensor_array_to_bytes(array: ArrayView2<f32>, dtype: DType) -> Result<Vec<u8>, Box<dyn Error>> {
+fn tensor_array_to_bytes(
+    _array: ArrayView2<f32>,
+    _dtype: DType,
+) -> Result<Vec<u8>, Box<dyn Error>> {
     // Implementation needed
     unimplemented!()
-}
-
-fn convert_torque(
-    value: f32,
-    from_unit: JointTorqueUnit,
-    to_unit: JointTorqueUnit,
-) -> Result<f32, Box<dyn Error>> {
-    match (from_unit, to_unit) {
-        (JointTorqueUnit::NEWTON_METERS, JointTorqueUnit::NEWTON_METERS) => Ok(value),
-        _ => Err("Unsupported torque unit".into()),
-    }
 }
 
 impl Serializer for OnnxSerializer {
-    fn serialize(&self, schema: &ValueSchema, value: Value) -> Result<Value, Box<dyn Error>> {
-        match schema.value_type {
-            ValueType::JointPositions => {
-                self.serialize_joint_positions(&schema.joint_positions, value.joint_positions)
-            }
-            ValueType::JointVelocities => {
-                self.serialize_joint_velocities(&schema.joint_velocities, value.joint_velocities)
-            }
-            // Add other cases...
-            _ => Err("Unsupported value type".into()),
+    fn serialize(&self, schema: &ValueSchema, value: Value) -> Result<OrtValue, Box<dyn Error>> {
+        match schema.value_type.as_ref().ok_or("Missing value type")? {
+            ValueType::JointPositions(ref joint_positions_schema) => match value {
+                Value::JointPositions(v) => {
+                    self.serialize_joint_positions(joint_positions_schema, v)
+                }
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::JointVelocities(ref joint_velocities_schema) => match value {
+                Value::JointVelocities(v) => {
+                    self.serialize_joint_velocities(joint_velocities_schema, v)
+                }
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::JointTorques(ref joint_torques_schema) => match value {
+                Value::JointTorques(v) => self.serialize_joint_torques(joint_torques_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::JointCommands(ref joint_commands_schema) => match value {
+                Value::JointCommands(v) => self.serialize_joint_commands(joint_commands_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::CameraFrame(ref camera_frame_schema) => match value {
+                Value::CameraFrame(v) => self.serialize_camera_frame(camera_frame_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::AudioFrame(ref audio_frame_schema) => match value {
+                Value::AudioFrame(v) => self.serialize_audio_frame(audio_frame_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::Imu(ref imu_schema) => match value {
+                Value::Imu(v) => self.serialize_imu(imu_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::Timestamp(ref timestamp_schema) => match value {
+                Value::Timestamp(v) => self.serialize_timestamp(timestamp_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::VectorCommand(ref vector_command_schema) => match value {
+                Value::VectorCommand(v) => self.serialize_vector_command(vector_command_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
+            ValueType::StateTensor(ref state_tensor_schema) => match value {
+                Value::StateTensor(v) => self.serialize_state_tensor(state_tensor_schema, v),
+                _ => Err("Unsupported value type".into()),
+            },
         }
     }
 
-    fn deserialize(&self, schema: &ValueSchema, value: Value) -> Result<Value, Box<dyn Error>> {
-        match schema.value_type {
-            ValueType::JointPositions => Ok(Value::JointPositions(
-                self.deserialize_joint_positions(&schema.joint_positions, value)?,
+    fn deserialize(&self, schema: &ValueSchema, value: OrtValue) -> Result<Value, Box<dyn Error>> {
+        match schema.value_type.as_ref().ok_or("Missing value type")? {
+            ValueType::JointPositions(ref joint_positions_schema) => Ok(Value::JointPositions(
+                self.deserialize_joint_positions(joint_positions_schema, value)?,
             )),
-            ValueType::JointVelocities => Ok(Value::JointVelocities(
-                self.deserialize_joint_velocities(&schema.joint_velocities, value)?,
+            ValueType::JointVelocities(ref joint_velocities_schema) => Ok(Value::JointVelocities(
+                self.deserialize_joint_velocities(joint_velocities_schema, value)?,
             )),
-            // Add other cases...
-            _ => Err("Unsupported value type".into()),
+            ValueType::JointTorques(ref joint_torques_schema) => Ok(Value::JointTorques(
+                self.deserialize_joint_torques(joint_torques_schema, value)?,
+            )),
+            ValueType::JointCommands(ref joint_commands_schema) => Ok(Value::JointCommands(
+                self.deserialize_joint_commands(joint_commands_schema, value)?,
+            )),
+            ValueType::CameraFrame(ref camera_frame_schema) => Ok(Value::CameraFrame(
+                self.deserialize_camera_frame(camera_frame_schema, value)?,
+            )),
+            ValueType::AudioFrame(ref audio_frame_schema) => Ok(Value::AudioFrame(
+                self.deserialize_audio_frame(audio_frame_schema, value)?,
+            )),
+            ValueType::Imu(ref imu_schema) => {
+                Ok(Value::Imu(self.deserialize_imu(imu_schema, value)?))
+            }
+            ValueType::Timestamp(ref timestamp_schema) => Ok(Value::Timestamp(
+                self.deserialize_timestamp(timestamp_schema, value)?,
+            )),
+            ValueType::VectorCommand(ref vector_command_schema) => Ok(Value::VectorCommand(
+                self.deserialize_vector_command(vector_command_schema, value)?,
+            )),
+            ValueType::StateTensor(ref state_tensor_schema) => Ok(Value::StateTensor(
+                self.deserialize_state_tensor(state_tensor_schema, value)?,
+            )),
         }
-    }
-}
-
-// Helper functions
-fn convert_angular_position(
-    value: f32,
-    from_unit: JointPositionUnit,
-    to_unit: JointPositionUnit,
-) -> Result<f32, Box<dyn Error>> {
-    match (from_unit, to_unit) {
-        (JointPositionUnit::RADIANS, JointPositionUnit::DEGREES) => {
-            Ok(value * 180.0 / std::f32::consts::PI)
-        }
-        (JointPositionUnit::DEGREES, JointPositionUnit::RADIANS) => {
-            Ok(value * std::f32::consts::PI / 180.0)
-        }
-        _ => Err("Unsupported position unit".into()),
-    }
-}
-
-fn convert_angular_velocity(
-    value: f32,
-    from_unit: JointVelocityUnit,
-    to_unit: JointVelocityUnit,
-) -> Result<f32, Box<dyn Error>> {
-    match (from_unit, to_unit) {
-        (JointVelocityUnit::RADIANS_PER_SECOND, JointVelocityUnit::DEGREES_PER_SECOND) => {
-            Ok(value * 180.0 / std::f32::consts::PI)
-        }
-        (JointVelocityUnit::DEGREES_PER_SECOND, JointVelocityUnit::RADIANS_PER_SECOND) => {
-            Ok(value * std::f32::consts::PI / 180.0)
-        }
-        _ => Err("Unsupported velocity unit".into()),
     }
 }
