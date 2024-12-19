@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.json import JsonSerializer
 
 

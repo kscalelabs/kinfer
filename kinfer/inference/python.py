@@ -5,7 +5,7 @@ from pathlib import Path
 import onnx
 import onnxruntime as ort
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.export.pytorch import KINFER_METADATA_KEY
 from kinfer.serialize.numpy import NumpyMultiSerializer
 

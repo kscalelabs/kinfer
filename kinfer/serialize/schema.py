@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.utils import dtype_num_bytes
 
 

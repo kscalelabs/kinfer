@@ -5,7 +5,7 @@ import random
 import numpy as np
 import pytest
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.numpy import NumpySerializer
 
 

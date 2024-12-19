@@ -6,7 +6,7 @@ from typing import Any, Collection
 import numpy as np
 import torch
 
-from kinfer import protos as P
+from kinfer import proto as P
 
 
 def numpy_dtype(dtype: P.DType.ValueType) -> type[np.floating] | type[np.integer]:

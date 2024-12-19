@@ -1,6 +1,6 @@
 """Tests the schema serializer."""
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
 from kinfer.serialize.schema import get_dummy_io
 

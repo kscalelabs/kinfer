@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from kinfer import protos as P
+from kinfer import proto as P
 
 from .base import MultiSerializer, Serializer
 from .json import JsonMultiSerializer, JsonSerializer

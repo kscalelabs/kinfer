@@ -9,7 +9,7 @@ import onnxruntime as ort
 import torch
 from torch import Tensor
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
 from kinfer.serialize.schema import get_dummy_io
 from kinfer.serialize.utils import check_names_match

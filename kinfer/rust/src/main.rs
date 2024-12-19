@@ -1,9 +1,11 @@
 use kinfer::{Input, ModelSchema, Output};
 
 mod model;
+mod onnx_serializer;
 mod serializer;
 
 use model::*;
+use onnx_serializer::OnnxSerializer;
 use serializer::Serializer;
 
 struct ModelRunner {
@@ -11,8 +13,8 @@ struct ModelRunner {
     attached_metadata: std::collections::HashMap<String, String>,
     input_schema: ModelSchema,
     output_schema: ModelSchema,
-    input_serializer: Serializer,
-    output_serializer: Serializer,
+    input_serializer: OnnxSerializer,
+    output_serializer: OnnxSerializer,
 }
 
 impl ModelRunner {
@@ -39,8 +41,8 @@ impl ModelRunner {
         let output_schema = output_schema.ok_or("kinfer_metadata not found in model metadata")?;
 
         // Create serializers
-        let input_serializer = Serializer::new(&input_schema);
-        let output_serializer = Serializer::new(&output_schema);
+        let input_serializer = OnnxSerializer::new(input_schema);
+        let output_serializer = OnnxSerializer::new(output_schema);
 
         Ok(Self {
             model: session,

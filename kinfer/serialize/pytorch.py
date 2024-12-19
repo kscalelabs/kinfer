@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
-    IMUSerializer,
+    ImuSerializer,
     JointCommandsSerializer,
     JointPositionsSerializer,
     JointTorquesSerializer,
@@ -252,8 +252,8 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
         return P.AudioFrameValue(data=np_arr.tobytes())
 
 
-class PyTorchIMUSerializer(PyTorchBaseSerializer, IMUSerializer[Tensor]):
-    def serialize_imu(self, schema: P.IMUSchema, value: P.IMUValue) -> Tensor:
+class PyTorchImuSerializer(PyTorchBaseSerializer, ImuSerializer[Tensor]):
+    def serialize_imu(self, schema: P.ImuSchema, value: P.ImuValue) -> Tensor:
         vectors: list[Tensor] = []
         if schema.use_accelerometer:
             vectors.append(
@@ -356,7 +356,7 @@ class PyTorchSerializer(
     PyTorchJointCommandsSerializer,
     PyTorchCameraFrameSerializer,
     PyTorchAudioFrameSerializer,
-    PyTorchIMUSerializer,
+    PyTorchImuSerializer,
     PyTorchTimestampSerializer,
     PyTorchVectorCommandSerializer,
     PyTorchStateTensorSerializer,

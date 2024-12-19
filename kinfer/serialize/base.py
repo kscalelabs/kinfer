@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, Literal, Sequence, TypeVar, overload
 
-from kinfer import protos as P
+from kinfer import proto as P
 
 T = TypeVar("T")
 
@@ -213,12 +213,12 @@ class AudioFrameSerializer(ABC, Generic[T]):
         """
 
 
-class IMUSerializer(ABC, Generic[T]):
+class ImuSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_imu(
         self,
-        schema: P.IMUSchema,
-        value: P.IMUValue,
+        schema: P.ImuSchema,
+        value: P.ImuValue,
     ) -> T:
         """Serialize an IMU value.
 
@@ -233,9 +233,9 @@ class IMUSerializer(ABC, Generic[T]):
     @abstractmethod
     def deserialize_imu(
         self,
-        schema: P.IMUSchema,
+        schema: P.ImuSchema,
         value: T,
-    ) -> P.IMUValue:
+    ) -> P.ImuValue:
         """Deserialize an IMU value.
 
         Args:
@@ -348,7 +348,7 @@ class Serializer(
     JointCommandsSerializer[T],
     CameraFrameSerializer[T],
     AudioFrameSerializer[T],
-    IMUSerializer[T],
+    ImuSerializer[T],
     TimestampSerializer[T],
     VectorCommandSerializer[T],
     StateTensorSerializer[T],

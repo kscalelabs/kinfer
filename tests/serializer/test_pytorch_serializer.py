@@ -5,7 +5,7 @@ import random
 import pytest
 from torch import Tensor
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.serialize.pytorch import PyTorchSerializer
 from kinfer.serialize.types import to_value_type
 

@@ -8,7 +8,7 @@ import onnx
 import pytest
 import torch
 
-from kinfer import protos as P
+from kinfer import proto as P
 from kinfer.export.pytorch import export_model
 from kinfer.inference.python import ONNXModel
 
