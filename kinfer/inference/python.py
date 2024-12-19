@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-import numpy as np
 import onnx
 import onnxruntime as ort
 
 from kinfer import protos as P
 from kinfer.export.pytorch import KINFER_METADATA_KEY
+from kinfer.serialize.numpy import NumpyMultiSerializer
 
 
 class ONNXModel:
@@ -39,10 +39,15 @@ class ONNXModel:
         else:
             raise ValueError("kinfer_metadata not found in model metadata")
 
+        # Extract input and output schemas from metadata
         self._input_schema = metadata.input_schema
         self._output_schema = metadata.output_schema
 
-    def __call__(self, inputs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        # Create serializers for input and output.
+        self._input_serializer = NumpyMultiSerializer(self._input_schema)
+        self._output_serializer = NumpyMultiSerializer(self._output_schema)
+
+    def __call__(self, inputs: P.Input) -> P.Output:
         """Run inference on input data.
 
         Args:
@@ -51,8 +56,9 @@ class ONNXModel:
         Returns:
             Model outputs, matching the output schema.
         """
-        # Run inference - pass None to output_names param to get all outputs
-        outputs = self.session.run(None, inputs)
+        inputs_np = self._input_serializer.serialize_input(inputs, as_dict=True)
+        outputs_np = self.session.run(None, inputs_np)
+        outputs = self._output_serializer.deserialize_output(outputs_np)
         return outputs
 
     @property

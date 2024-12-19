@@ -12,6 +12,7 @@ from torch import Tensor
 from kinfer import protos as P
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
 from kinfer.serialize.schema import get_dummy_inputs
+from kinfer.serialize.utils import check_names_match
 
 KINFER_METADATA_KEY = "kinfer_metadata"
 
@@ -54,15 +55,30 @@ def export_model(
     Returns:
         ONNX inference session
     """
+    # Matches each input name to the input values.
+    signature = inspect.signature(model.forward)
+    model_input_names = [
+        p.name for p in signature.parameters.values() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+    ]
+    if len(model_input_names) != len(input_schema.inputs):
+        raise ValueError(f"Expected {len(model_input_names)} inputs, but schema has {len(input_schema.inputs)}")
+    input_schema_names = [i.value_name for i in input_schema.inputs]
+    output_schema_names = [o.value_name for o in output_schema.outputs]
+    if model_input_names != input_schema_names:
+        raise ValueError(f"Expected input names {model_input_names} to match schema names {input_schema_names}")
+
     input_serializer = PyTorchMultiSerializer(input_schema)
     output_serializer = PyTorchMultiSerializer(output_schema)
 
     input_dummy_values = get_dummy_inputs(input_schema)
-    input_tensors = input_serializer.serialize_input(input_dummy_values)
+    input_tensors = input_serializer.serialize_input(input_dummy_values, as_dict=True)
+
+    check_names_match("model_input_names", model_input_names, "input_schema", list(input_tensors.keys()))
+    input_tensor_list = [input_tensors[name] for name in model_input_names]
 
     # Attempts to run the model with the dummy inputs.
     try:
-        pred_output_tensors = model(**input_tensors)
+        pred_output_tensors = model(*input_tensor_list)
     except Exception as e:
         signature = inspect.signature(model.forward)
         model_input_names = [
@@ -87,7 +103,13 @@ def export_model(
 
     # Export model to buffer
     buffer = BytesIO()
-    torch.onnx.export(model, input_tensors, buffer)  # type: ignore[arg-type]
+    torch.onnx.export(
+        model=model,
+        args=input_tensors,
+        f=buffer,  # type: ignore[arg-type]
+        input_names=input_schema_names,
+        output_names=output_schema_names,
+    )
     buffer.seek(0)
 
     # Loads the model from the buffer and adds metadata.

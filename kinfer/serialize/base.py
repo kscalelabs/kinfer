@@ -1,7 +1,7 @@
 """Defines functions for serializing and deserializing signatures."""
 
 from abc import ABC, abstractmethod
-from typing import Generic, Sequence, TypeVar
+from typing import Generic, Literal, Sequence, TypeVar, overload
 
 from kinfer import protos as P
 
@@ -496,24 +496,60 @@ class MultiSerializer(Generic[T]):
     def __init__(self, serializers: Sequence[Serializer[T]]) -> None:
         self.serializers = list(serializers)
 
-    def serialize_input(self, input: P.Input) -> dict[str, T]:
-        return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
+    @overload
+    def serialize_input(self, input: P.Input, *, as_dict: Literal[True]) -> dict[str, T]: ...
 
-    def serialize_output(self, output: P.Output) -> dict[str, T]:
-        return {s.schema.value_name: s.serialize(o) for s, o in zip(self.serializers, output.outputs)}
+    @overload
+    def serialize_input(self, input: P.Input, *, as_dict: Literal[False] = False) -> list[T]: ...
 
-    def deserialize_input(self, input: dict[str, T]) -> P.Input:
-        return P.Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])
+    def serialize_input(self, input: P.Input, *, as_dict: bool = False) -> dict[str, T] | list[T]:
+        if not isinstance(input, P.Input):
+            raise ValueError(f"Inputs must be an Input protobuf, not {type(input)}")
+        if as_dict:
+            return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, input.inputs)}
+        return [s.serialize(i) for s, i in zip(self.serializers, input.inputs)]
 
-    def deserialize_output(self, output: dict[str, T]) -> P.Output:
-        return P.Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])
+    @overload
+    def serialize_output(self, output: P.Output, *, as_dict: Literal[True]) -> dict[str, T]: ...
+
+    @overload
+    def serialize_output(self, output: P.Output, *, as_dict: Literal[False]) -> list[T]: ...
+
+    def serialize_output(self, output: P.Output, *, as_dict: bool = False) -> dict[str, T] | list[T]:
+        if not isinstance(output, P.Output):
+            raise ValueError(f"Outputs must be an Output protobuf, not {type(output)}")
+        if as_dict:
+            return {s.schema.value_name: s.serialize(o) for s, o in zip(self.serializers, output.outputs)}
+        return [s.serialize(o) for s, o in zip(self.serializers, output.outputs)]
+
+    def deserialize_input(self, input: dict[str, T] | list[T]) -> P.Input:
+        if not isinstance(input, (dict, list)):
+            raise ValueError(f"Inputs must be a dictionary or list, not {type(input)}")
+        if isinstance(input, dict):
+            return P.Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input.values())])
+        return P.Input(inputs=[s.deserialize(i) for s, i in zip(self.serializers, input)])
+
+    def deserialize_output(self, output: dict[str, T] | list[T]) -> P.Output:
+        if not isinstance(output, (dict, list)):
+            raise ValueError(f"Outputs must be a dictionary or list, not {type(output)}")
+        if isinstance(output, dict):
+            return P.Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output.values())])
+        return P.Output(outputs=[s.deserialize(o) for s, o in zip(self.serializers, output)])
 
     def assign_input_names(self, input: Sequence[T]) -> dict[str, T]:
+        if not isinstance(input, Sequence):
+            raise ValueError(f"Inputs must be a sequence, not {type(input)}")
         if len(input) != len(self.serializers):
             raise ValueError(f"Expected {len(self.serializers)} inputs, got {len(input)}")
         return {s.schema.value_name: i for s, i in zip(self.serializers, input)}
 
     def assign_output_names(self, output: Sequence[T]) -> dict[str, T]:
+        if not isinstance(output, Sequence):
+            raise ValueError(f"Outputs must be a sequence, not {type(output)}")
         if len(output) != len(self.serializers):
             raise ValueError(f"Expected {len(self.serializers)} outputs, got {len(output)}")
         return {s.schema.value_name: o for s, o in zip(self.serializers, output)}
+
+    @property
+    def names(self) -> list[str]:
+        return [s.schema.value_name for s in self.serializers]

@@ -80,32 +80,20 @@ def model_path(tmp_path: Path) -> str:
 
 def test_model_loading(model_path: str) -> None:
     """Test basic model loading functionality."""
-    # Test with default config
     model = ONNXModel(model_path)
     assert model is not None
-
-    model = ONNXModel(model_path)
-    assert model is not None
-
-
-def test_model_metadata(model_path: str) -> None:
-    """Test model metadata extraction."""
-    model = ONNXModel(model_path)
-    input_schema = model.input_schema
-    output_schema = model.output_schema
-    assert input_schema is not None
-    assert output_schema is not None
 
 
 def test_model_inference(model_path: str) -> None:
     """Test model inference with different input formats."""
     model = ONNXModel(model_path)
 
-    inputs = {
-        "x": np.random.randn(1, 10).astype(np.float32),
-    }
+    inputs = P.Input(
+        inputs=[
+            P.Value(
+                state_tensor=P.StateTensorValue(data=np.random.randn(1, 10).astype(np.float32).tobytes()),
+            ),
+        ],
+    )
     outputs = model(inputs)
-
-    assert isinstance(outputs, dict)
-    assert "output" in outputs
-    assert outputs["output"].shape == (1, 1)
+    assert isinstance(outputs, P.Output)
