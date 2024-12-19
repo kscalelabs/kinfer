@@ -29,11 +29,20 @@ class ONNXModel:
 
         # Extract metadata and attempt to parse JSON values
         for prop in self.model.metadata_props:
+            # if prop.key == KINFER_METADATA_KEY:
+            #     try:
+            #         schema = P.ModelSchema.FromString(prop.value.encode("utf-8"))
+            #     except Exception as e:
+            #         raise ValueError("Failed to parse kinfer_metadata value") from e
+            #     break
+
             if prop.key == KINFER_METADATA_KEY:
-                try:
-                    schema = P.ModelSchema.FromString(prop.value.encode("utf-8"))
-                except Exception as e:
-                    raise ValueError("Failed to parse kinfer_metadata value") from e
+                import base64
+                # Decode base64 string back to bytes
+                schema_bytes = base64.b64decode(prop.value)
+                # Parse bytes back into ModelSchema
+                schema = P.ModelSchema()
+                schema.ParseFromString(schema_bytes)
                 break
             else:
                 self.attached_metadata[prop.key] = prop.value

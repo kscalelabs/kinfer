@@ -34,7 +34,7 @@ from kinfer.serialize.utils import (
 
 class NumpyBaseSerializer:
     def __init__(self, dtype: np.dtype | None = None) -> None:
-        self.dtype = dtype
+        self.dtype = dtype or np.float32
 
 
 class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerializer[np.ndarray]):
@@ -52,6 +52,7 @@ class NumpyJointPositionsSerializer(NumpyBaseSerializer, JointPositionsSerialize
             ],
             dtype=self.dtype,
         )
+
         return array
 
     def deserialize_joint_positions(

@@ -27,10 +27,16 @@ def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: P.ModelSchema) -
     Returns:
         ONNX model with added metadata
     """
+
     schema_bytes = schema.SerializeToString()
+
     meta = model_proto.metadata_props.add()
     meta.key = KINFER_METADATA_KEY
-    meta.value = schema_bytes
+    # meta.value = schema_bytes
+
+    import base64
+    schema_b64 = base64.b64encode(schema_bytes).decode('utf-8')
+    meta.value = schema_b64
     return model_proto
 
 
@@ -76,6 +82,7 @@ def export_model(
         model_input_names = [
             p.name for p in signature.parameters.values() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
         ]
+
         raise ValueError(
             f"Failed to run model with dummy inputs; input names are {model_input_names} while "
             f"input schema is {schema.input_schema}"
