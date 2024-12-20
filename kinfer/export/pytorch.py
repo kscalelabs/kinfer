@@ -3,6 +3,7 @@
 import inspect
 from io import BytesIO
 from typing import Sequence
+import base64
 
 import onnx
 import onnxruntime as ort
@@ -32,11 +33,7 @@ def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: P.ModelSchema) -
 
     meta = model_proto.metadata_props.add()
     meta.key = KINFER_METADATA_KEY
-    # meta.value = schema_bytes
-
-    import base64
-    schema_b64 = base64.b64encode(schema_bytes).decode('utf-8')
-    meta.value = schema_b64
+    meta.value = base64.b64encode(schema_bytes).decode("utf-8")
     return model_proto
 
 
@@ -62,6 +59,7 @@ def export_model(
         raise ValueError(f"Expected {len(model_input_names)} inputs, but schema has {len(schema.input_schema.values)}")
     input_schema_names = [i.value_name for i in schema.input_schema.values]
     output_schema_names = [o.value_name for o in schema.output_schema.values]
+
     if model_input_names != input_schema_names:
         raise ValueError(f"Expected input names {model_input_names} to match schema names {input_schema_names}")
 
