@@ -1,9 +1,9 @@
 """PyTorch model export utilities."""
 
+import base64
 import inspect
 from io import BytesIO
 from typing import Sequence
-import base64
 
 import onnx
 import onnxruntime as ort
@@ -18,34 +18,44 @@ from kinfer.serialize.utils import check_names_match
 KINFER_METADATA_KEY = "kinfer_metadata"
 
 
-def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: P.ModelSchema) -> onnx.ModelProto:
+def _add_metadata_to_onnx(
+    model_proto: onnx.ModelProto, schema: P.ModelSchema, metadata: dict[str, str | float] = {}
+) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
     Args:
         model_proto: ONNX model prototype
         schema: Model schema to use for model export.
+        metadata: Metadata to add to the model.
 
     Returns:
         ONNX model with added metadata
     """
-
     schema_bytes = schema.SerializeToString()
 
     meta = model_proto.metadata_props.add()
     meta.key = KINFER_METADATA_KEY
     meta.value = base64.b64encode(schema_bytes).decode("utf-8")
+
+    for key, value in metadata.items():
+        meta = model_proto.metadata_props.add()
+        meta.key = key
+        meta.value = str(value)
+
     return model_proto
 
 
 def export_model(
     model: torch.jit.ScriptModule,
     schema: P.ModelSchema,
+    metadata: dict[str, str | float] = {},
 ) -> onnx.ModelProto:
     """Export PyTorch model to ONNX format with metadata.
 
     Args:
         model: PyTorch model to export.
         schema: Model schema to use for model export.
+        metadata: Metadata to add to the model.
 
     Returns:
         ONNX inference session
@@ -111,7 +121,7 @@ def export_model(
 
     # Loads the model from the buffer and adds metadata.
     model_proto = onnx.load_model(buffer)
-    model_proto = _add_metadata_to_onnx(model_proto, schema)
+    model_proto = _add_metadata_to_onnx(model_proto, schema, metadata)
 
     return model_proto
 

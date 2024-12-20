@@ -1,6 +1,7 @@
 """Defines helper types for the protocol buffers."""
 
 from .kinfer_pb2 import (
+    IO,
     AudioFrameSchema,
     AudioFrameValue,
     CameraFrameSchema,
@@ -12,7 +13,6 @@ from .kinfer_pb2 import (
     ImuSchema,
     ImuValue,
     IOSchema,
-    IO,
     JointCommandsSchema,
     JointCommandsValue,
     JointCommandValue,
