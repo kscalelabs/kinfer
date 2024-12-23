@@ -1,4 +1,4 @@
-use crate::proto::proto::{
+use crate::kinfer_proto::{
     ProtoValue, ValueSchema, AudioFrameSchema, AudioFrameValue,
     CameraFrameSchema, CameraFrameValue, ImuSchema, ImuValue, 
     JointCommandsSchema, JointCommandsValue, JointPositionUnit,

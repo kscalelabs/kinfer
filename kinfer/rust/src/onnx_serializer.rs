@@ -10,7 +10,7 @@ use ort::value::{Tensor, Value as OrtValue};
 use std::error::Error;
 
 // Import the re-exported types
-use crate::proto::proto::{
+use crate::kinfer_proto::{
     ProtoValue, AudioFrameSchema, AudioFrameValue, CameraFrameSchema,
     CameraFrameValue, ImuSchema, ImuValue, ImuAccelerometerValue, ImuGyroscopeValue,
     ImuMagnetometerValue, JointCommandsSchema, JointCommandsValue, JointPositionUnit,
@@ -22,8 +22,8 @@ use crate::proto::proto::{
 };
 
 // Import the nested types
-use crate::proto::proto::value_schema::ValueType;
-use crate::proto::proto::value::Value as EnumValue;
+use crate::kinfer_proto::proto::value_schema::ValueType;
+use crate::kinfer_proto::proto::value::Value as EnumValue;
 
 pub struct OnnxSerializer {
     schema: ValueSchema,
