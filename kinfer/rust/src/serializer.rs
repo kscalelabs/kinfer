@@ -1,5 +1,14 @@
-use crate::proto::proto::*;
-use ndarray::Array1;
+use crate::proto::proto::{
+    ProtoValue, ValueSchema, AudioFrameSchema, AudioFrameValue,
+    CameraFrameSchema, CameraFrameValue, ImuSchema, ImuValue, 
+    JointCommandsSchema, JointCommandsValue, JointPositionUnit,
+    JointPositionsSchema, JointPositionsValue, JointTorqueUnit,
+    JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema, 
+    JointVelocitiesValue, JointVelocityUnit, StateTensorSchema, 
+    StateTensorValue, TimestampSchema, TimestampValue, 
+    VectorCommandSchema, VectorCommandValue,
+};
+
 use ort::value::Value as OrtValue;
 use std::error::Error;
 
@@ -158,14 +167,14 @@ pub trait Serializer:
     fn serialize(
         &self,
         schema: &ValueSchema,
-        value: value::Value,
+        value: ProtoValue,
     ) -> Result<OrtValue, Box<dyn Error>>;
 
     fn deserialize(
         &self,
         schema: &ValueSchema,
         value: OrtValue,
-    ) -> Result<value::Value, Box<dyn Error>>;
+    ) -> Result<ProtoValue, Box<dyn Error>>;
 }
 
 pub fn convert_position(

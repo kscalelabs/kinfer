@@ -1,4 +1,5 @@
-use kinfer::{Input, ModelSchema, Output};
+use crate::proto::{ModelSchema, IO as Input, IO as Output};
+use ort::session::Session;
 
 mod model;
 mod onnx_serializer;
@@ -7,6 +8,8 @@ mod serializer;
 use model::*;
 use onnx_serializer::OnnxSerializer;
 use serializer::Serializer;
+
+const KINFER_METADATA_KEY: &str = "kinfer_metadata";
 
 struct ModelRunner {
     model: ort::Session,

@@ -3,11 +3,11 @@ pub mod proto {
 }
 
 pub use proto::{
-    AudioFrameSchema, AudioFrameValue, CameraFrameSchema, CameraFrameValue, DType, ImuSchema,
-    ImuValue, JointCommandValue, JointCommandsSchema, JointCommandsValue, JointPositionUnit,
-    JointPositionValue, JointPositionsSchema, JointPositionsValue, JointTorqueUnit,
-    JointTorqueValue, JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema,
-    JointVelocitiesValue, JointVelocityUnit, JointVelocityValue, StateTensorSchema,
-    StateTensorValue, TimestampSchema, TimestampValue, ValueSchema, VectorCommandSchema,
-    VectorCommandValue,
+    AudioFrameSchema, AudioFrameValue, CameraFrameSchema, CameraFrameValue, DType, ImuAccelerometerValue,
+    ImuGyroscopeValue, ImuMagnetometerValue, ImuSchema, ImuValue, JointCommandValue,
+    JointCommandsSchema, JointCommandsValue, JointPositionUnit, JointPositionValue,
+    JointPositionsSchema, JointPositionsValue, JointTorqueUnit, JointTorqueValue, JointTorquesSchema,
+    JointTorquesValue, JointVelocitiesSchema, JointVelocitiesValue, JointVelocityUnit,
+    JointVelocityValue, StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue,
+    VectorCommandSchema, VectorCommandValue, Value as ProtoValue, ValueSchema, 
 };
