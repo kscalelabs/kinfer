@@ -175,18 +175,6 @@ pub trait Serializer:
         schema: &ValueSchema,
         value: OrtValue,
     ) -> Result<ProtoValue, Box<dyn Error>>;
-
-    fn serialize_io(
-        &self,
-        schema: &ProtoIOSchema,
-        value: ProtoIO,
-    ) -> Result<OrtValue, Box<dyn Error>>;
-
-    fn deserialize_io(
-        &self,
-        schema: &ProtoIOSchema,
-        value: OrtValue,
-    ) -> Result<ProtoIO, Box<dyn Error>>;
 }
 
 pub fn convert_position(

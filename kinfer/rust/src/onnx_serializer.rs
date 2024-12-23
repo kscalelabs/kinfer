@@ -674,61 +674,6 @@ impl Serializer for OnnxSerializer {
             },
         }
     }
-    
-    fn serialize_io(&self, schema: &ProtoIOSchema, value: ProtoIO) -> Result<OrtValue, Box<dyn Error>> {
-        if value.values.len() != schema.values.len() {
-            return Err("Number of values does not match schema".into());
-        }
-
-        // Serialize each value according to its schema and concatenate the results
-        let mut all_values: Vec<f32> = Vec::new();
-        for (value, schema) in value.values.iter().zip(schema.values.iter()) {
-            let tensor = self.serialize(schema, value.clone())?;
-            let array = tensor.try_extract_tensor::<f32>()?.view();
-            let array_1d = array.as_standard_layout().into_dimensionality::<ndarray::Ix1>()?;
-            all_values.extend(array_1d.iter().copied());
-        }
-
-        self.array_to_value(Array1::from_vec(all_values))
-    }
-
-    fn deserialize_io(&self, schema: &ProtoIOSchema, value: OrtValue) -> Result<ProtoIO, Box<dyn Error>> {
-        let tensor = value.try_extract_tensor::<f32>()?;
-        // Convert dynamic array to 1D view
-        let array = tensor.view()
-            .as_standard_layout()
-            .into_dimensionality::<ndarray::Ix1>()?;
-        
-        let mut current_index = 0;
-        let mut values = Vec::new();
-
-        // Deserialize each value according to its schema
-        for value_schema in &schema.values {
-            // Calculate the size of the current value based on its schema
-            let size = calculate_value_size(value_schema)?;
-            
-            if current_index + size > array.len() {
-                return Err("Input tensor is too small for schema".into());
-            }
-
-            // Extract the slice for this value
-            let value_tensor = Tensor::from_array(
-                Array1::from_iter(array.slice(s![current_index..current_index + size]).iter().copied())
-            )?.into_dyn();
-
-            // Deserialize the value using its schema
-            let value = self.deserialize(value_schema, value_tensor.into())?;
-            values.push(value);
-
-            current_index += size;
-        }
-
-        if current_index != array.len() {
-            return Err("Input tensor is larger than expected from schema".into());
-        }
-
-        Ok(ProtoIO { values })
-    }
 }
 
 fn calculate_value_size(schema: &ValueSchema) -> Result<usize, Box<dyn Error>> {
@@ -749,6 +694,78 @@ fn calculate_value_size(schema: &ValueSchema) -> Result<usize, Box<dyn Error>> {
         ValueType::Timestamp(_) => Ok(1),
         ValueType::VectorCommand(s) => Ok(s.dimensions as usize),
         ValueType::StateTensor(s) => Ok(s.shape.iter().product::<i32>() as usize),
+    }
+}
+
+pub struct OnnxMultiSerializer {
+    serializers: Vec<OnnxSerializer>,
+}
+
+impl OnnxMultiSerializer {
+    pub fn new(schema: ProtoIOSchema) -> Self {
+        Self {
+            serializers: schema.values.into_iter()
+                .map(|s| OnnxSerializer::new(s))
+                .collect(),
+        }
+    }
+
+    pub fn serialize_io(&self, io: ProtoIO) -> Result<OrtValue, Box<dyn Error>> {
+        if io.values.len() != self.serializers.len() {
+            return Err("Number of values does not match schema".into());
+        }
+
+        // Serialize each value according to its schema and concatenate the results
+        let mut all_values: Vec<f32> = Vec::new();
+        for (value, serializer) in io.values.iter().zip(self.serializers.iter()) {
+            let tensor = serializer.serialize(&serializer.schema, value.clone())?;
+            let array = tensor.try_extract_tensor::<f32>()?;
+            let array_1d = array.as_standard_layout().into_dimensionality::<ndarray::Ix1>()?;
+            all_values.extend(array_1d.iter().copied());
+        }
+
+        // Convert to OrtValue
+        Tensor::from_array(Array1::from_vec(all_values))
+            .map(|tensor| tensor.into_dyn())
+            .map_err(|e| Box::new(e) as Box<dyn Error>)
+    }
+
+    pub fn deserialize_io(&self, values: Vec<OrtValue>) -> Result<ProtoIO, Box<dyn Error>> {
+        // Check if number of values matches number of serializers
+        if values.len() != self.serializers.len() {
+            return Err(format!(
+                "Number of values ({}) does not match number of serializers ({})",
+                values.len(),
+                self.serializers.len()
+            ).into());
+        }
+
+        // Deserialize each value using its corresponding serializer
+        let proto_values = self.serializers.iter()
+            .zip(values.into_iter())
+            .map(|(serializer, value)| {
+                serializer.deserialize(&serializer.schema, value)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ProtoIO { values: proto_values })
+    }
+
+    pub fn names(&self) -> Vec<String> {
+        self.serializers.iter()
+            .map(|s| s.schema.value_name.clone())
+            .collect()
+    }
+
+    pub fn assign_names(&self, values: Vec<OrtValue>) -> Result<std::collections::HashMap<String, OrtValue>, Box<dyn Error>> {
+        if values.len() != self.serializers.len() {
+            return Err(format!("Expected {} values, got {}", self.serializers.len(), values.len()).into());
+        }
+        
+        Ok(self.serializers.iter()
+            .map(|s| s.schema.value_name.clone())
+            .zip(values)
+            .collect())
     }
 }
 
