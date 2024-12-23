@@ -5,7 +5,7 @@ use crate::serializer::{
     TimestampSerializer, VectorCommandSerializer,
 };
 
-use ndarray::{Array, Array1, Array2, Array3, ArrayView, ArrayView2};
+use ndarray::{s, Array, Array1, Array2, Array3, ArrayView, ArrayView1, ArrayView2};
 use ort::value::{Tensor, Value as OrtValue};
 use std::error::Error;
 
@@ -18,7 +18,7 @@ use crate::kinfer_proto::{
     JointTorquesValue, JointVelocitiesSchema, JointVelocitiesValue, JointVelocityUnit,
     StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue, VectorCommandSchema,
     VectorCommandValue, ValueSchema,
-    JointPositionValue, JointTorqueValue, JointVelocityValue, JointCommandValue, DType
+    JointPositionValue, JointTorqueValue, JointVelocityValue, JointCommandValue, DType, ProtoIOSchema, ProtoIO
 };
 
 // Import the nested types
@@ -673,6 +673,82 @@ impl Serializer for OnnxSerializer {
                 })
             },
         }
+    }
+    
+    fn serialize_io(&self, schema: &ProtoIOSchema, value: ProtoIO) -> Result<OrtValue, Box<dyn Error>> {
+        if value.values.len() != schema.values.len() {
+            return Err("Number of values does not match schema".into());
+        }
+
+        // Serialize each value according to its schema and concatenate the results
+        let mut all_values: Vec<f32> = Vec::new();
+        for (value, schema) in value.values.iter().zip(schema.values.iter()) {
+            let tensor = self.serialize(schema, value.clone())?;
+            let array = tensor.try_extract_tensor::<f32>()?.view();
+            let array_1d = array.as_standard_layout().into_dimensionality::<ndarray::Ix1>()?;
+            all_values.extend(array_1d.iter().copied());
+        }
+
+        self.array_to_value(Array1::from_vec(all_values))
+    }
+
+    fn deserialize_io(&self, schema: &ProtoIOSchema, value: OrtValue) -> Result<ProtoIO, Box<dyn Error>> {
+        let tensor = value.try_extract_tensor::<f32>()?;
+        // Convert dynamic array to 1D view
+        let array = tensor.view()
+            .as_standard_layout()
+            .into_dimensionality::<ndarray::Ix1>()?;
+        
+        let mut current_index = 0;
+        let mut values = Vec::new();
+
+        // Deserialize each value according to its schema
+        for value_schema in &schema.values {
+            // Calculate the size of the current value based on its schema
+            let size = calculate_value_size(value_schema)?;
+            
+            if current_index + size > array.len() {
+                return Err("Input tensor is too small for schema".into());
+            }
+
+            // Extract the slice for this value
+            let value_tensor = Tensor::from_array(
+                Array1::from_iter(array.slice(s![current_index..current_index + size]).iter().copied())
+            )?.into_dyn();
+
+            // Deserialize the value using its schema
+            let value = self.deserialize(value_schema, value_tensor.into())?;
+            values.push(value);
+
+            current_index += size;
+        }
+
+        if current_index != array.len() {
+            return Err("Input tensor is larger than expected from schema".into());
+        }
+
+        Ok(ProtoIO { values })
+    }
+}
+
+fn calculate_value_size(schema: &ValueSchema) -> Result<usize, Box<dyn Error>> {
+    match schema.value_type.as_ref().ok_or("Missing value type")? {
+        ValueType::JointPositions(s) => Ok(s.joint_names.len()),
+        ValueType::JointVelocities(s) => Ok(s.joint_names.len()),
+        ValueType::JointTorques(s) => Ok(s.joint_names.len()),
+        ValueType::JointCommands(s) => Ok(s.joint_names.len() * 5), // 5 values per joint
+        ValueType::CameraFrame(s) => Ok((s.channels * s.height * s.width) as usize),
+        ValueType::AudioFrame(s) => Ok((s.channels * s.sample_rate) as usize),
+        ValueType::Imu(s) => {
+            let mut size = 0;
+            if s.use_accelerometer { size += 3; }
+            if s.use_gyroscope { size += 3; }
+            if s.use_magnetometer { size += 3; }
+            Ok(size)
+        },
+        ValueType::Timestamp(_) => Ok(1),
+        ValueType::VectorCommand(s) => Ok(s.dimensions as usize),
+        ValueType::StateTensor(s) => Ok(s.shape.iter().product::<i32>() as usize),
     }
 }
 

@@ -6,7 +6,7 @@ use crate::kinfer_proto::{
     JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema, 
     JointVelocitiesValue, JointVelocityUnit, StateTensorSchema, 
     StateTensorValue, TimestampSchema, TimestampValue, 
-    VectorCommandSchema, VectorCommandValue,
+    VectorCommandSchema, VectorCommandValue, ProtoIOSchema, ProtoIO
 };
 
 use ort::value::Value as OrtValue;
@@ -175,6 +175,18 @@ pub trait Serializer:
         schema: &ValueSchema,
         value: OrtValue,
     ) -> Result<ProtoValue, Box<dyn Error>>;
+
+    fn serialize_io(
+        &self,
+        schema: &ProtoIOSchema,
+        value: ProtoIO,
+    ) -> Result<OrtValue, Box<dyn Error>>;
+
+    fn deserialize_io(
+        &self,
+        schema: &ProtoIOSchema,
+        value: OrtValue,
+    ) -> Result<ProtoIO, Box<dyn Error>>;
 }
 
 pub fn convert_position(

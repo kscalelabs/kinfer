@@ -9,5 +9,6 @@ pub use proto::{
     JointPositionsSchema, JointPositionsValue, JointTorqueUnit, JointTorqueValue, JointTorquesSchema,
     JointTorquesValue, JointVelocitiesSchema, JointVelocitiesValue, JointVelocityUnit,
     JointVelocityValue, StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue,
-    VectorCommandSchema, VectorCommandValue, Value as ProtoValue, ValueSchema, 
+    VectorCommandSchema, VectorCommandValue, Value as ProtoValue, ValueSchema, Io as ProtoIO, IoSchema as ProtoIOSchema,
+    ModelSchema
 };
