@@ -1,5 +1,6 @@
 """ONNX model inference utilities for Python."""
 
+import base64
 from pathlib import Path
 
 import onnx
@@ -18,29 +19,29 @@ class ONNXModel:
 
         Args:
             model_path: Path to ONNX model file
-            config: Optional inference configuration
         """
         self.model_path = model_path
 
         # Load model and create inference session
         self.model = onnx.load(model_path)
         self.session = ort.InferenceSession(model_path)
-        self.attached_metadata: dict[str, str] = {}
+        self.attached_metadata: dict[str, str | float] = {}
 
+        schema = None
         # Extract metadata and attempt to parse JSON values
         for prop in self.model.metadata_props:
             if prop.key == KINFER_METADATA_KEY:
                 try:
-                    schema = P.ModelSchema.FromString(prop.value.encode("utf-8"))
+                    schema_bytes = base64.b64decode(prop.value)
+                    schema = P.ModelSchema()
+                    schema.ParseFromString(schema_bytes)
                 except Exception as e:
                     raise ValueError("Failed to parse kinfer_metadata value") from e
-                break
             else:
                 self.attached_metadata[prop.key] = prop.value
-        else:
-            raise ValueError("kinfer_metadata not found in model metadata")
 
-        # Extract input and output schemas from metadata
+        if schema is None:
+            raise ValueError("kinfer_metadata not found in model metadata")
         self._schema = schema
 
         # Create serializers for input and output.
@@ -70,3 +71,23 @@ class ONNXModel:
     def output_schema(self) -> P.IOSchema:
         """Get the output schema."""
         return self._schema.output_schema
+
+    @property
+    def schema_input_keys(self) -> list[str]:
+        """Get all value names from input schemas.
+
+        Returns:
+            List of value names from input schema.
+        """
+        input_names = [value.value_name for value in self._schema.input_schema.values]
+        return input_names
+
+    @property
+    def schema_output_keys(self) -> list[str]:
+        """Get all value names from output schemas.
+
+        Returns:
+            List of value names from output schema.
+        """
+        output_names = [value.value_name for value in self._schema.output_schema.values]
+        return output_names
