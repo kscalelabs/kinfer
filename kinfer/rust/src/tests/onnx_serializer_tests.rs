@@ -1,19 +1,19 @@
 use crate::{
     kinfer_proto::{
-        self as P, AudioFrameSchema, AudioFrameValue, CameraFrameSchema, CameraFrameValue,
-        DType, ImuAccelerometerValue, ImuGyroscopeValue, ImuMagnetometerValue, ImuSchema,
-        ImuValue, JointCommandsSchema, JointCommandsValue, JointCommandValue,
-        JointPositionUnit, JointPositionsSchema, JointPositionsValue, JointPositionValue,
-        JointTorqueUnit, JointTorquesSchema, JointTorquesValue, JointTorqueValue,
-        JointVelocitiesSchema, JointVelocitiesValue, JointVelocityUnit, JointVelocityValue,
-        ProtoValue, StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue,
-        ValueSchema, VectorCommandSchema, VectorCommandValue,
+        self as P, AudioFrameSchema, AudioFrameValue, CameraFrameSchema, CameraFrameValue, DType,
+        ImuAccelerometerValue, ImuGyroscopeValue, ImuMagnetometerValue, ImuSchema, ImuValue,
+        JointCommandValue, JointCommandsSchema, JointCommandsValue, JointPositionUnit,
+        JointPositionValue, JointPositionsSchema, JointPositionsValue, JointTorqueUnit,
+        JointTorqueValue, JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema,
+        JointVelocitiesValue, JointVelocityUnit, JointVelocityValue, ProtoValue, StateTensorSchema,
+        StateTensorValue, TimestampSchema, TimestampValue, ValueSchema, VectorCommandSchema,
+        VectorCommandValue,
     },
     onnx_serializer::OnnxSerializer,
     serializer::{
-        JointPositionsSerializer, JointVelocitiesSerializer, JointTorquesSerializer,
-        JointCommandsSerializer, CameraFrameSerializer, AudioFrameSerializer, ImuSerializer,
-        TimestampSerializer, VectorCommandSerializer, StateTensorSerializer,
+        AudioFrameSerializer, CameraFrameSerializer, ImuSerializer, JointCommandsSerializer,
+        JointPositionsSerializer, JointTorquesSerializer, JointVelocitiesSerializer,
+        StateTensorSerializer, TimestampSerializer, VectorCommandSerializer,
     },
 };
 
@@ -23,7 +23,11 @@ use std::f32::consts::PI;
 
 #[test]
 fn test_serialize_joint_positions() {
-    let joint_names = vec!["joint_1".to_string(), "joint_2".to_string(), "joint_3".to_string()];
+    let joint_names = vec![
+        "joint_1".to_string(),
+        "joint_2".to_string(),
+        "joint_3".to_string(),
+    ];
     let schema = ValueSchema {
         value_name: "test".to_string(),
         value_type: Some(P::proto::value_schema::ValueType::JointPositions(
@@ -35,7 +39,7 @@ fn test_serialize_joint_positions() {
     };
 
     let serializer = OnnxSerializer::new(schema.clone());
-    
+
     // Test with matching units
     let value = JointPositionsValue {
         values: vec![
@@ -60,9 +64,10 @@ fn test_serialize_joint_positions() {
     let result = match schema.value_type.as_ref().unwrap() {
         P::proto::value_schema::ValueType::JointPositions(schema) => {
             serializer.serialize_joint_positions(schema, value.clone())
-        },
+        }
         _ => panic!("Wrong schema type"),
-    }.unwrap();
+    }
+    .unwrap();
 
     // Verify tensor shape and values
     let tensor = result.try_extract_tensor::<f32>().unwrap();
@@ -75,9 +80,10 @@ fn test_serialize_joint_positions() {
     let deserialized = match schema.value_type.as_ref().unwrap() {
         P::proto::value_schema::ValueType::JointPositions(schema) => {
             serializer.deserialize_joint_positions(schema, result)
-        },
+        }
         _ => panic!("Wrong schema type"),
-    }.unwrap();
+    }
+    .unwrap();
 
     // Verify full deserialization
     assert_eq!(deserialized.values.len(), value.values.len());
@@ -89,13 +95,11 @@ fn test_serialize_joint_positions() {
 
     // Test unit conversion
     let value_radians = JointPositionsValue {
-        values: vec![
-            JointPositionValue {
-                joint_name: "joint_1".to_string(),
-                value: PI/6.0,
-                unit: JointPositionUnit::Radians as i32,
-            },
-        ],
+        values: vec![JointPositionValue {
+            joint_name: "joint_1".to_string(),
+            value: PI / 6.0,
+            unit: JointPositionUnit::Radians as i32,
+        }],
     };
 
     let schema_radians = ValueSchema {
@@ -112,13 +116,14 @@ fn test_serialize_joint_positions() {
     let result = match schema_radians.value_type.as_ref().unwrap() {
         P::proto::value_schema::ValueType::JointPositions(schema) => {
             serializer.serialize_joint_positions(schema, value_radians.clone())
-        },
+        }
         _ => panic!("Wrong schema type"),
-    }.unwrap();
+    }
+    .unwrap();
 
     let tensor = result.try_extract_tensor::<f32>().unwrap();
     let array = tensor.view();
-    assert!((array[[0]] - PI/6.0).abs() < 1e-6);
+    assert!((array[[0]] - PI / 6.0).abs() < 1e-6);
 }
 
 #[test]
@@ -134,27 +139,28 @@ fn test_serialize_joint_positions_errors() {
     };
 
     let serializer = OnnxSerializer::new(schema.clone());
-    
+
     // Test cases that should fail:
-    
+
     // Case 1: Wrong number of joints
     let value_wrong_count = JointPositionsValue {
-        values: vec![
-            JointPositionValue {
-                joint_name: "joint_1".to_string(),
-                value: 60.0,
-                unit: JointPositionUnit::Degrees as i32,
-            },
-        ],
+        values: vec![JointPositionValue {
+            joint_name: "joint_1".to_string(),
+            value: 60.0,
+            unit: JointPositionUnit::Degrees as i32,
+        }],
     };
 
     let result = match schema.value_type.as_ref().unwrap() {
         P::proto::value_schema::ValueType::JointPositions(schema) => {
             serializer.serialize_joint_positions(schema, value_wrong_count)
-        },
+        }
         _ => panic!("Wrong schema type"),
     };
-    assert!(result.is_err(), "Should fail when joint count doesn't match");
+    assert!(
+        result.is_err(),
+        "Should fail when joint count doesn't match"
+    );
 
     // Case 2: Wrong joint names
     let value_wrong_names = JointPositionsValue {
@@ -175,7 +181,7 @@ fn test_serialize_joint_positions_errors() {
     let result = match schema.value_type.as_ref().unwrap() {
         P::proto::value_schema::ValueType::JointPositions(schema) => {
             serializer.serialize_joint_positions(schema, value_wrong_names)
-        },
+        }
         _ => panic!("Wrong schema type"),
     };
     assert!(result.is_err(), "Should fail when joint names don't match");
@@ -199,7 +205,7 @@ fn test_serialize_joint_positions_errors() {
     let result = match schema.value_type.as_ref().unwrap() {
         P::proto::value_schema::ValueType::JointPositions(schema) => {
             serializer.serialize_joint_positions(schema, value_wrong_unit)
-        },
+        }
         _ => panic!("Wrong schema type"),
     };
     assert!(result.is_err(), "Should fail when units don't match");

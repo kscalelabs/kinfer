@@ -1,12 +1,10 @@
 use crate::kinfer_proto::{
-    ProtoValue, ValueSchema, AudioFrameSchema, AudioFrameValue,
-    CameraFrameSchema, CameraFrameValue, ImuSchema, ImuValue, 
-    JointCommandsSchema, JointCommandsValue, JointPositionUnit,
-    JointPositionsSchema, JointPositionsValue, JointTorqueUnit,
-    JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema, 
-    JointVelocitiesValue, JointVelocityUnit, StateTensorSchema, 
-    StateTensorValue, TimestampSchema, TimestampValue, 
-    VectorCommandSchema, VectorCommandValue, ProtoIOSchema, ProtoIO
+    AudioFrameSchema, AudioFrameValue, CameraFrameSchema, CameraFrameValue, ImuSchema, ImuValue,
+    JointCommandsSchema, JointCommandsValue, JointPositionUnit, JointPositionsSchema,
+    JointPositionsValue, JointTorqueUnit, JointTorquesSchema, JointTorquesValue,
+    JointVelocitiesSchema, JointVelocitiesValue, JointVelocityUnit, ProtoIO, ProtoIOSchema,
+    ProtoValue, StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue, ValueSchema,
+    VectorCommandSchema, VectorCommandValue,
 };
 
 use ort::value::Value as OrtValue;
