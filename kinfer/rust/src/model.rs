@@ -3,6 +3,7 @@ use crate::onnx_serializer::OnnxMultiSerializer;
 use std::path::Path;
 
 use ort::session::builder::GraphOptimizationLevel;
+use prost::Message;
 use ort::{session::Session, Error as OrtError};
 
 pub fn load_onnx_model<P: AsRef<Path>>(model_path: P) -> Result<Session, OrtError> {
@@ -30,16 +31,15 @@ impl ModelRunner {
         let mut attached_metadata = std::collections::HashMap::new();
 
         // Extract metadata and attempt to parse schema
-        let schema = None;
+        let mut schema = None;
         {
             let metadata = session.metadata()?;
             for prop in metadata.custom_keys()? {
                 if prop == KINFER_METADATA_KEY {
-                    // TODO: Not implemented yet - need to parse kinfer_metadata from model metadata
-                    unimplemented!(
-                        "Parsing kinfer_metadata from model metadata is not yet implemented"
-                    );
-                    // schema = Some(ProtoIOSchema::parse_from_str(&metadata.custom(prop.as_str())?)?);
+                    let schema_bytes = metadata.custom(prop.as_str())?;
+                    if let Some(bytes) = schema_bytes {
+                        schema = Some(ModelSchema::decode(&mut bytes.as_bytes())?);
+                    }
                 } else {
                     attached_metadata.insert(
                         prop.to_string(),
@@ -51,8 +51,7 @@ impl ModelRunner {
             }
         }
 
-        let schema: ModelSchema =
-            schema.ok_or_else(|| "kinfer_metadata not found in model metadata")?;
+        let schema: ModelSchema = schema.ok_or_else(|| "kinfer_metadata not found in model metadata")?;
 
         // Use as_ref() to borrow the Option contents and clone after ok_or
         let input_schema = schema
@@ -111,6 +110,14 @@ impl ModelRunner {
         let outputs = self.output_serializer.deserialize_io(output_values)?;
 
         Ok(outputs)
+    }
+
+    pub fn export_model<P: AsRef<Path>>(&self, model_path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let model_bytes = self.session.model_as_bytes()?;
+        let mut model = ModelProto::decode(&mut model_bytes.as_slice())?;
+        model.set_metadata_props(self.schema.encode_to_vec())?;
+        std::fs::write(model_path, model.write_to_bytes()?)?;
+        Ok(())
     }
 
     pub fn input_schema(&self) -> Result<ProtoIOSchema, Box<dyn std::error::Error>> {
