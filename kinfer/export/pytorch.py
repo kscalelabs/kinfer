@@ -112,7 +112,7 @@ def export_model(
     buffer = BytesIO()
     torch.onnx.export(
         model=model,
-        f=buffer,
+        f=buffer,  # type: ignore[arg-type]
         kwargs=input_tensors,
         input_names=input_schema_names,
         output_names=output_schema_names,
