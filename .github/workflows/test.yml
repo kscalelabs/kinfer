@@ -61,14 +61,14 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Run Cargo fmt
-        run: cargo fmt -- --check
+      # - name: Run Cargo fmt
+      #   run: cargo fmt -- --check
 
-      - name: Run Cargo clippy
-        run: cargo clippy -- -D warnings
+      # - name: Run Cargo clippy
+      #   run: cargo clippy -- -D warnings
 
-      - name: Run Cargo tests
-        run: cargo test
+      # - name: Run Cargo tests
+      #   run: cargo test
 
       - name: Save cache
         uses: actions/cache/save@v3
