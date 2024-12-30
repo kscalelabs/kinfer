@@ -11,7 +11,7 @@ T = TypeVar("T")
 class JointPositionsSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_positions(
-        self,
+        self: "JointPositionsSerializer[T]",
         schema: P.JointPositionsSchema,
         value: P.JointPositionsValue,
     ) -> T:
@@ -27,7 +27,7 @@ class JointPositionsSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_joint_positions(
-        self,
+        self: "JointPositionsSerializer[T]",
         schema: P.JointPositionsSchema,
         value: T,
     ) -> P.JointPositionsValue:
@@ -46,7 +46,7 @@ class JointPositionsSerializer(ABC, Generic[T]):
 class JointVelocitiesSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_velocities(
-        self,
+        self: "JointVelocitiesSerializer[T]",
         schema: P.JointVelocitiesSchema,
         value: P.JointVelocitiesValue,
     ) -> T:
@@ -62,7 +62,7 @@ class JointVelocitiesSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_joint_velocities(
-        self,
+        self: "JointVelocitiesSerializer[T]",
         schema: P.JointVelocitiesSchema,
         value: T,
     ) -> P.JointVelocitiesValue:
@@ -80,7 +80,7 @@ class JointVelocitiesSerializer(ABC, Generic[T]):
 class JointTorquesSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_torques(
-        self,
+        self: "JointTorquesSerializer[T]",
         schema: P.JointTorquesSchema,
         value: P.JointTorquesValue,
     ) -> T:
@@ -96,7 +96,7 @@ class JointTorquesSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_joint_torques(
-        self,
+        self: "JointTorquesSerializer[T]",
         schema: P.JointTorquesSchema,
         value: T,
     ) -> P.JointTorquesValue:
@@ -114,7 +114,7 @@ class JointTorquesSerializer(ABC, Generic[T]):
 class JointCommandsSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_joint_commands(
-        self,
+        self: "JointCommandsSerializer[T]",
         schema: P.JointCommandsSchema,
         value: P.JointCommandsValue,
     ) -> T:
@@ -130,7 +130,7 @@ class JointCommandsSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_joint_commands(
-        self,
+        self: "JointCommandsSerializer[T]",
         schema: P.JointCommandsSchema,
         value: T,
     ) -> P.JointCommandsValue:
@@ -148,7 +148,7 @@ class JointCommandsSerializer(ABC, Generic[T]):
 class CameraFrameSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_camera_frame(
-        self,
+        self: "CameraFrameSerializer[T]",
         schema: P.CameraFrameSchema,
         value: P.CameraFrameValue,
     ) -> T:
@@ -164,7 +164,7 @@ class CameraFrameSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_camera_frame(
-        self,
+        self: "CameraFrameSerializer[T]",
         schema: P.CameraFrameSchema,
         value: T,
     ) -> P.CameraFrameValue:
@@ -182,7 +182,7 @@ class CameraFrameSerializer(ABC, Generic[T]):
 class AudioFrameSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_audio_frame(
-        self,
+        self: "AudioFrameSerializer[T]",
         schema: P.AudioFrameSchema,
         value: P.AudioFrameValue,
     ) -> T:
@@ -198,7 +198,7 @@ class AudioFrameSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_audio_frame(
-        self,
+        self: "AudioFrameSerializer[T]",
         schema: P.AudioFrameSchema,
         value: T,
     ) -> P.AudioFrameValue:
@@ -216,7 +216,7 @@ class AudioFrameSerializer(ABC, Generic[T]):
 class ImuSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_imu(
-        self,
+        self: "ImuSerializer[T]",
         schema: P.ImuSchema,
         value: P.ImuValue,
     ) -> T:
@@ -232,7 +232,7 @@ class ImuSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_imu(
-        self,
+        self: "ImuSerializer[T]",
         schema: P.ImuSchema,
         value: T,
     ) -> P.ImuValue:
@@ -250,7 +250,7 @@ class ImuSerializer(ABC, Generic[T]):
 class TimestampSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_timestamp(
-        self,
+        self: "TimestampSerializer[T]",
         schema: P.TimestampSchema,
         value: P.TimestampValue,
     ) -> T:
@@ -266,7 +266,7 @@ class TimestampSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_timestamp(
-        self,
+        self: "TimestampSerializer[T]",
         schema: P.TimestampSchema,
         value: T,
     ) -> P.TimestampValue:
@@ -284,7 +284,7 @@ class TimestampSerializer(ABC, Generic[T]):
 class VectorCommandSerializer(ABC, Generic[T]):
     @abstractmethod
     def serialize_vector_command(
-        self,
+        self: "VectorCommandSerializer[T]",
         schema: P.VectorCommandSchema,
         value: P.VectorCommandValue,
     ) -> T:
@@ -300,7 +300,7 @@ class VectorCommandSerializer(ABC, Generic[T]):
 
     @abstractmethod
     def deserialize_vector_command(
-        self,
+        self: "VectorCommandSerializer[T]",
         schema: P.VectorCommandSchema,
         value: T,
     ) -> P.VectorCommandValue:
@@ -317,7 +317,11 @@ class VectorCommandSerializer(ABC, Generic[T]):
 
 class StateTensorSerializer(ABC, Generic[T]):
     @abstractmethod
-    def serialize_state_tensor(self, schema: P.StateTensorSchema, value: P.StateTensorValue) -> T:
+    def serialize_state_tensor(
+        self: "StateTensorSerializer[T]",
+        schema: P.StateTensorSchema,
+        value: P.StateTensorValue,
+    ) -> T:
         """Serialize a state tensor value.
 
         Args:
@@ -329,7 +333,11 @@ class StateTensorSerializer(ABC, Generic[T]):
         """
 
     @abstractmethod
-    def deserialize_state_tensor(self, schema: P.StateTensorSchema, value: T) -> P.StateTensorValue:
+    def deserialize_state_tensor(
+        self: "StateTensorSerializer[T]",
+        schema: P.StateTensorSchema,
+        value: T,
+    ) -> P.StateTensorValue:
         """Deserialize a state tensor value.
 
         Args:
@@ -354,10 +362,10 @@ class Serializer(
     StateTensorSerializer[T],
     Generic[T],
 ):
-    def __init__(self, schema: P.ValueSchema) -> None:
+    def __init__(self: "Serializer[T]", schema: P.ValueSchema) -> None:
         self.schema = schema
 
-    def serialize(self, value: P.Value) -> T:
+    def serialize(self: "Serializer[T]", value: P.Value) -> T:
         value_type = value.WhichOneof("value")
 
         match value_type:
@@ -414,7 +422,7 @@ class Serializer(
             case _:
                 raise ValueError(f"Unsupported value type: {value_type}")
 
-    def deserialize(self, value: T) -> P.Value:
+    def deserialize(self: "Serializer[T]", value: T) -> P.Value:
         value_type = self.schema.WhichOneof("value_type")
 
         match value_type:
@@ -493,30 +501,30 @@ class Serializer(
 
 
 class MultiSerializer(Generic[T]):
-    def __init__(self, serializers: Sequence[Serializer[T]]) -> None:
+    def __init__(self: "MultiSerializer[T]", serializers: Sequence[Serializer[T]]) -> None:
         self.serializers = list(serializers)
 
     @overload
-    def serialize_io(self, io: P.IO, *, as_dict: Literal[True]) -> dict[str, T]: ...
+    def serialize_io(self: "MultiSerializer[T]", io: P.IO, *, as_dict: Literal[True]) -> dict[str, T]: ...
 
     @overload
-    def serialize_io(self, io: P.IO, *, as_dict: Literal[False] = False) -> list[T]: ...
+    def serialize_io(self: "MultiSerializer[T]", io: P.IO, *, as_dict: Literal[False] = False) -> list[T]: ...
 
-    def serialize_io(self, io: P.IO, *, as_dict: bool = False) -> dict[str, T] | list[T]:
+    def serialize_io(self: "MultiSerializer[T]", io: P.IO, *, as_dict: bool = False) -> dict[str, T] | list[T]:
         if not isinstance(io, P.IO):
             raise ValueError(f"Inputs must be an IO protobuf, not {type(io)}")
         if as_dict:
             return {s.schema.value_name: s.serialize(i) for s, i in zip(self.serializers, io.values)}
         return [s.serialize(i) for s, i in zip(self.serializers, io.values)]
 
-    def deserialize_io(self, io: dict[str, T] | list[T]) -> P.IO:
+    def deserialize_io(self: "MultiSerializer[T]", io: dict[str, T] | list[T]) -> P.IO:
         if not isinstance(io, (dict, list)):
             raise ValueError(f"Inputs must be a dictionary or list, not {type(io)}")
         if isinstance(io, dict):
             return P.IO(values=[s.deserialize(i) for s, i in zip(self.serializers, io.values())])
         return P.IO(values=[s.deserialize(i) for s, i in zip(self.serializers, io)])
 
-    def assign_names(self, values: Sequence[T]) -> dict[str, T]:
+    def assign_names(self: "MultiSerializer[T]", values: Sequence[T]) -> dict[str, T]:
         if not isinstance(values, Sequence):
             raise ValueError(f"Values must be a sequence, not {type(values)}")
         if len(values) != len(self.serializers):
@@ -524,5 +532,5 @@ class MultiSerializer(Generic[T]):
         return {s.schema.value_name: v for s, v in zip(self.serializers, values)}
 
     @property
-    def names(self) -> list[str]:
+    def names(self: "MultiSerializer[T]") -> list[str]:
         return [s.schema.value_name for s in self.serializers]

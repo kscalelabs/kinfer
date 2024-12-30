@@ -14,7 +14,7 @@ from kinfer.serialize.numpy import NumpyMultiSerializer
 class ONNXModel:
     """Wrapper for ONNX model inference."""
 
-    def __init__(self, model_path: str | Path) -> None:
+    def __init__(self: "ONNXModel", model_path: str | Path) -> None:
         """Initialize ONNX model.
 
         Args:
@@ -48,7 +48,7 @@ class ONNXModel:
         self._input_serializer = NumpyMultiSerializer(self._schema.input_schema)
         self._output_serializer = NumpyMultiSerializer(self._schema.output_schema)
 
-    def __call__(self, inputs: P.IO) -> P.IO:
+    def __call__(self: "ONNXModel", inputs: P.IO) -> P.IO:
         """Run inference on input data.
 
         Args:
@@ -63,17 +63,17 @@ class ONNXModel:
         return outputs
 
     @property
-    def input_schema(self) -> P.IOSchema:
+    def input_schema(self: "ONNXModel") -> P.IOSchema:
         """Get the input schema."""
         return self._schema.input_schema
 
     @property
-    def output_schema(self) -> P.IOSchema:
+    def output_schema(self: "ONNXModel") -> P.IOSchema:
         """Get the output schema."""
         return self._schema.output_schema
 
     @property
-    def schema_input_keys(self) -> list[str]:
+    def schema_input_keys(self: "ONNXModel") -> list[str]:
         """Get all value names from input schemas.
 
         Returns:
@@ -83,7 +83,7 @@ class ONNXModel:
         return input_names
 
     @property
-    def schema_output_keys(self) -> list[str]:
+    def schema_output_keys(self: "ONNXModel") -> list[str]:
         """Get all value names from output schemas.
 
         Returns:
