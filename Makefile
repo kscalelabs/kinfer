@@ -14,16 +14,19 @@ push-to-pypi: build-for-pypi
 
 # Static Checks
 
+# Define Python files to process (excluding ref/ and proto/)
+PYTHON_FILES := $(shell find . -name "*.py" ! -path "./ref/*" ! -path "*/proto/*" ! -path "./build/*")
+
 format:
-	@black .
-	@ruff format
+	@black $(PYTHON_FILES)
+	@ruff format $(PYTHON_FILES)
 .PHONY: format
 
 static-checks:
-	@black --diff --check .
-	@ruff check
+	@black --diff --check $(PYTHON_FILES)
+	@ruff check $(PYTHON_FILES)
 	@mkdir -p .mypy_cache
-	@mypy --install-types --non-interactive .
+	@mypy --install-types --non-interactive $(PYTHON_FILES)
 .PHONY: lint
 
 # Unit tests

@@ -36,7 +36,7 @@ from kinfer.serialize.utils import (
 
 class PyTorchBaseSerializer:
     def __init__(
-        self,
+        self: "PyTorchBaseSerializer",
         device: str | torch.device | None = None,
         dtype: torch.dtype | None = None,
     ) -> None:
@@ -46,7 +46,7 @@ class PyTorchBaseSerializer:
 
 class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSerializer[Tensor]):
     def serialize_joint_positions(
-        self,
+        self: "PyTorchJointPositionsSerializer",
         schema: P.JointPositionsSchema,
         value: P.JointPositionsValue,
     ) -> Tensor:
@@ -63,7 +63,7 @@ class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSeria
         return tensor
 
     def deserialize_joint_positions(
-        self,
+        self: "PyTorchJointPositionsSerializer",
         schema: P.JointPositionsSchema,
         value: Tensor,
     ) -> P.JointPositionsValue:
@@ -82,7 +82,7 @@ class PyTorchJointPositionsSerializer(PyTorchBaseSerializer, JointPositionsSeria
 
 class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSerializer[Tensor]):
     def serialize_joint_velocities(
-        self,
+        self: "PyTorchJointVelocitiesSerializer",
         schema: P.JointVelocitiesSchema,
         value: P.JointVelocitiesValue,
     ) -> Tensor:
@@ -99,7 +99,7 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
         return tensor
 
     def deserialize_joint_velocities(
-        self,
+        self: "PyTorchJointVelocitiesSerializer",
         schema: P.JointVelocitiesSchema,
         value: Tensor,
     ) -> P.JointVelocitiesValue:
@@ -118,7 +118,7 @@ class PyTorchJointVelocitiesSerializer(PyTorchBaseSerializer, JointVelocitiesSer
 
 class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerializer[Tensor]):
     def serialize_joint_torques(
-        self,
+        self: "PyTorchJointTorquesSerializer",
         schema: P.JointTorquesSchema,
         value: P.JointTorquesValue,
     ) -> Tensor:
@@ -132,7 +132,7 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
         return tensor
 
     def deserialize_joint_torques(
-        self,
+        self: "PyTorchJointTorquesSerializer",
         schema: P.JointTorquesSchema,
         value: Tensor,
     ) -> P.JointTorquesValue:
@@ -151,7 +151,7 @@ class PyTorchJointTorquesSerializer(PyTorchBaseSerializer, JointTorquesSerialize
 
 class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSerializer[Tensor]):
     def _convert_value_to_tensor(
-        self,
+        self: "PyTorchJointCommandsSerializer",
         value: P.JointCommandValue,
         schema: P.JointCommandsSchema,
     ) -> Tensor:
@@ -168,7 +168,7 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
         )
 
     def _convert_tensor_to_value(
-        self,
+        self: "PyTorchJointCommandsSerializer",
         values: list[float],
         schema: P.JointCommandsSchema,
         name: str,
@@ -188,7 +188,7 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
         )
 
     def serialize_joint_commands(
-        self,
+        self: "PyTorchJointCommandsSerializer",
         schema: P.JointCommandsSchema,
         value: P.JointCommandsValue,
     ) -> Tensor:
@@ -200,7 +200,11 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
         )
         return tensor
 
-    def deserialize_joint_commands(self, schema: P.JointCommandsSchema, value: Tensor) -> P.JointCommandsValue:
+    def deserialize_joint_commands(
+        self: "PyTorchJointCommandsSerializer",
+        schema: P.JointCommandsSchema,
+        value: Tensor,
+    ) -> P.JointCommandsValue:
         if value.shape != (len(schema.joint_names), 5):
             raise ValueError(
                 "Shape of tensor must match number of joint names and commands: "
@@ -215,7 +219,9 @@ class PyTorchJointCommandsSerializer(PyTorchBaseSerializer, JointCommandsSeriali
 
 
 class PyTorchCameraFrameSerializer(PyTorchBaseSerializer, CameraFrameSerializer[Tensor]):
-    def serialize_camera_frame(self, schema: P.CameraFrameSchema, value: P.CameraFrameValue) -> Tensor:
+    def serialize_camera_frame(
+        self: "PyTorchCameraFrameSerializer", schema: P.CameraFrameSchema, value: P.CameraFrameValue
+    ) -> Tensor:
         np_arr = parse_bytes(value.data, P.DType.UINT8)
         tensor = torch.from_numpy(np_arr).to(self.device, self.dtype) / 255.0
         if tensor.numel() != schema.channels * schema.height * schema.width:
@@ -226,13 +232,17 @@ class PyTorchCameraFrameSerializer(PyTorchBaseSerializer, CameraFrameSerializer[
         tensor = tensor.view(schema.channels, schema.height, schema.width)
         return tensor
 
-    def deserialize_camera_frame(self, schema: P.CameraFrameSchema, value: Tensor) -> P.CameraFrameValue:
+    def deserialize_camera_frame(
+        self: "PyTorchCameraFrameSerializer", schema: P.CameraFrameSchema, value: Tensor
+    ) -> P.CameraFrameValue:
         np_arr = (value * 255.0).detach().cpu().flatten().numpy().astype(np.uint8)
         return P.CameraFrameValue(data=np_arr.tobytes())
 
 
 class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Tensor]):
-    def serialize_audio_frame(self, schema: P.AudioFrameSchema, value: P.AudioFrameValue) -> Tensor:
+    def serialize_audio_frame(
+        self: "PyTorchAudioFrameSerializer", schema: P.AudioFrameSchema, value: P.AudioFrameValue
+    ) -> Tensor:
         value_bytes = value.data
         if len(value_bytes) != schema.channels * schema.sample_rate * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -246,14 +256,16 @@ class PyTorchAudioFrameSerializer(PyTorchBaseSerializer, AudioFrameSerializer[Te
         tensor = tensor / max_value
         return tensor
 
-    def deserialize_audio_frame(self, schema: P.AudioFrameSchema, value: Tensor) -> P.AudioFrameValue:
+    def deserialize_audio_frame(
+        self: "PyTorchAudioFrameSerializer", schema: P.AudioFrameSchema, value: Tensor
+    ) -> P.AudioFrameValue:
         _, max_value = dtype_range(schema.dtype)
         np_arr = (value * max_value).detach().cpu().flatten().numpy().astype(numpy_dtype(schema.dtype))
         return P.AudioFrameValue(data=np_arr.tobytes())
 
 
 class PyTorchImuSerializer(PyTorchBaseSerializer, ImuSerializer[Tensor]):
-    def serialize_imu(self, schema: P.ImuSchema, value: P.ImuValue) -> Tensor:
+    def serialize_imu(self: "PyTorchImuSerializer", schema: P.ImuSchema, value: P.ImuValue) -> Tensor:
         vectors: list[Tensor] = []
         if schema.use_accelerometer:
             vectors.append(
@@ -283,7 +295,7 @@ class PyTorchImuSerializer(PyTorchBaseSerializer, ImuSerializer[Tensor]):
             raise ValueError("IMU has nothing to serialize")
         return torch.stack(vectors, dim=0)
 
-    def deserialize_imu(self, schema: P.ImuSchema, value: Tensor) -> P.ImuValue:
+    def deserialize_imu(self: "PyTorchImuSerializer", schema: P.ImuSchema, value: Tensor) -> P.ImuValue:
         vectors = value.tolist()
         imu_value = P.ImuValue()
         if schema.use_accelerometer:
@@ -305,7 +317,9 @@ class PyTorchImuSerializer(PyTorchBaseSerializer, ImuSerializer[Tensor]):
 
 
 class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tensor]):
-    def serialize_timestamp(self, schema: P.TimestampSchema, value: P.TimestampValue) -> Tensor:
+    def serialize_timestamp(
+        self: "PyTorchTimestampSerializer", schema: P.TimestampSchema, value: P.TimestampValue
+    ) -> Tensor:
         elapsed_seconds = value.seconds - schema.start_seconds
         elapsed_nanos = value.nanos - schema.start_nanos
         if elapsed_nanos < 0:
@@ -314,7 +328,9 @@ class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tens
         total_elapsed_seconds = elapsed_seconds + elapsed_nanos / 1_000_000_000
         return torch.tensor([total_elapsed_seconds], dtype=self.dtype, device=self.device, requires_grad=False)
 
-    def deserialize_timestamp(self, schema: P.TimestampSchema, value: Tensor) -> P.TimestampValue:
+    def deserialize_timestamp(
+        self: "PyTorchTimestampSerializer", schema: P.TimestampSchema, value: Tensor
+    ) -> P.TimestampValue:
         total_elapsed_seconds = value.item()
         elapsed_seconds = int(total_elapsed_seconds)
         elapsed_nanos = int((total_elapsed_seconds - elapsed_seconds) * 1_000_000_000)
@@ -322,10 +338,14 @@ class PyTorchTimestampSerializer(PyTorchBaseSerializer, TimestampSerializer[Tens
 
 
 class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSerializer[Tensor]):
-    def serialize_vector_command(self, schema: P.VectorCommandSchema, value: P.VectorCommandValue) -> Tensor:
+    def serialize_vector_command(
+        self: "PyTorchVectorCommandSerializer", schema: P.VectorCommandSchema, value: P.VectorCommandValue
+    ) -> Tensor:
         return torch.tensor(value.values, dtype=self.dtype, device=self.device)
 
-    def deserialize_vector_command(self, schema: P.VectorCommandSchema, value: Tensor) -> P.VectorCommandValue:
+    def deserialize_vector_command(
+        self: "PyTorchVectorCommandSerializer", schema: P.VectorCommandSchema, value: Tensor
+    ) -> P.VectorCommandValue:
         if value.shape != (schema.dimensions,):
             raise ValueError(f"Shape of tensor must match number of dimensions: {value.shape} != {schema.dimensions}")
         values = cast(list[float], value.tolist())
@@ -333,7 +353,9 @@ class PyTorchVectorCommandSerializer(PyTorchBaseSerializer, VectorCommandSeriali
 
 
 class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[Tensor]):
-    def serialize_state_tensor(self, schema: P.StateTensorSchema, value: P.StateTensorValue) -> Tensor:
+    def serialize_state_tensor(
+        self: "PyTorchStateTensorSerializer", schema: P.StateTensorSchema, value: P.StateTensorValue
+    ) -> Tensor:
         value_bytes = value.data
         if len(value_bytes) != np.prod(schema.shape) * dtype_num_bytes(schema.dtype):
             raise ValueError(
@@ -345,7 +367,9 @@ class PyTorchStateTensorSerializer(PyTorchBaseSerializer, StateTensorSerializer[
         tensor = tensor.view(tuple(schema.shape))
         return tensor
 
-    def deserialize_state_tensor(self, schema: P.StateTensorSchema, value: Tensor) -> P.StateTensorValue:
+    def deserialize_state_tensor(
+        self: "PyTorchStateTensorSerializer", schema: P.StateTensorSchema, value: Tensor
+    ) -> P.StateTensorValue:
         return P.StateTensorValue(data=value.detach().cpu().flatten().numpy().tobytes())
 
 
@@ -363,7 +387,7 @@ class PyTorchSerializer(
     Serializer[Tensor],
 ):
     def __init__(
-        self,
+        self: "PyTorchSerializer",
         schema: P.ValueSchema,
         *,
         device: str | torch.device | None = None,
@@ -374,5 +398,5 @@ class PyTorchSerializer(
 
 
 class PyTorchMultiSerializer(MultiSerializer[Tensor]):
-    def __init__(self, schema: P.IOSchema) -> None:
+    def __init__(self: "PyTorchMultiSerializer", schema: P.IOSchema) -> None:
         super().__init__([PyTorchSerializer(schema=s) for s in schema.values])

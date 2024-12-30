@@ -99,7 +99,7 @@ def complex_schema() -> P.ModelSchema:
 class DummyModel(torch.nn.Module):
     """A dummy model for testing schema persistence."""
 
-    def __init__(self) -> None:
+    def __init__(self: "DummyModel") -> None:
         super().__init__()
         # Joint positions, velocities, torques processing
         self.joint_linear = torch.nn.Linear(9, 15)  # 3 joints × 3 types
@@ -127,16 +127,16 @@ class DummyModel(torch.nn.Module):
         self.final = torch.nn.Linear(7 * 15, 15)  # 7 inputs × 15 features
 
     def forward(
-        self,
-        joint_positions: torch.Tensor,      # [3]
-        joint_velocities: torch.Tensor,     # [3]
-        joint_torques: torch.Tensor,        # [3]
-        camera_frame: torch.Tensor,         # [3, 64, 64]
-        audio_frame: torch.Tensor,          # [16000]
-        imu: torch.Tensor,                  # [9]
-        timestamp: torch.Tensor,            # [1]
-        vector_command: torch.Tensor,       # [3]
-        state_tensor: torch.Tensor,         # [1, 10]
+        self: "DummyModel",
+        joint_positions: torch.Tensor,  # [3]
+        joint_velocities: torch.Tensor,  # [3]
+        joint_torques: torch.Tensor,  # [3]
+        camera_frame: torch.Tensor,  # [3, 64, 64]
+        audio_frame: torch.Tensor,  # [16000]
+        imu: torch.Tensor,  # [9]
+        timestamp: torch.Tensor,  # [1]
+        vector_command: torch.Tensor,  # [3]
+        state_tensor: torch.Tensor,  # [1, 10]
     ) -> torch.Tensor:
         # Process joints
         joints = torch.cat([joint_positions, joint_velocities, joint_torques])
@@ -173,15 +173,17 @@ class DummyModel(torch.nn.Module):
         print(f"state_features: {state_features.shape}")
 
         # Combine all features
-        combined = torch.cat([
-            joint_features,
-            camera_features,
-            audio_features,
-            imu_features,
-            time_features,
-            vec_features,
-            state_features,
-        ])
+        combined = torch.cat(
+            [
+                joint_features,
+                camera_features,
+                audio_features,
+                imu_features,
+                time_features,
+                vec_features,
+                state_features,
+            ]
+        )
 
         # Final processing to get joint commands
         output = self.final(combined)
@@ -210,6 +212,7 @@ def test_schema_persistence(tmp_path: Path, complex_schema: P.ModelSchema) -> No
 
     # Load schema from model and verify it matches original
     from kinfer.inference.python import ONNXModel
+
     model = ONNXModel(save_path)
     loaded_schema = model._schema
 

@@ -4,6 +4,7 @@
 # source: kinfer/proto/kinfer.proto
 # Protobuf Python Version: 5.29.1
 """Generated protocol buffer code."""
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
@@ -11,97 +12,92 @@ from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
 
 _runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC,
-    5,
-    29,
-    1,
-    '',
-    'kinfer/proto/kinfer.proto'
+    _runtime_version.Domain.PUBLIC, 5, 29, 1, "", "kinfer/proto/kinfer.proto"
 )
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
 
-
-
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19kinfer/proto/kinfer.proto\x12\x0ckinfer.proto\"f\n\x12JointPositionValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12-\n\x04unit\x18\x03 \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit\"Z\n\x14JointPositionsSchema\x12-\n\x04unit\x18\x01 \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t\"G\n\x13JointPositionsValue\x12\x30\n\x06values\x18\x01 \x03(\x0b\x32 .kinfer.proto.JointPositionValue\"f\n\x12JointVelocityValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12-\n\x04unit\x18\x03 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\"[\n\x15JointVelocitiesSchema\x12-\n\x04unit\x18\x01 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t\"H\n\x14JointVelocitiesValue\x12\x30\n\x06values\x18\x01 \x03(\x0b\x32 .kinfer.proto.JointVelocityValue\"b\n\x10JointTorqueValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12+\n\x04unit\x18\x03 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\"V\n\x12JointTorquesSchema\x12+\n\x04unit\x18\x01 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t\"C\n\x11JointTorquesValue\x12.\n\x06values\x18\x01 \x03(\x0b\x32\x1e.kinfer.proto.JointTorqueValue\"\xce\x01\n\x13JointCommandsSchema\x12\x13\n\x0bjoint_names\x18\x01 \x03(\t\x12\x32\n\x0btorque_unit\x18\x02 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\x12\x36\n\rvelocity_unit\x18\x03 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\x12\x36\n\rposition_unit\x18\x04 \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit\"\x97\x02\n\x11JointCommandValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\x0e\n\x06torque\x18\x02 \x01(\x02\x12\x10\n\x08velocity\x18\x03 \x01(\x02\x12\x10\n\x08position\x18\x04 \x01(\x02\x12\n\n\x02kp\x18\x05 \x01(\x02\x12\n\n\x02kd\x18\x06 \x01(\x02\x12\x32\n\x0btorque_unit\x18\x07 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\x12\x36\n\rvelocity_unit\x18\x08 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\x12\x36\n\rposition_unit\x18\t \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit\"E\n\x12JointCommandsValue\x12/\n\x06values\x18\x01 \x03(\x0b\x32\x1f.kinfer.proto.JointCommandValue\"D\n\x11\x43\x61meraFrameSchema\x12\r\n\x05width\x18\x01 \x01(\x05\x12\x0e\n\x06height\x18\x02 \x01(\x05\x12\x10\n\x08\x63hannels\x18\x03 \x01(\x05\" \n\x10\x43\x61meraFrameValue\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\"]\n\x10\x41udioFrameSchema\x12\x10\n\x08\x63hannels\x18\x01 \x01(\x05\x12\x13\n\x0bsample_rate\x18\x02 \x01(\x05\x12\"\n\x05\x64type\x18\x03 \x01(\x0e\x32\x13.kinfer.proto.DType\"\x1f\n\x0f\x41udioFrameValue\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\"8\n\x15ImuAccelerometerValue\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"4\n\x11ImuGyroscopeValue\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"7\n\x14ImuMagnetometerValue\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"W\n\tImuSchema\x12\x19\n\x11use_accelerometer\x18\x01 \x01(\x08\x12\x15\n\ruse_gyroscope\x18\x02 \x01(\x08\x12\x18\n\x10use_magnetometer\x18\x03 \x01(\x08\"\xc3\x01\n\x08ImuValue\x12@\n\x13linear_acceleration\x18\x01 \x01(\x0b\x32#.kinfer.proto.ImuAccelerometerValue\x12\x39\n\x10\x61ngular_velocity\x18\x02 \x01(\x0b\x32\x1f.kinfer.proto.ImuGyroscopeValue\x12:\n\x0emagnetic_field\x18\x03 \x01(\x0b\x32\".kinfer.proto.ImuMagnetometerValue\"=\n\x0fTimestampSchema\x12\x15\n\rstart_seconds\x18\x01 \x01(\x03\x12\x13\n\x0bstart_nanos\x18\x02 \x01(\x05\"0\n\x0eTimestampValue\x12\x0f\n\x07seconds\x18\x01 \x01(\x03\x12\r\n\x05nanos\x18\x02 \x01(\x05\")\n\x13VectorCommandSchema\x12\x12\n\ndimensions\x18\x01 \x01(\x05\"$\n\x12VectorCommandValue\x12\x0e\n\x06values\x18\x01 \x03(\x02\"F\n\x11StateTensorSchema\x12\r\n\x05shape\x18\x01 \x03(\x05\x12\"\n\x05\x64type\x18\x02 \x01(\x0e\x32\x13.kinfer.proto.DType\" \n\x10StateTensorValue\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\"\xd4\x04\n\x05Value\x12\x12\n\nvalue_name\x18\x01 \x01(\t\x12<\n\x0fjoint_positions\x18\x02 \x01(\x0b\x32!.kinfer.proto.JointPositionsValueH\x00\x12>\n\x10joint_velocities\x18\x03 \x01(\x0b\x32\".kinfer.proto.JointVelocitiesValueH\x00\x12\x38\n\rjoint_torques\x18\x04 \x01(\x0b\x32\x1f.kinfer.proto.JointTorquesValueH\x00\x12:\n\x0ejoint_commands\x18\x05 \x01(\x0b\x32 .kinfer.proto.JointCommandsValueH\x00\x12\x36\n\x0c\x63\x61mera_frame\x18\x06 \x01(\x0b\x32\x1e.kinfer.proto.CameraFrameValueH\x00\x12\x34\n\x0b\x61udio_frame\x18\x07 \x01(\x0b\x32\x1d.kinfer.proto.AudioFrameValueH\x00\x12%\n\x03imu\x18\x08 \x01(\x0b\x32\x16.kinfer.proto.ImuValueH\x00\x12\x31\n\ttimestamp\x18\t \x01(\x0b\x32\x1c.kinfer.proto.TimestampValueH\x00\x12:\n\x0evector_command\x18\n \x01(\x0b\x32 .kinfer.proto.VectorCommandValueH\x00\x12\x36\n\x0cstate_tensor\x18\x0b \x01(\x0b\x32\x1e.kinfer.proto.StateTensorValueH\x00\x42\x07\n\x05value\"\xe9\x04\n\x0bValueSchema\x12\x12\n\nvalue_name\x18\x01 \x01(\t\x12=\n\x0fjoint_positions\x18\x02 \x01(\x0b\x32\".kinfer.proto.JointPositionsSchemaH\x00\x12?\n\x10joint_velocities\x18\x03 \x01(\x0b\x32#.kinfer.proto.JointVelocitiesSchemaH\x00\x12\x39\n\rjoint_torques\x18\x04 \x01(\x0b\x32 .kinfer.proto.JointTorquesSchemaH\x00\x12;\n\x0ejoint_commands\x18\x05 \x01(\x0b\x32!.kinfer.proto.JointCommandsSchemaH\x00\x12\x37\n\x0c\x63\x61mera_frame\x18\x06 \x01(\x0b\x32\x1f.kinfer.proto.CameraFrameSchemaH\x00\x12\x35\n\x0b\x61udio_frame\x18\x07 \x01(\x0b\x32\x1e.kinfer.proto.AudioFrameSchemaH\x00\x12&\n\x03imu\x18\x08 \x01(\x0b\x32\x17.kinfer.proto.ImuSchemaH\x00\x12\x32\n\ttimestamp\x18\t \x01(\x0b\x32\x1d.kinfer.proto.TimestampSchemaH\x00\x12;\n\x0evector_command\x18\n \x01(\x0b\x32!.kinfer.proto.VectorCommandSchemaH\x00\x12\x37\n\x0cstate_tensor\x18\x0b \x01(\x0b\x32\x1f.kinfer.proto.StateTensorSchemaH\x00\x42\x0c\n\nvalue_type\"5\n\x08IOSchema\x12)\n\x06values\x18\x01 \x03(\x0b\x32\x19.kinfer.proto.ValueSchema\")\n\x02IO\x12#\n\x06values\x18\x01 \x03(\x0b\x32\x13.kinfer.proto.Value\"j\n\x0bModelSchema\x12,\n\x0cinput_schema\x18\x01 \x01(\x0b\x32\x16.kinfer.proto.IOSchema\x12-\n\routput_schema\x18\x02 \x01(\x0b\x32\x16.kinfer.proto.IOSchema*\x88\x01\n\x05\x44Type\x12\x07\n\x03\x46P8\x10\x00\x12\x08\n\x04\x46P16\x10\x01\x12\x08\n\x04\x46P32\x10\x02\x12\x08\n\x04\x46P64\x10\x03\x12\x08\n\x04INT8\x10\x04\x12\t\n\x05INT16\x10\x05\x12\t\n\x05INT32\x10\x06\x12\t\n\x05INT64\x10\x07\x12\t\n\x05UINT8\x10\x08\x12\n\n\x06UINT16\x10\t\x12\n\n\x06UINT32\x10\n\x12\n\n\x06UINT64\x10\x0b*-\n\x11JointPositionUnit\x12\x0b\n\x07\x44\x45GREES\x10\x00\x12\x0b\n\x07RADIANS\x10\x01*C\n\x11JointVelocityUnit\x12\x16\n\x12\x44\x45GREES_PER_SECOND\x10\x00\x12\x16\n\x12RADIANS_PER_SECOND\x10\x01*$\n\x0fJointTorqueUnit\x12\x11\n\rNEWTON_METERS\x10\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
+    b'\n\x19kinfer/proto/kinfer.proto\x12\x0ckinfer.proto"f\n\x12JointPositionValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12-\n\x04unit\x18\x03 \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit"Z\n\x14JointPositionsSchema\x12-\n\x04unit\x18\x01 \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t"G\n\x13JointPositionsValue\x12\x30\n\x06values\x18\x01 \x03(\x0b\x32 .kinfer.proto.JointPositionValue"f\n\x12JointVelocityValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12-\n\x04unit\x18\x03 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit"[\n\x15JointVelocitiesSchema\x12-\n\x04unit\x18\x01 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t"H\n\x14JointVelocitiesValue\x12\x30\n\x06values\x18\x01 \x03(\x0b\x32 .kinfer.proto.JointVelocityValue"b\n\x10JointTorqueValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12+\n\x04unit\x18\x03 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit"V\n\x12JointTorquesSchema\x12+\n\x04unit\x18\x01 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t"C\n\x11JointTorquesValue\x12.\n\x06values\x18\x01 \x03(\x0b\x32\x1e.kinfer.proto.JointTorqueValue"\xce\x01\n\x13JointCommandsSchema\x12\x13\n\x0bjoint_names\x18\x01 \x03(\t\x12\x32\n\x0btorque_unit\x18\x02 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\x12\x36\n\rvelocity_unit\x18\x03 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\x12\x36\n\rposition_unit\x18\x04 \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit"\x97\x02\n\x11JointCommandValue\x12\x12\n\njoint_name\x18\x01 \x01(\t\x12\x0e\n\x06torque\x18\x02 \x01(\x02\x12\x10\n\x08velocity\x18\x03 \x01(\x02\x12\x10\n\x08position\x18\x04 \x01(\x02\x12\n\n\x02kp\x18\x05 \x01(\x02\x12\n\n\x02kd\x18\x06 \x01(\x02\x12\x32\n\x0btorque_unit\x18\x07 \x01(\x0e\x32\x1d.kinfer.proto.JointTorqueUnit\x12\x36\n\rvelocity_unit\x18\x08 \x01(\x0e\x32\x1f.kinfer.proto.JointVelocityUnit\x12\x36\n\rposition_unit\x18\t \x01(\x0e\x32\x1f.kinfer.proto.JointPositionUnit"E\n\x12JointCommandsValue\x12/\n\x06values\x18\x01 \x03(\x0b\x32\x1f.kinfer.proto.JointCommandValue"D\n\x11\x43\x61meraFrameSchema\x12\r\n\x05width\x18\x01 \x01(\x05\x12\x0e\n\x06height\x18\x02 \x01(\x05\x12\x10\n\x08\x63hannels\x18\x03 \x01(\x05" \n\x10\x43\x61meraFrameValue\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c"]\n\x10\x41udioFrameSchema\x12\x10\n\x08\x63hannels\x18\x01 \x01(\x05\x12\x13\n\x0bsample_rate\x18\x02 \x01(\x05\x12"\n\x05\x64type\x18\x03 \x01(\x0e\x32\x13.kinfer.proto.DType"\x1f\n\x0f\x41udioFrameValue\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c"8\n\x15ImuAccelerometerValue\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02"4\n\x11ImuGyroscopeValue\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02"7\n\x14ImuMagnetometerValue\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02"W\n\tImuSchema\x12\x19\n\x11use_accelerometer\x18\x01 \x01(\x08\x12\x15\n\ruse_gyroscope\x18\x02 \x01(\x08\x12\x18\n\x10use_magnetometer\x18\x03 \x01(\x08"\xc3\x01\n\x08ImuValue\x12@\n\x13linear_acceleration\x18\x01 \x01(\x0b\x32#.kinfer.proto.ImuAccelerometerValue\x12\x39\n\x10\x61ngular_velocity\x18\x02 \x01(\x0b\x32\x1f.kinfer.proto.ImuGyroscopeValue\x12:\n\x0emagnetic_field\x18\x03 \x01(\x0b\x32".kinfer.proto.ImuMagnetometerValue"=\n\x0fTimestampSchema\x12\x15\n\rstart_seconds\x18\x01 \x01(\x03\x12\x13\n\x0bstart_nanos\x18\x02 \x01(\x05"0\n\x0eTimestampValue\x12\x0f\n\x07seconds\x18\x01 \x01(\x03\x12\r\n\x05nanos\x18\x02 \x01(\x05")\n\x13VectorCommandSchema\x12\x12\n\ndimensions\x18\x01 \x01(\x05"$\n\x12VectorCommandValue\x12\x0e\n\x06values\x18\x01 \x03(\x02"F\n\x11StateTensorSchema\x12\r\n\x05shape\x18\x01 \x03(\x05\x12"\n\x05\x64type\x18\x02 \x01(\x0e\x32\x13.kinfer.proto.DType" \n\x10StateTensorValue\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c"\xd4\x04\n\x05Value\x12\x12\n\nvalue_name\x18\x01 \x01(\t\x12<\n\x0fjoint_positions\x18\x02 \x01(\x0b\x32!.kinfer.proto.JointPositionsValueH\x00\x12>\n\x10joint_velocities\x18\x03 \x01(\x0b\x32".kinfer.proto.JointVelocitiesValueH\x00\x12\x38\n\rjoint_torques\x18\x04 \x01(\x0b\x32\x1f.kinfer.proto.JointTorquesValueH\x00\x12:\n\x0ejoint_commands\x18\x05 \x01(\x0b\x32 .kinfer.proto.JointCommandsValueH\x00\x12\x36\n\x0c\x63\x61mera_frame\x18\x06 \x01(\x0b\x32\x1e.kinfer.proto.CameraFrameValueH\x00\x12\x34\n\x0b\x61udio_frame\x18\x07 \x01(\x0b\x32\x1d.kinfer.proto.AudioFrameValueH\x00\x12%\n\x03imu\x18\x08 \x01(\x0b\x32\x16.kinfer.proto.ImuValueH\x00\x12\x31\n\ttimestamp\x18\t \x01(\x0b\x32\x1c.kinfer.proto.TimestampValueH\x00\x12:\n\x0evector_command\x18\n \x01(\x0b\x32 .kinfer.proto.VectorCommandValueH\x00\x12\x36\n\x0cstate_tensor\x18\x0b \x01(\x0b\x32\x1e.kinfer.proto.StateTensorValueH\x00\x42\x07\n\x05value"\xe9\x04\n\x0bValueSchema\x12\x12\n\nvalue_name\x18\x01 \x01(\t\x12=\n\x0fjoint_positions\x18\x02 \x01(\x0b\x32".kinfer.proto.JointPositionsSchemaH\x00\x12?\n\x10joint_velocities\x18\x03 \x01(\x0b\x32#.kinfer.proto.JointVelocitiesSchemaH\x00\x12\x39\n\rjoint_torques\x18\x04 \x01(\x0b\x32 .kinfer.proto.JointTorquesSchemaH\x00\x12;\n\x0ejoint_commands\x18\x05 \x01(\x0b\x32!.kinfer.proto.JointCommandsSchemaH\x00\x12\x37\n\x0c\x63\x61mera_frame\x18\x06 \x01(\x0b\x32\x1f.kinfer.proto.CameraFrameSchemaH\x00\x12\x35\n\x0b\x61udio_frame\x18\x07 \x01(\x0b\x32\x1e.kinfer.proto.AudioFrameSchemaH\x00\x12&\n\x03imu\x18\x08 \x01(\x0b\x32\x17.kinfer.proto.ImuSchemaH\x00\x12\x32\n\ttimestamp\x18\t \x01(\x0b\x32\x1d.kinfer.proto.TimestampSchemaH\x00\x12;\n\x0evector_command\x18\n \x01(\x0b\x32!.kinfer.proto.VectorCommandSchemaH\x00\x12\x37\n\x0cstate_tensor\x18\x0b \x01(\x0b\x32\x1f.kinfer.proto.StateTensorSchemaH\x00\x42\x0c\n\nvalue_type"5\n\x08IOSchema\x12)\n\x06values\x18\x01 \x03(\x0b\x32\x19.kinfer.proto.ValueSchema")\n\x02IO\x12#\n\x06values\x18\x01 \x03(\x0b\x32\x13.kinfer.proto.Value"j\n\x0bModelSchema\x12,\n\x0cinput_schema\x18\x01 \x01(\x0b\x32\x16.kinfer.proto.IOSchema\x12-\n\routput_schema\x18\x02 \x01(\x0b\x32\x16.kinfer.proto.IOSchema*\x88\x01\n\x05\x44Type\x12\x07\n\x03\x46P8\x10\x00\x12\x08\n\x04\x46P16\x10\x01\x12\x08\n\x04\x46P32\x10\x02\x12\x08\n\x04\x46P64\x10\x03\x12\x08\n\x04INT8\x10\x04\x12\t\n\x05INT16\x10\x05\x12\t\n\x05INT32\x10\x06\x12\t\n\x05INT64\x10\x07\x12\t\n\x05UINT8\x10\x08\x12\n\n\x06UINT16\x10\t\x12\n\n\x06UINT32\x10\n\x12\n\n\x06UINT64\x10\x0b*-\n\x11JointPositionUnit\x12\x0b\n\x07\x44\x45GREES\x10\x00\x12\x0b\n\x07RADIANS\x10\x01*C\n\x11JointVelocityUnit\x12\x16\n\x12\x44\x45GREES_PER_SECOND\x10\x00\x12\x16\n\x12RADIANS_PER_SECOND\x10\x01*$\n\x0fJointTorqueUnit\x12\x11\n\rNEWTON_METERS\x10\x00\x62\x06proto3'
+)
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'kinfer.proto.kinfer_pb2', _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "kinfer.proto.kinfer_pb2", _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-  DESCRIPTOR._loaded_options = None
-  _globals['_DTYPE']._serialized_start=3816
-  _globals['_DTYPE']._serialized_end=3952
-  _globals['_JOINTPOSITIONUNIT']._serialized_start=3954
-  _globals['_JOINTPOSITIONUNIT']._serialized_end=3999
-  _globals['_JOINTVELOCITYUNIT']._serialized_start=4001
-  _globals['_JOINTVELOCITYUNIT']._serialized_end=4068
-  _globals['_JOINTTORQUEUNIT']._serialized_start=4070
-  _globals['_JOINTTORQUEUNIT']._serialized_end=4106
-  _globals['_JOINTPOSITIONVALUE']._serialized_start=43
-  _globals['_JOINTPOSITIONVALUE']._serialized_end=145
-  _globals['_JOINTPOSITIONSSCHEMA']._serialized_start=147
-  _globals['_JOINTPOSITIONSSCHEMA']._serialized_end=237
-  _globals['_JOINTPOSITIONSVALUE']._serialized_start=239
-  _globals['_JOINTPOSITIONSVALUE']._serialized_end=310
-  _globals['_JOINTVELOCITYVALUE']._serialized_start=312
-  _globals['_JOINTVELOCITYVALUE']._serialized_end=414
-  _globals['_JOINTVELOCITIESSCHEMA']._serialized_start=416
-  _globals['_JOINTVELOCITIESSCHEMA']._serialized_end=507
-  _globals['_JOINTVELOCITIESVALUE']._serialized_start=509
-  _globals['_JOINTVELOCITIESVALUE']._serialized_end=581
-  _globals['_JOINTTORQUEVALUE']._serialized_start=583
-  _globals['_JOINTTORQUEVALUE']._serialized_end=681
-  _globals['_JOINTTORQUESSCHEMA']._serialized_start=683
-  _globals['_JOINTTORQUESSCHEMA']._serialized_end=769
-  _globals['_JOINTTORQUESVALUE']._serialized_start=771
-  _globals['_JOINTTORQUESVALUE']._serialized_end=838
-  _globals['_JOINTCOMMANDSSCHEMA']._serialized_start=841
-  _globals['_JOINTCOMMANDSSCHEMA']._serialized_end=1047
-  _globals['_JOINTCOMMANDVALUE']._serialized_start=1050
-  _globals['_JOINTCOMMANDVALUE']._serialized_end=1329
-  _globals['_JOINTCOMMANDSVALUE']._serialized_start=1331
-  _globals['_JOINTCOMMANDSVALUE']._serialized_end=1400
-  _globals['_CAMERAFRAMESCHEMA']._serialized_start=1402
-  _globals['_CAMERAFRAMESCHEMA']._serialized_end=1470
-  _globals['_CAMERAFRAMEVALUE']._serialized_start=1472
-  _globals['_CAMERAFRAMEVALUE']._serialized_end=1504
-  _globals['_AUDIOFRAMESCHEMA']._serialized_start=1506
-  _globals['_AUDIOFRAMESCHEMA']._serialized_end=1599
-  _globals['_AUDIOFRAMEVALUE']._serialized_start=1601
-  _globals['_AUDIOFRAMEVALUE']._serialized_end=1632
-  _globals['_IMUACCELEROMETERVALUE']._serialized_start=1634
-  _globals['_IMUACCELEROMETERVALUE']._serialized_end=1690
-  _globals['_IMUGYROSCOPEVALUE']._serialized_start=1692
-  _globals['_IMUGYROSCOPEVALUE']._serialized_end=1744
-  _globals['_IMUMAGNETOMETERVALUE']._serialized_start=1746
-  _globals['_IMUMAGNETOMETERVALUE']._serialized_end=1801
-  _globals['_IMUSCHEMA']._serialized_start=1803
-  _globals['_IMUSCHEMA']._serialized_end=1890
-  _globals['_IMUVALUE']._serialized_start=1893
-  _globals['_IMUVALUE']._serialized_end=2088
-  _globals['_TIMESTAMPSCHEMA']._serialized_start=2090
-  _globals['_TIMESTAMPSCHEMA']._serialized_end=2151
-  _globals['_TIMESTAMPVALUE']._serialized_start=2153
-  _globals['_TIMESTAMPVALUE']._serialized_end=2201
-  _globals['_VECTORCOMMANDSCHEMA']._serialized_start=2203
-  _globals['_VECTORCOMMANDSCHEMA']._serialized_end=2244
-  _globals['_VECTORCOMMANDVALUE']._serialized_start=2246
-  _globals['_VECTORCOMMANDVALUE']._serialized_end=2282
-  _globals['_STATETENSORSCHEMA']._serialized_start=2284
-  _globals['_STATETENSORSCHEMA']._serialized_end=2354
-  _globals['_STATETENSORVALUE']._serialized_start=2356
-  _globals['_STATETENSORVALUE']._serialized_end=2388
-  _globals['_VALUE']._serialized_start=2391
-  _globals['_VALUE']._serialized_end=2987
-  _globals['_VALUESCHEMA']._serialized_start=2990
-  _globals['_VALUESCHEMA']._serialized_end=3607
-  _globals['_IOSCHEMA']._serialized_start=3609
-  _globals['_IOSCHEMA']._serialized_end=3662
-  _globals['_IO']._serialized_start=3664
-  _globals['_IO']._serialized_end=3705
-  _globals['_MODELSCHEMA']._serialized_start=3707
-  _globals['_MODELSCHEMA']._serialized_end=3813
+    DESCRIPTOR._loaded_options = None
+    _globals["_DTYPE"]._serialized_start = 3816
+    _globals["_DTYPE"]._serialized_end = 3952
+    _globals["_JOINTPOSITIONUNIT"]._serialized_start = 3954
+    _globals["_JOINTPOSITIONUNIT"]._serialized_end = 3999
+    _globals["_JOINTVELOCITYUNIT"]._serialized_start = 4001
+    _globals["_JOINTVELOCITYUNIT"]._serialized_end = 4068
+    _globals["_JOINTTORQUEUNIT"]._serialized_start = 4070
+    _globals["_JOINTTORQUEUNIT"]._serialized_end = 4106
+    _globals["_JOINTPOSITIONVALUE"]._serialized_start = 43
+    _globals["_JOINTPOSITIONVALUE"]._serialized_end = 145
+    _globals["_JOINTPOSITIONSSCHEMA"]._serialized_start = 147
+    _globals["_JOINTPOSITIONSSCHEMA"]._serialized_end = 237
+    _globals["_JOINTPOSITIONSVALUE"]._serialized_start = 239
+    _globals["_JOINTPOSITIONSVALUE"]._serialized_end = 310
+    _globals["_JOINTVELOCITYVALUE"]._serialized_start = 312
+    _globals["_JOINTVELOCITYVALUE"]._serialized_end = 414
+    _globals["_JOINTVELOCITIESSCHEMA"]._serialized_start = 416
+    _globals["_JOINTVELOCITIESSCHEMA"]._serialized_end = 507
+    _globals["_JOINTVELOCITIESVALUE"]._serialized_start = 509
+    _globals["_JOINTVELOCITIESVALUE"]._serialized_end = 581
+    _globals["_JOINTTORQUEVALUE"]._serialized_start = 583
+    _globals["_JOINTTORQUEVALUE"]._serialized_end = 681
+    _globals["_JOINTTORQUESSCHEMA"]._serialized_start = 683
+    _globals["_JOINTTORQUESSCHEMA"]._serialized_end = 769
+    _globals["_JOINTTORQUESVALUE"]._serialized_start = 771
+    _globals["_JOINTTORQUESVALUE"]._serialized_end = 838
+    _globals["_JOINTCOMMANDSSCHEMA"]._serialized_start = 841
+    _globals["_JOINTCOMMANDSSCHEMA"]._serialized_end = 1047
+    _globals["_JOINTCOMMANDVALUE"]._serialized_start = 1050
+    _globals["_JOINTCOMMANDVALUE"]._serialized_end = 1329
+    _globals["_JOINTCOMMANDSVALUE"]._serialized_start = 1331
+    _globals["_JOINTCOMMANDSVALUE"]._serialized_end = 1400
+    _globals["_CAMERAFRAMESCHEMA"]._serialized_start = 1402
+    _globals["_CAMERAFRAMESCHEMA"]._serialized_end = 1470
+    _globals["_CAMERAFRAMEVALUE"]._serialized_start = 1472
+    _globals["_CAMERAFRAMEVALUE"]._serialized_end = 1504
+    _globals["_AUDIOFRAMESCHEMA"]._serialized_start = 1506
+    _globals["_AUDIOFRAMESCHEMA"]._serialized_end = 1599
+    _globals["_AUDIOFRAMEVALUE"]._serialized_start = 1601
+    _globals["_AUDIOFRAMEVALUE"]._serialized_end = 1632
+    _globals["_IMUACCELEROMETERVALUE"]._serialized_start = 1634
+    _globals["_IMUACCELEROMETERVALUE"]._serialized_end = 1690
+    _globals["_IMUGYROSCOPEVALUE"]._serialized_start = 1692
+    _globals["_IMUGYROSCOPEVALUE"]._serialized_end = 1744
+    _globals["_IMUMAGNETOMETERVALUE"]._serialized_start = 1746
+    _globals["_IMUMAGNETOMETERVALUE"]._serialized_end = 1801
+    _globals["_IMUSCHEMA"]._serialized_start = 1803
+    _globals["_IMUSCHEMA"]._serialized_end = 1890
+    _globals["_IMUVALUE"]._serialized_start = 1893
+    _globals["_IMUVALUE"]._serialized_end = 2088
+    _globals["_TIMESTAMPSCHEMA"]._serialized_start = 2090
+    _globals["_TIMESTAMPSCHEMA"]._serialized_end = 2151
+    _globals["_TIMESTAMPVALUE"]._serialized_start = 2153
+    _globals["_TIMESTAMPVALUE"]._serialized_end = 2201
+    _globals["_VECTORCOMMANDSCHEMA"]._serialized_start = 2203
+    _globals["_VECTORCOMMANDSCHEMA"]._serialized_end = 2244
+    _globals["_VECTORCOMMANDVALUE"]._serialized_start = 2246
+    _globals["_VECTORCOMMANDVALUE"]._serialized_end = 2282
+    _globals["_STATETENSORSCHEMA"]._serialized_start = 2284
+    _globals["_STATETENSORSCHEMA"]._serialized_end = 2354
+    _globals["_STATETENSORVALUE"]._serialized_start = 2356
+    _globals["_STATETENSORVALUE"]._serialized_end = 2388
+    _globals["_VALUE"]._serialized_start = 2391
+    _globals["_VALUE"]._serialized_end = 2987
+    _globals["_VALUESCHEMA"]._serialized_start = 2990
+    _globals["_VALUESCHEMA"]._serialized_end = 3607
+    _globals["_IOSCHEMA"]._serialized_start = 3609
+    _globals["_IOSCHEMA"]._serialized_end = 3662
+    _globals["_IO"]._serialized_start = 3664
+    _globals["_IO"]._serialized_end = 3705
+    _globals["_MODELSCHEMA"]._serialized_start = 3707
+    _globals["_MODELSCHEMA"]._serialized_end = 3813
 # @@protoc_insertion_point(module_scope)

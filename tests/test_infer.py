@@ -24,7 +24,7 @@ class ModelConfig:
 class SimpleModel(torch.nn.Module):
     """A simple neural network model for demonstration."""
 
-    def __init__(self, config: ModelConfig) -> None:
+    def __init__(self: "SimpleModel", config: ModelConfig) -> None:
         super().__init__()
         layers = []
 
@@ -36,7 +36,7 @@ class SimpleModel(torch.nn.Module):
         layers.append(torch.nn.Linear(config.hidden_size, 1))
         self.net = torch.nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self: "SimpleModel", x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
 
