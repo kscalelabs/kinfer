@@ -1,6 +1,7 @@
 """ONNX model inference utilities for Python."""
 
 import base64
+import json
 from pathlib import Path
 
 import onnx
@@ -38,7 +39,10 @@ class ONNXModel:
                 except Exception as e:
                     raise ValueError("Failed to parse kinfer_metadata value") from e
             else:
-                self.attached_metadata[prop.key] = prop.value
+                try:
+                    self.attached_metadata[prop.key] = json.loads(prop.value)
+                except Exception as e:
+                    raise ValueError(f"Failed to parse metadata {prop.key} value as JSON") from e
 
         if schema is None:
             raise ValueError("kinfer_metadata not found in model metadata")
