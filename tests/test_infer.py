@@ -106,7 +106,7 @@ def test_model_inference(model_path: str) -> None:
 def test_missing_kinfer_metadata(tmp_path: Path, mocker: MockerFixture) -> None:
     """Test that initialization raises ValueError if kinfer_metadata is not found."""
     mock_model = mocker.Mock()
-    mock_model.metadata_props = [mocker.Mock(key="some_other_key", value="some_value")]
+    mock_model.metadata_props = [mocker.Mock(key="some_other_key", value='"some_value"')]
     mocker.patch("onnx.load", return_value=mock_model)
 
     # Mock ort.InferenceSession to avoid actual model loading
