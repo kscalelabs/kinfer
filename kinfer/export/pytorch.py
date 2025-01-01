@@ -2,6 +2,7 @@
 
 import base64
 import inspect
+import json
 from io import BytesIO
 from typing import Sequence
 
@@ -40,7 +41,7 @@ def _add_metadata_to_onnx(
     for key, value in metadata.items():
         meta = model_proto.metadata_props.add()
         meta.key = key
-        meta.value = str(value)
+        meta.value = json.dumps(value)
 
     return model_proto
 
