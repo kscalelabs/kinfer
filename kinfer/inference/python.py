@@ -41,8 +41,10 @@ class ONNXModel:
             else:
                 try:
                     self.attached_metadata[prop.key] = json.loads(prop.value)
-                except Exception as e:
-                    raise ValueError(f"Failed to parse metadata {prop.key} value as JSON") from e
+                except json.JSONDecodeError:
+                    print(f"Failed to parse metadata {prop.key} value as JSON")
+                    print(f"Saving as string: {prop.value}")
+                    self.attached_metadata[prop.key] = prop.value
 
         if schema is None:
             raise ValueError("kinfer_metadata not found in model metadata")
