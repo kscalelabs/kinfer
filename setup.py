@@ -74,7 +74,6 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=">=3.11",
     install_requires=requirements,
-    tests_require=requirements_dev,
     extras_require={"dev": requirements_dev},
     include_package_data=True,
     packages=find_packages(),
