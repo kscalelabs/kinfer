@@ -1,2 +1,3 @@
 include Cargo.toml
 recursive-include kinfer/ *.rs *.pyi *.so *.py *.txt *.md *.toml py.typed
+recursive-include .cargo/ *.toml
