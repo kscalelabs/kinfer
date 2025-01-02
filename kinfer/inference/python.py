@@ -1,7 +1,6 @@
 """ONNX model inference utilities for Python."""
 
 import base64
-import json
 from pathlib import Path
 
 import onnx
@@ -10,6 +9,22 @@ import onnxruntime as ort
 from kinfer import proto as P
 from kinfer.export.pytorch import KINFER_METADATA_KEY
 from kinfer.serialize.numpy import NumpyMultiSerializer
+
+
+def _read_schema(model: onnx.ModelProto) -> P.ModelSchema:
+    for prop in model.metadata_props:
+        if prop.key == KINFER_METADATA_KEY:
+            try:
+                schema_bytes = base64.b64decode(prop.value)
+                schema = P.ModelSchema()
+                schema.ParseFromString(schema_bytes)
+                return schema
+            except Exception as e:
+                raise ValueError("Failed to parse kinfer_metadata value") from e
+        else:
+            raise ValueError(f"Found arbitrary metadata key {prop.key}")
+
+    raise ValueError(f"{KINFER_METADATA_KEY} not found in model metadata")
 
 
 class ONNXModel:
@@ -26,29 +41,7 @@ class ONNXModel:
         # Load model and create inference session
         self.model = onnx.load(model_path)
         self.session = ort.InferenceSession(model_path)
-        self.attached_metadata: dict[str, str | float] = {}
-
-        schema = None
-        # Extract metadata and attempt to parse JSON values
-        for prop in self.model.metadata_props:
-            if prop.key == KINFER_METADATA_KEY:
-                try:
-                    schema_bytes = base64.b64decode(prop.value)
-                    schema = P.ModelSchema()
-                    schema.ParseFromString(schema_bytes)
-                except Exception as e:
-                    raise ValueError("Failed to parse kinfer_metadata value") from e
-            else:
-                try:
-                    self.attached_metadata[prop.key] = json.loads(prop.value)
-                except json.JSONDecodeError:
-                    print(f"Failed to parse metadata {prop.key} value as JSON")
-                    print(f"Saving as string: {prop.value}")
-                    self.attached_metadata[prop.key] = prop.value
-
-        if schema is None:
-            raise ValueError("kinfer_metadata not found in model metadata")
-        self._schema = schema
+        self._schema = _read_schema(self.model)
 
         # Create serializers for input and output.
         self._input_serializer = NumpyMultiSerializer(self._schema.input_schema)

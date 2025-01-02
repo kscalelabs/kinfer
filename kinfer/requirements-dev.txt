@@ -5,5 +5,4 @@ darglint
 mypy
 mypy-protobuf
 pytest
-pytest-mock
 ruff

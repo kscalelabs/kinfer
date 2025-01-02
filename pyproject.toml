@@ -41,7 +41,6 @@ module = [
     "onnxruntime.*",
     "onnx.*",
     "torch.*",
-    "pytest_mock.*",
 ]
 
 ignore_missing_imports = true
