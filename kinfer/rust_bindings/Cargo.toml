@@ -1,9 +1,19 @@
 [package]
 
-name = "kinfer_rust_bindings"
-version = "0.1.0"
-edition = "2021"
+name = "rust_bindings"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+
+[lib]
+
+name = "rust_bindings"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-
-kinfer = { path = "../rust" }
+pyo3 = { version = ">= 0.21.0", features = ["extension-module"] }
+pyo3-stub-gen = ">= 0.6.0"

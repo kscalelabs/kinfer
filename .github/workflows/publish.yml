@@ -8,7 +8,7 @@ on:
       build_wheels:
         description: 'Build platform-specific wheels'
         required: true
-        default: 'false'
+        default: false
         type: boolean
 
 permissions:
