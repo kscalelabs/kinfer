@@ -5,19 +5,25 @@ use crate::serializer::{
     TimestampSerializer, VectorCommandSerializer,
 };
 
-use ndarray::{Array, Array1, Array2, Array3, ArrayView2};
-use ort::value::{Tensor, Value as OrtValue, TensorValueType};
+use ndarray::{s, Array, Array1, Array2, Array3, ArrayView, ArrayView1, ArrayView2};
+use ort::value::{Tensor, Value as OrtValue};
 use std::error::Error;
 
-use crate::proto::proto::{
-    value::Value as ProtoValue, value_schema::ValueType, AudioFrameSchema, AudioFrameValue, CameraFrameSchema,
-    CameraFrameValue, DType, ImuAccelerometerValue, ImuGyroscopeValue, ImuMagnetometerValue,
-    ImuSchema, ImuValue, JointCommandsSchema, JointCommandValue, JointCommandsValue,
-    JointPositionUnit, JointPositionValue, JointPositionsSchema, JointPositionsValue, JointTorqueUnit,
-    JointTorqueValue, JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema, JointVelocitiesValue,
-    JointVelocityUnit, JointVelocityValue, StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue,
-    ValueSchema, VectorCommandSchema, VectorCommandValue,
+// Import the re-exported types
+use crate::kinfer_proto::{
+    AudioFrameSchema, AudioFrameValue, CameraFrameSchema, CameraFrameValue, DType,
+    ImuAccelerometerValue, ImuGyroscopeValue, ImuMagnetometerValue, ImuSchema, ImuValue,
+    JointCommandValue, JointCommandsSchema, JointCommandsValue, JointPositionUnit,
+    JointPositionValue, JointPositionsSchema, JointPositionsValue, JointTorqueUnit,
+    JointTorqueValue, JointTorquesSchema, JointTorquesValue, JointVelocitiesSchema,
+    JointVelocitiesValue, JointVelocityUnit, JointVelocityValue, ProtoIO, ProtoIOSchema,
+    ProtoValue, StateTensorSchema, StateTensorValue, TimestampSchema, TimestampValue, ValueSchema,
+    VectorCommandSchema, VectorCommandValue,
 };
+
+// Import the nested types
+use crate::kinfer_proto::proto::value::Value as EnumValue;
+use crate::kinfer_proto::proto::value_schema::ValueType;
 
 pub struct OnnxSerializer {
     schema: ValueSchema,
@@ -34,7 +40,8 @@ impl OnnxSerializer {
         D: ndarray::Dimension,
     {
         let array = array.map(|&x| x.into());
-        OrtValue::from_array(array.into_dyn())
+        Tensor::from_array(array.into_dyn())
+            .map(|tensor| tensor.into_dyn())
             .map_err(|e| Box::new(e) as Box<dyn Error>)
     }
 }
@@ -48,7 +55,9 @@ impl JointPositionsSerializer for OnnxSerializer {
         let mut array = Array1::zeros(schema.joint_names.len());
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(joint) = value.values.iter().find(|v| v.joint_name == *name) {
-                array[i] = convert_position(joint.value, joint.unit.into(), schema.unit.into())?;
+                let from_unit = JointPositionUnit::try_from(joint.unit)?;
+                let to_unit = JointPositionUnit::try_from(schema.unit)?;
+                array[i] = convert_position(joint.value, from_unit, to_unit)?;
             }
         }
         self.array_to_value(array)
@@ -59,7 +68,7 @@ impl JointPositionsSerializer for OnnxSerializer {
         schema: &JointPositionsSchema,
         value: OrtValue,
     ) -> Result<JointPositionsValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         if array.len() != schema.joint_names.len() {
@@ -90,7 +99,9 @@ impl JointVelocitiesSerializer for OnnxSerializer {
         let mut array = Array1::zeros(schema.joint_names.len());
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(joint) = value.values.iter().find(|v| v.joint_name == *name) {
-                array[i] = convert_velocity(joint.value, joint.unit.into(), schema.unit.into())?;
+                let from_unit = JointVelocityUnit::try_from(joint.unit)?;
+                let to_unit = JointVelocityUnit::try_from(schema.unit)?;
+                array[i] = convert_velocity(joint.value, from_unit, to_unit)?;
             }
         }
         self.array_to_value(array)
@@ -101,7 +112,7 @@ impl JointVelocitiesSerializer for OnnxSerializer {
         schema: &JointVelocitiesSchema,
         value: OrtValue,
     ) -> Result<JointVelocitiesValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         if array.len() != schema.joint_names.len() {
@@ -132,7 +143,9 @@ impl JointTorquesSerializer for OnnxSerializer {
         let mut array = Array1::zeros(schema.joint_names.len());
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(joint) = value.values.iter().find(|v| v.joint_name == *name) {
-                array[i] = convert_torque(joint.value, joint.unit.into(), schema.unit.into())?;
+                let from_unit = JointTorqueUnit::try_from(joint.unit)?;
+                let to_unit = JointTorqueUnit::try_from(schema.unit)?;
+                array[i] = convert_torque(joint.value, from_unit, to_unit)?;
             }
         }
         self.array_to_value(array)
@@ -143,7 +156,7 @@ impl JointTorquesSerializer for OnnxSerializer {
         schema: &JointTorquesSchema,
         value: OrtValue,
     ) -> Result<JointTorquesValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         if array.len() != schema.joint_names.len() {
@@ -174,9 +187,17 @@ impl JointCommandsSerializer for OnnxSerializer {
         let mut array = Array2::zeros((schema.joint_names.len(), 5));
         for (i, name) in schema.joint_names.iter().enumerate() {
             if let Some(cmd) = value.values.iter().find(|v| v.joint_name == *name) {
-                array[[i, 0]] = convert_torque(cmd.torque, cmd.torque_unit.into(), schema.torque_unit.into())?;
-                array[[i, 1]] = convert_velocity(cmd.velocity, cmd.velocity_unit.into(), schema.velocity_unit.into())?;
-                array[[i, 2]] = convert_position(cmd.position, cmd.position_unit.into(), schema.position_unit.into())?;
+                let cmd_torque_unit = JointTorqueUnit::try_from(cmd.torque_unit)?;
+                let cmd_velocity_unit = JointVelocityUnit::try_from(cmd.velocity_unit)?;
+                let cmd_position_unit = JointPositionUnit::try_from(cmd.position_unit)?;
+                let schema_torque_unit = JointTorqueUnit::try_from(schema.torque_unit)?;
+                let schema_velocity_unit = JointVelocityUnit::try_from(schema.velocity_unit)?;
+                let schema_position_unit = JointPositionUnit::try_from(schema.position_unit)?;
+                array[[i, 0]] = convert_torque(cmd.torque, cmd_torque_unit, schema_torque_unit)?;
+                array[[i, 1]] =
+                    convert_velocity(cmd.velocity, cmd_velocity_unit, schema_velocity_unit)?;
+                array[[i, 2]] =
+                    convert_position(cmd.position, cmd_position_unit, schema_position_unit)?;
                 array[[i, 3]] = cmd.kp;
                 array[[i, 4]] = cmd.kd;
             }
@@ -189,7 +210,7 @@ impl JointCommandsSerializer for OnnxSerializer {
         schema: &JointCommandsSchema,
         value: OrtValue,
     ) -> Result<JointCommandsValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         if array.shape() != [schema.joint_names.len(), 5] {
@@ -240,7 +261,7 @@ impl CameraFrameSerializer for OnnxSerializer {
         schema: &CameraFrameSchema,
         value: OrtValue,
     ) -> Result<CameraFrameValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         if array.shape()
@@ -255,7 +276,7 @@ impl CameraFrameSerializer for OnnxSerializer {
 
         let bytes: Vec<u8> = array
             .iter()
-            .map(|&x| (x * 255.0).clamp(0.0, 255.0) as u8)
+            .map(|&x: &f32| (x * 255.0).clamp(0.0, 255.0) as u8)
             .collect();
 
         Ok(CameraFrameValue { data: bytes })
@@ -270,7 +291,7 @@ impl AudioFrameSerializer for OnnxSerializer {
     ) -> Result<OrtValue, Box<dyn Error>> {
         let array = Array2::from_shape_vec(
             (schema.channels as usize, schema.sample_rate as usize),
-            parse_audio_bytes(&value.data, schema.dtype)?,
+            parse_audio_bytes(&value.data, schema.dtype.try_into()?)?,
         )?;
         self.array_to_value(array)
     }
@@ -280,15 +301,17 @@ impl AudioFrameSerializer for OnnxSerializer {
         schema: &AudioFrameSchema,
         value: OrtValue,
     ) -> Result<AudioFrameValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         if array.shape() != [schema.channels as usize, schema.sample_rate as usize] {
             return Err("Array shape does not match expected dimensions".into());
         }
 
+        let array = array.into_dimensionality::<ndarray::Ix2>()?;
+
         Ok(AudioFrameValue {
-            data: audio_array_to_bytes(array, schema.dtype)?,
+            data: audio_array_to_bytes(array, schema.dtype.try_into()?)?,
         })
     }
 }
@@ -329,7 +352,7 @@ impl ImuSerializer for OnnxSerializer {
         schema: &ImuSchema,
         value: OrtValue,
     ) -> Result<ImuValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
         let mut result = ImuValue::default();
         let mut idx = 0;
@@ -379,8 +402,12 @@ impl TimestampSerializer for OnnxSerializer {
         schema: &TimestampSchema,
         value: OrtValue,
     ) -> Result<TimestampValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
-        let total_seconds = tensor.view()[0];
+        let tensor = value.try_extract_tensor()?;
+        let array = tensor.view();
+
+        // Get first element using iterator
+        let total_seconds: f32 = *array.iter().next().ok_or("Timestamp tensor is empty")?;
+
         let elapsed_seconds = total_seconds.trunc() as i64;
         let elapsed_nanos = ((total_seconds.fract() * 1_000_000_000.0).round()) as i32;
 
@@ -406,15 +433,15 @@ impl VectorCommandSerializer for OnnxSerializer {
         schema: &VectorCommandSchema,
         value: OrtValue,
     ) -> Result<VectorCommandValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
-        if array.len() != schema.dimensions {
+        if array.len() != schema.dimensions as usize {
             return Err("Array length does not match expected dimensions".into());
         }
 
         Ok(VectorCommandValue {
-            values: array.to_vec(),
+            values: array.iter().copied().collect(),
         })
     }
 }
@@ -428,7 +455,7 @@ impl StateTensorSerializer for OnnxSerializer {
         let shape: Vec<usize> = schema.shape.iter().map(|&x| x as usize).collect();
         let array = Array::from_shape_vec(
             shape,
-            parse_tensor_bytes(&value.data, schema.dtype)?,
+            parse_tensor_bytes(&value.data, schema.dtype.try_into()?)?,
         )?;
         self.array_to_value(array)
     }
@@ -438,7 +465,7 @@ impl StateTensorSerializer for OnnxSerializer {
         schema: &StateTensorSchema,
         value: OrtValue,
     ) -> Result<StateTensorValue, Box<dyn Error>> {
-        let tensor: Tensor<f32> = value.try_extract()?;
+        let tensor = value.try_extract_tensor()?;
         let array = tensor.view();
 
         let expected_shape: Vec<usize> = schema.shape.iter().map(|&x| x as usize).collect();
@@ -447,7 +474,7 @@ impl StateTensorSerializer for OnnxSerializer {
         }
 
         Ok(StateTensorValue {
-            data: tensor_array_to_bytes(array.into_dimensionality()?, schema.dtype)?,
+            data: tensor_array_to_bytes(array.view(), schema.dtype.try_into()?)?,
         })
     }
 }
@@ -494,7 +521,10 @@ fn parse_tensor_bytes(bytes: &[u8], dtype: DType) -> Result<Vec<f32>, Box<dyn Er
     }
 }
 
-fn tensor_array_to_bytes(array: ArrayView2<f32>, dtype: DType) -> Result<Vec<u8>, Box<dyn Error>> {
+fn tensor_array_to_bytes(
+    array: ArrayView<f32, ndarray::IxDyn>,
+    dtype: DType,
+) -> Result<Vec<u8>, Box<dyn Error>> {
     match dtype {
         DType::Fp32 => {
             let mut result = Vec::with_capacity(array.len() * 4);
@@ -508,87 +538,267 @@ fn tensor_array_to_bytes(array: ArrayView2<f32>, dtype: DType) -> Result<Vec<u8>
 }
 
 impl Serializer for OnnxSerializer {
-    fn serialize(&self, schema: &ValueSchema, value: ProtoValue) -> Result<OrtValue, Box<dyn Error>> {
+    fn serialize(
+        &self,
+        schema: &ValueSchema,
+        value: ProtoValue,
+    ) -> Result<OrtValue, Box<dyn Error>> {
         match schema.value_type.as_ref().ok_or("Missing value type")? {
-            ValueType::JointPositions(ref joint_positions_schema) => match value {
-                ProtoValue::JointPositions(v) => {
-                    self.serialize_joint_positions(joint_positions_schema, v)
+            ValueType::JointPositions(ref joint_positions_schema) => match value.value {
+                Some(EnumValue::JointPositions(values)) => {
+                    self.serialize_joint_positions(joint_positions_schema, values)
                 }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::JointVelocities(ref joint_velocities_schema) => match value {
-                ProtoValue::JointVelocities(v) => {
-                    self.serialize_joint_velocities(joint_velocities_schema, v)
+            ValueType::JointVelocities(ref joint_velocities_schema) => match value.value {
+                Some(EnumValue::JointVelocities(values)) => {
+                    self.serialize_joint_velocities(joint_velocities_schema, values)
                 }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::JointTorques(ref joint_torques_schema) => match value {
-                ProtoValue::JointTorques(v) => self.serialize_joint_torques(joint_torques_schema, v),
+            ValueType::JointTorques(ref joint_torques_schema) => match value.value {
+                Some(EnumValue::JointTorques(values)) => {
+                    self.serialize_joint_torques(joint_torques_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::JointCommands(ref joint_commands_schema) => match value {
-                ProtoValue::JointCommands(v) => self.serialize_joint_commands(joint_commands_schema, v),
+            ValueType::JointCommands(ref joint_commands_schema) => match value.value {
+                Some(EnumValue::JointCommands(values)) => {
+                    self.serialize_joint_commands(joint_commands_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::CameraFrame(ref camera_frame_schema) => match value {
-                ProtoValue::CameraFrame(v) => self.serialize_camera_frame(camera_frame_schema, v),
+            ValueType::CameraFrame(ref camera_frame_schema) => match value.value {
+                Some(EnumValue::CameraFrame(values)) => {
+                    self.serialize_camera_frame(camera_frame_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::AudioFrame(ref audio_frame_schema) => match value {
-                ProtoValue::AudioFrame(v) => self.serialize_audio_frame(audio_frame_schema, v),
+            ValueType::AudioFrame(ref audio_frame_schema) => match value.value {
+                Some(EnumValue::AudioFrame(values)) => {
+                    self.serialize_audio_frame(audio_frame_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::Imu(ref imu_schema) => match value {
-                ProtoValue::Imu(v) => self.serialize_imu(imu_schema, v),
+            ValueType::Imu(ref imu_schema) => match value.value {
+                Some(EnumValue::Imu(values)) => self.serialize_imu(imu_schema, values),
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::Timestamp(ref timestamp_schema) => match value {
-                ProtoValue::Timestamp(v) => self.serialize_timestamp(timestamp_schema, v),
+            ValueType::Timestamp(ref timestamp_schema) => match value.value {
+                Some(EnumValue::Timestamp(values)) => {
+                    self.serialize_timestamp(timestamp_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::VectorCommand(ref vector_command_schema) => match value {
-                ProtoValue::VectorCommand(v) => self.serialize_vector_command(vector_command_schema, v),
+            ValueType::VectorCommand(ref vector_command_schema) => match value.value {
+                Some(EnumValue::VectorCommand(values)) => {
+                    self.serialize_vector_command(vector_command_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
-            ValueType::StateTensor(ref state_tensor_schema) => match value {
-                ProtoValue::StateTensor(v) => self.serialize_state_tensor(state_tensor_schema, v),
+            ValueType::StateTensor(ref state_tensor_schema) => match value.value {
+                Some(EnumValue::StateTensor(values)) => {
+                    self.serialize_state_tensor(state_tensor_schema, values)
+                }
                 _ => Err("Unsupported value type".into()),
             },
         }
     }
 
-    fn deserialize(&self, schema: &ValueSchema, value: OrtValue) -> Result<ProtoValue, Box<dyn Error>> {
+    fn deserialize(
+        &self,
+        schema: &ValueSchema,
+        value: OrtValue,
+    ) -> Result<ProtoValue, Box<dyn Error>> {
         match schema.value_type.as_ref().ok_or("Missing value type")? {
-            ValueType::JointPositions(ref joint_positions_schema) => Ok(ProtoValue::JointPositions(
-                self.deserialize_joint_positions(joint_positions_schema, value)?,
-            )),
-            ValueType::JointVelocities(ref joint_velocities_schema) => Ok(ProtoValue::JointVelocities(
-                self.deserialize_joint_velocities(joint_velocities_schema, value)?,
-            )),
-            ValueType::JointTorques(ref joint_torques_schema) => Ok(ProtoValue::JointTorques(
-                self.deserialize_joint_torques(joint_torques_schema, value)?,
-            )),
-            ValueType::JointCommands(ref joint_commands_schema) => Ok(ProtoValue::JointCommands(
-                self.deserialize_joint_commands(joint_commands_schema, value)?,
-            )),
-            ValueType::CameraFrame(ref camera_frame_schema) => Ok(ProtoValue::CameraFrame(
-                self.deserialize_camera_frame(camera_frame_schema, value)?,
-            )),
-            ValueType::AudioFrame(ref audio_frame_schema) => Ok(ProtoValue::AudioFrame(
-                self.deserialize_audio_frame(audio_frame_schema, value)?,
-            )),
-            ValueType::Imu(ref imu_schema) => {
-                Ok(ProtoValue::Imu(self.deserialize_imu(imu_schema, value)?))
+            ValueType::JointPositions(ref joint_positions_schema) => {
+                let positions = self.deserialize_joint_positions(joint_positions_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::JointPositions(positions)),
+                })
             }
-            ValueType::Timestamp(ref timestamp_schema) => Ok(ProtoValue::Timestamp(
-                self.deserialize_timestamp(timestamp_schema, value)?,
-            )),
-            ValueType::VectorCommand(ref vector_command_schema) => Ok(ProtoValue::VectorCommand(
-                self.deserialize_vector_command(vector_command_schema, value)?,
-            )),
-            ValueType::StateTensor(ref state_tensor_schema) => Ok(ProtoValue::StateTensor(
-                self.deserialize_state_tensor(state_tensor_schema, value)?,
-            )),
+            ValueType::JointVelocities(ref joint_velocities_schema) => {
+                let velocities =
+                    self.deserialize_joint_velocities(joint_velocities_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::JointVelocities(velocities)),
+                })
+            }
+            ValueType::JointTorques(ref joint_torques_schema) => {
+                let torques = self.deserialize_joint_torques(joint_torques_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::JointTorques(torques)),
+                })
+            }
+            ValueType::JointCommands(ref joint_commands_schema) => {
+                let commands = self.deserialize_joint_commands(joint_commands_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::JointCommands(commands)),
+                })
+            }
+            ValueType::CameraFrame(ref camera_frame_schema) => {
+                let frame = self.deserialize_camera_frame(camera_frame_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::CameraFrame(frame)),
+                })
+            }
+            ValueType::AudioFrame(ref audio_frame_schema) => {
+                let frame = self.deserialize_audio_frame(audio_frame_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::AudioFrame(frame)),
+                })
+            }
+            ValueType::Imu(ref imu_schema) => {
+                let imu = self.deserialize_imu(imu_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::Imu(imu)),
+                })
+            }
+            ValueType::Timestamp(ref timestamp_schema) => {
+                let timestamp = self.deserialize_timestamp(timestamp_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::Timestamp(timestamp)),
+                })
+            }
+            ValueType::VectorCommand(ref vector_command_schema) => {
+                let command = self.deserialize_vector_command(vector_command_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::VectorCommand(command)),
+                })
+            }
+            ValueType::StateTensor(ref state_tensor_schema) => {
+                let tensor = self.deserialize_state_tensor(state_tensor_schema, value)?;
+                Ok(ProtoValue {
+                    value_name: schema.value_name.clone(),
+                    value: Some(EnumValue::StateTensor(tensor)),
+                })
+            }
         }
+    }
+}
+
+fn calculate_value_size(schema: &ValueSchema) -> Result<usize, Box<dyn Error>> {
+    match schema.value_type.as_ref().ok_or("Missing value type")? {
+        ValueType::JointPositions(s) => Ok(s.joint_names.len()),
+        ValueType::JointVelocities(s) => Ok(s.joint_names.len()),
+        ValueType::JointTorques(s) => Ok(s.joint_names.len()),
+        ValueType::JointCommands(s) => Ok(s.joint_names.len() * 5), // 5 values per joint
+        ValueType::CameraFrame(s) => Ok((s.channels * s.height * s.width) as usize),
+        ValueType::AudioFrame(s) => Ok((s.channels * s.sample_rate) as usize),
+        ValueType::Imu(s) => {
+            let mut size = 0;
+            if s.use_accelerometer {
+                size += 3;
+            }
+            if s.use_gyroscope {
+                size += 3;
+            }
+            if s.use_magnetometer {
+                size += 3;
+            }
+            Ok(size)
+        }
+        ValueType::Timestamp(_) => Ok(1),
+        ValueType::VectorCommand(s) => Ok(s.dimensions as usize),
+        ValueType::StateTensor(s) => Ok(s.shape.iter().product::<i32>() as usize),
+    }
+}
+
+pub struct OnnxMultiSerializer {
+    serializers: Vec<OnnxSerializer>,
+}
+
+impl OnnxMultiSerializer {
+    pub fn new(schema: ProtoIOSchema) -> Self {
+        Self {
+            serializers: schema
+                .values
+                .into_iter()
+                .map(|s| OnnxSerializer::new(s))
+                .collect(),
+        }
+    }
+
+    pub fn serialize_io(&self, io: ProtoIO) -> Result<OrtValue, Box<dyn Error>> {
+        if io.values.len() != self.serializers.len() {
+            return Err("Number of values does not match schema".into());
+        }
+
+        // Serialize each value according to its schema and concatenate the results
+        let mut all_values: Vec<f32> = Vec::new();
+        for (value, serializer) in io.values.iter().zip(self.serializers.iter()) {
+            let tensor = serializer.serialize(&serializer.schema, value.clone())?;
+            let array = tensor.try_extract_tensor::<f32>()?;
+            let array_1d = array
+                .as_standard_layout()
+                .into_dimensionality::<ndarray::Ix1>()?;
+            all_values.extend(array_1d.iter().copied());
+        }
+
+        // Convert to OrtValue
+        Tensor::from_array(Array1::from_vec(all_values))
+            .map(|tensor| tensor.into_dyn())
+            .map_err(|e| Box::new(e) as Box<dyn Error>)
+    }
+
+    pub fn deserialize_io(&self, values: Vec<OrtValue>) -> Result<ProtoIO, Box<dyn Error>> {
+        // Check if number of values matches number of serializers
+        if values.len() != self.serializers.len() {
+            return Err(format!(
+                "Number of values ({}) does not match number of serializers ({})",
+                values.len(),
+                self.serializers.len()
+            )
+            .into());
+        }
+
+        // Deserialize each value using its corresponding serializer
+        let proto_values = self
+            .serializers
+            .iter()
+            .zip(values.into_iter())
+            .map(|(serializer, value)| serializer.deserialize(&serializer.schema, value))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ProtoIO {
+            values: proto_values,
+        })
+    }
+
+    pub fn names(&self) -> Vec<String> {
+        self.serializers
+            .iter()
+            .map(|s| s.schema.value_name.clone())
+            .collect()
+    }
+
+    pub fn assign_names(
+        &self,
+        values: Vec<OrtValue>,
+    ) -> Result<std::collections::HashMap<String, OrtValue>, Box<dyn Error>> {
+        if values.len() != self.serializers.len() {
+            return Err(format!(
+                "Expected {} values, got {}",
+                self.serializers.len(),
+                values.len()
+            )
+            .into());
+        }
+
+        Ok(self
+            .serializers
+            .iter()
+            .map(|s| s.schema.value_name.clone())
+            .zip(values)
+            .collect())
     }
 }
