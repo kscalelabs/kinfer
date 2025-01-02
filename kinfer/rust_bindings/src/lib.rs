@@ -9,7 +9,7 @@ fn get_version() -> String {
 }
 
 #[pymodule]
-fn kinfer_bindings(m: &Bound<PyModule>) -> PyResult<()> {
+fn rust_bindings(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_version, m)?)?;
     Ok(())
 }
