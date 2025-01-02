@@ -22,17 +22,25 @@ jobs:
   build-wheels:
     name: Build ${{ matrix.arch }} wheels
     timeout-minutes: 360
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [x86_64, aarch64, s390x]
         include:
-          - arch: x86_64
+          - os: ubuntu-latest
+            arch: x86_64
             skip: "pp* *-musllinux*"
-          - arch: aarch64
+          - os: ubuntu-latest
+            arch: aarch64
             skip: "pp* *-musllinux* cp313-*"
-          - arch: s390x
+          - os: ubuntu-latest
+            arch: s390x
             skip: "pp* *-musllinux* cp312-* cp313-*"
+          - os: macos-latest
+            arch: x86_64
+            skip: "pp* cp313-*"
+          - os: macos-latest
+            arch: arm64
+            skip: "pp* cp313-*"
 
     steps:
       - name: Checkout code
@@ -55,6 +63,7 @@ jobs:
         shell: bash
 
       - name: Set up QEMU
+        if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v2
         with:
           platforms: all
@@ -63,6 +72,7 @@ jobs:
         env:
           CIBW_SKIP: ${{ matrix.skip }}
           CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+          CIBW_ARCHS_MACOS: ${{ matrix.arch }}
           CIBW_BEFORE_ALL_LINUX: |
             yum install -y libudev-devel pkgconfig python3-devel python3-pip python3-wheel
           CIBW_BEFORE_BUILD: |
