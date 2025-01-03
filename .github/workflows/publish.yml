@@ -56,6 +56,12 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install Rust target
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add x86_64-apple-darwin
+        shell: bash
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -160,6 +166,12 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Install Rust target
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add x86_64-apple-darwin
+        shell: bash
 
       - name: Install dependencies
         run: |
