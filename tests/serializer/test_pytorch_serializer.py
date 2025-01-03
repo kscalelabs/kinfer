@@ -5,21 +5,21 @@ import random
 import pytest
 from torch import Tensor
 
-from kinfer import proto as K
-from kinfer.serialize.pytorch import PyTorchSerializer
+from kinfer import get_serializer, proto as K
 from kinfer.serialize.types import to_value_type
 
 
 @pytest.mark.parametrize("schema_unit", [K.JointPositionUnit.DEGREES, K.JointPositionUnit.RADIANS])
 @pytest.mark.parametrize("value_unit", [K.JointPositionUnit.DEGREES, K.JointPositionUnit.RADIANS])
 def test_serialize_joint_positions(schema_unit: K.JointPositionUnit, value_unit: K.JointPositionUnit) -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_positions=K.JointPositionsSchema(
                 unit=to_value_type(schema_unit),
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     # From joint positions to tensor.
@@ -45,13 +45,14 @@ def test_serialize_joint_positions(schema_unit: K.JointPositionUnit, value_unit:
 )
 @pytest.mark.parametrize("value_unit", [K.JointVelocityUnit.DEGREES_PER_SECOND, K.JointVelocityUnit.RADIANS_PER_SECOND])
 def test_serialize_joint_velocities(schema_unit: K.JointVelocityUnit, value_unit: K.JointVelocityUnit) -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_velocities=K.JointVelocitiesSchema(
                 unit=to_value_type(schema_unit),
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(
@@ -74,13 +75,14 @@ def test_serialize_joint_velocities(schema_unit: K.JointVelocityUnit, value_unit
 @pytest.mark.parametrize("schema_unit", [K.JointTorqueUnit.NEWTON_METERS])
 @pytest.mark.parametrize("value_unit", [K.JointTorqueUnit.NEWTON_METERS])
 def test_serialize_joint_torques(schema_unit: K.JointTorqueUnit, value_unit: K.JointTorqueUnit) -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_torques=K.JointTorquesSchema(
                 unit=to_value_type(schema_unit),
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(
@@ -101,7 +103,7 @@ def test_serialize_joint_torques(schema_unit: K.JointTorqueUnit, value_unit: K.J
 
 
 def test_serialize_joint_commands() -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_commands=K.JointCommandsSchema(
                 joint_names=["joint_1", "joint_2", "joint_3"],
@@ -109,7 +111,8 @@ def test_serialize_joint_commands() -> None:
                 velocity_unit=to_value_type(K.JointVelocityUnit.RADIANS_PER_SECOND),
                 position_unit=to_value_type(K.JointPositionUnit.RADIANS),
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(
@@ -160,14 +163,15 @@ def test_serialize_joint_commands() -> None:
 
 
 def test_serialize_camera_frame() -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             camera_frame=K.CameraFrameSchema(
                 width=32,
                 height=64,
                 channels=3,
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(
@@ -186,14 +190,15 @@ def test_serialize_camera_frame() -> None:
 
 
 def test_serialize_audio_frame() -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             audio_frame=K.AudioFrameSchema(
                 channels=2,
                 sample_rate=44100,
                 dtype=K.DType.UINT16,
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(
@@ -211,14 +216,15 @@ def test_serialize_audio_frame() -> None:
 
 
 def test_serialize_imu() -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             imu=K.ImuSchema(
                 use_accelerometer=True,
                 use_gyroscope=True,
                 use_magnetometer=True,
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(
@@ -237,7 +243,10 @@ def test_serialize_imu() -> None:
 
 
 def test_serialize_timestamp() -> None:
-    serializer = PyTorchSerializer(schema=K.ValueSchema(timestamp=K.TimestampSchema()))
+    serializer = get_serializer(
+        schema=K.ValueSchema(timestamp=K.TimestampSchema()),
+        serializer_type="pytorch",
+    )
 
     # From timestamp value to tensor.
     value = K.Value(
@@ -256,7 +265,10 @@ def test_serialize_timestamp() -> None:
 
 
 def test_serialize_vector_command() -> None:
-    serializer = PyTorchSerializer(schema=K.ValueSchema(vector_command=K.VectorCommandSchema(dimensions=3)))
+    serializer = get_serializer(
+        schema=K.ValueSchema(vector_command=K.VectorCommandSchema(dimensions=3)),
+        serializer_type="pytorch",
+    )
 
     value = K.Value(vector_command=K.VectorCommandValue(values=[1.0, 2.0, 3.0]))
     tensor = serializer.serialize(value)
@@ -269,13 +281,14 @@ def test_serialize_vector_command() -> None:
 
 
 def test_serialize_state_tensor() -> None:
-    serializer = PyTorchSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             state_tensor=K.StateTensorSchema(
                 shape=[2, 2],
                 dtype=K.DType.INT8,
             )
-        )
+        ),
+        serializer_type="pytorch",
     )
 
     value = K.Value(state_tensor=K.StateTensorValue(data=bytes([1, 2, 3, 4])))

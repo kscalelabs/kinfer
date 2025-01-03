@@ -4,8 +4,7 @@ import random
 
 import pytest
 
-from kinfer import proto as K
-from kinfer.serialize.json import JsonSerializer
+from kinfer import get_serializer, proto as K
 
 
 @pytest.mark.parametrize("schema_unit", [K.JointPositionUnit.DEGREES, K.JointPositionUnit.RADIANS])
@@ -13,13 +12,14 @@ from kinfer.serialize.json import JsonSerializer
 def test_serialize_joint_positions(
     schema_unit: K.JointPositionUnit.ValueType, value_unit: K.JointPositionUnit.ValueType
 ) -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_positions=K.JointPositionsSchema(
                 unit=schema_unit,
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -45,13 +45,14 @@ def test_serialize_joint_positions(
 def test_serialize_joint_velocities(
     schema_unit: K.JointVelocityUnit.ValueType, value_unit: K.JointVelocityUnit.ValueType
 ) -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_velocities=K.JointVelocitiesSchema(
                 unit=schema_unit,
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -75,13 +76,14 @@ def test_serialize_joint_velocities(
 def test_serialize_joint_torques(
     schema_unit: K.JointTorqueUnit.ValueType, value_unit: K.JointTorqueUnit.ValueType
 ) -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_torques=K.JointTorquesSchema(
                 unit=schema_unit,
                 joint_names=["joint_1", "joint_2", "joint_3"],
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -101,7 +103,7 @@ def test_serialize_joint_torques(
 
 
 def test_serialize_joint_commands() -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             joint_commands=K.JointCommandsSchema(
                 joint_names=["joint_1", "joint_2", "joint_3"],
@@ -109,7 +111,8 @@ def test_serialize_joint_commands() -> None:
                 velocity_unit=K.JointVelocityUnit.RADIANS_PER_SECOND,
                 position_unit=K.JointPositionUnit.RADIANS,
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -160,14 +163,15 @@ def test_serialize_joint_commands() -> None:
 
 
 def test_serialize_camera_frame() -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             camera_frame=K.CameraFrameSchema(
                 width=32,
                 height=64,
                 channels=3,
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -184,14 +188,15 @@ def test_serialize_camera_frame() -> None:
 
 
 def test_serialize_audio_frame() -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             audio_frame=K.AudioFrameSchema(
                 channels=2,
                 sample_rate=44100,
                 dtype=K.DType.UINT16,
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -208,14 +213,15 @@ def test_serialize_audio_frame() -> None:
 
 
 def test_serialize_imu() -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             imu=K.ImuSchema(
                 use_accelerometer=True,
                 use_gyroscope=True,
                 use_magnetometer=True,
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(
@@ -233,7 +239,10 @@ def test_serialize_imu() -> None:
 
 
 def test_serialize_timestamp() -> None:
-    serializer = JsonSerializer(schema=K.ValueSchema(timestamp=K.TimestampSchema()))
+    serializer = get_serializer(
+        schema=K.ValueSchema(timestamp=K.TimestampSchema()),
+        serializer_type="json",
+    )
 
     value = K.Value(
         timestamp=K.TimestampValue(
@@ -251,7 +260,10 @@ def test_serialize_timestamp() -> None:
 
 
 def test_serialize_vector_command() -> None:
-    serializer = JsonSerializer(schema=K.ValueSchema(vector_command=K.VectorCommandSchema(dimensions=3)))
+    serializer = get_serializer(
+        schema=K.ValueSchema(vector_command=K.VectorCommandSchema(dimensions=3)),
+        serializer_type="json",
+    )
 
     value = K.Value(vector_command=K.VectorCommandValue(values=[1.0, 2.0, 3.0]))
     mapping = serializer.serialize(value)
@@ -262,13 +274,14 @@ def test_serialize_vector_command() -> None:
 
 
 def test_serialize_state_tensor() -> None:
-    serializer = JsonSerializer(
+    serializer = get_serializer(
         schema=K.ValueSchema(
             state_tensor=K.StateTensorSchema(
                 shape=[2, 2],
                 dtype=K.DType.INT8,
             )
-        )
+        ),
+        serializer_type="json",
     )
 
     value = K.Value(state_tensor=K.StateTensorValue(data=bytes([1, 2, 3, 4])))

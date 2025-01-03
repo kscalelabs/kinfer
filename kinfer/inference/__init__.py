@@ -1,1 +1,2 @@
-from .python import *
+from .base import KModel
+from .python import ONNXModel
