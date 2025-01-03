@@ -3,7 +3,7 @@
 import base64
 from typing import Any, Mapping, Sequence
 
-from kinfer import proto as P
+from kinfer import proto as K
 from kinfer.serialize.base import (
     AudioFrameSerializer,
     CameraFrameSerializer,
@@ -42,8 +42,8 @@ JsonValue = Mapping[
 class JsonJointPositionsSerializer(JointPositionsSerializer[JsonValue]):
     def serialize_joint_positions(
         self: "JsonJointPositionsSerializer",
-        schema: P.JointPositionsSchema,
-        value: P.JointPositionsValue,
+        schema: K.JointPositionsSchema,
+        value: K.JointPositionsValue,
     ) -> dict[str, list[float]]:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
@@ -56,9 +56,9 @@ class JsonJointPositionsSerializer(JointPositionsSerializer[JsonValue]):
 
     def deserialize_joint_positions(
         self: "JsonJointPositionsSerializer",
-        schema: P.JointPositionsSchema,
+        schema: K.JointPositionsSchema,
         value: JsonValue,
-    ) -> P.JointPositionsValue:
+    ) -> K.JointPositionsValue:
         if "positions" not in value:
             raise ValueError("Key 'positions' not found in value")
         positions = value["positions"]
@@ -68,9 +68,9 @@ class JsonJointPositionsSerializer(JointPositionsSerializer[JsonValue]):
             raise ValueError(
                 f"Shape of positions must match number of joint names: {len(positions)} != {len(schema.joint_names)}"
             )
-        return P.JointPositionsValue(
+        return K.JointPositionsValue(
             values=[
-                P.JointPositionValue(joint_name=name, value=as_float(positions[i]), unit=schema.unit)
+                K.JointPositionValue(joint_name=name, value=as_float(positions[i]), unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
@@ -79,8 +79,8 @@ class JsonJointPositionsSerializer(JointPositionsSerializer[JsonValue]):
 class JsonJointVelocitiesSerializer(JointVelocitiesSerializer[JsonValue]):
     def serialize_joint_velocities(
         self: "JsonJointVelocitiesSerializer",
-        schema: P.JointVelocitiesSchema,
-        value: P.JointVelocitiesValue,
+        schema: K.JointVelocitiesSchema,
+        value: K.JointVelocitiesValue,
     ) -> dict[str, list[float]]:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
@@ -93,9 +93,9 @@ class JsonJointVelocitiesSerializer(JointVelocitiesSerializer[JsonValue]):
 
     def deserialize_joint_velocities(
         self: "JsonJointVelocitiesSerializer",
-        schema: P.JointVelocitiesSchema,
+        schema: K.JointVelocitiesSchema,
         value: JsonValue,
-    ) -> P.JointVelocitiesValue:
+    ) -> K.JointVelocitiesValue:
         if "velocities" not in value:
             raise ValueError("Key 'velocities' not found in value")
         velocities = value["velocities"]
@@ -105,9 +105,9 @@ class JsonJointVelocitiesSerializer(JointVelocitiesSerializer[JsonValue]):
             raise ValueError(
                 f"Shape of velocities must match number of joint names: {len(velocities)} != {len(schema.joint_names)}"
             )
-        return P.JointVelocitiesValue(
+        return K.JointVelocitiesValue(
             values=[
-                P.JointVelocityValue(joint_name=name, value=as_float(velocities[i]), unit=schema.unit)
+                K.JointVelocityValue(joint_name=name, value=as_float(velocities[i]), unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
@@ -116,8 +116,8 @@ class JsonJointVelocitiesSerializer(JointVelocitiesSerializer[JsonValue]):
 class JsonJointTorquesSerializer(JointTorquesSerializer[JsonValue]):
     def serialize_joint_torques(
         self: "JsonJointTorquesSerializer",
-        schema: P.JointTorquesSchema,
-        value: P.JointTorquesValue,
+        schema: K.JointTorquesSchema,
+        value: K.JointTorquesValue,
     ) -> dict[str, list[float]]:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
@@ -129,9 +129,9 @@ class JsonJointTorquesSerializer(JointTorquesSerializer[JsonValue]):
 
     def deserialize_joint_torques(
         self: "JsonJointTorquesSerializer",
-        schema: P.JointTorquesSchema,
+        schema: K.JointTorquesSchema,
         value: JsonValue,
-    ) -> P.JointTorquesValue:
+    ) -> K.JointTorquesValue:
         if "torques" not in value:
             raise ValueError("Key 'torques' not found in value")
         torques = value["torques"]
@@ -141,9 +141,9 @@ class JsonJointTorquesSerializer(JointTorquesSerializer[JsonValue]):
             raise ValueError(
                 f"Shape of torques must match number of joint names: {len(torques)} != {len(schema.joint_names)}"
             )
-        return P.JointTorquesValue(
+        return K.JointTorquesValue(
             values=[
-                P.JointTorqueValue(joint_name=name, value=as_float(torques[i]), unit=schema.unit)
+                K.JointTorqueValue(joint_name=name, value=as_float(torques[i]), unit=schema.unit)
                 for i, name in enumerate(schema.joint_names)
             ]
         )
@@ -152,8 +152,8 @@ class JsonJointTorquesSerializer(JointTorquesSerializer[JsonValue]):
 class JsonJointCommandsSerializer(JointCommandsSerializer[JsonValue]):
     def _convert_value_to_array(
         self: "JsonJointCommandsSerializer",
-        value: P.JointCommandValue,
-        schema: P.JointCommandsSchema,
+        value: K.JointCommandValue,
+        schema: K.JointCommandsSchema,
     ) -> list[float]:
         return [
             convert_torque(value.torque, value.torque_unit, schema.torque_unit),
@@ -166,14 +166,14 @@ class JsonJointCommandsSerializer(JointCommandsSerializer[JsonValue]):
     def _convert_array_to_value(
         self: "JsonJointCommandsSerializer",
         values: Any,  # noqa: ANN401
-        schema: P.JointCommandsSchema,
+        schema: K.JointCommandsSchema,
         name: str,
-    ) -> P.JointCommandValue:
+    ) -> K.JointCommandValue:
         if not isinstance(values, list):
             raise ValueError("Value must be a list")
         if len(values) != 5:
             raise ValueError(f"Shape of command must match number of joint commands: {len(values)} != 5")
-        return P.JointCommandValue(
+        return K.JointCommandValue(
             joint_name=name,
             torque=float(values[0]),
             velocity=float(values[1]),
@@ -187,8 +187,8 @@ class JsonJointCommandsSerializer(JointCommandsSerializer[JsonValue]):
 
     def serialize_joint_commands(
         self: "JsonJointCommandsSerializer",
-        schema: P.JointCommandsSchema,
-        value: P.JointCommandsValue,
+        schema: K.JointCommandsSchema,
+        value: K.JointCommandsValue,
     ) -> dict[str, dict[str, list[float]]]:
         value_map = {v.joint_name: v for v in value.values}
         check_names_match("schema", schema.joint_names, "value", list(value_map.keys()))
@@ -198,16 +198,16 @@ class JsonJointCommandsSerializer(JointCommandsSerializer[JsonValue]):
 
     def deserialize_joint_commands(
         self: "JsonJointCommandsSerializer",
-        schema: P.JointCommandsSchema,
+        schema: K.JointCommandsSchema,
         value: JsonValue,
-    ) -> P.JointCommandsValue:
+    ) -> K.JointCommandsValue:
         if "commands" not in value:
             raise ValueError("Key 'commands' not found in value")
         commands = value["commands"]
         if not isinstance(commands, dict):
             raise ValueError("Key 'commands' must be a dictionary")
         check_names_match("schema", schema.joint_names, "value", list(commands.keys()))
-        return P.JointCommandsValue(
+        return K.JointCommandsValue(
             values=[self._convert_array_to_value(commands[name], schema, name) for name in schema.joint_names]
         )
 
@@ -215,50 +215,50 @@ class JsonJointCommandsSerializer(JointCommandsSerializer[JsonValue]):
 class JsonCameraFrameSerializer(CameraFrameSerializer[JsonValue]):
     def serialize_camera_frame(
         self: "JsonCameraFrameSerializer",
-        schema: P.CameraFrameSchema,
-        value: P.CameraFrameValue,
+        schema: K.CameraFrameSchema,
+        value: K.CameraFrameValue,
     ) -> dict[str, str]:
         return {"data": base64.b64encode(value.data).decode("utf-8")}
 
     def deserialize_camera_frame(
         self: "JsonCameraFrameSerializer",
-        schema: P.CameraFrameSchema,
+        schema: K.CameraFrameSchema,
         value: JsonValue,
-    ) -> P.CameraFrameValue:
+    ) -> K.CameraFrameValue:
         if "data" not in value:
             raise ValueError("Key 'data' not found in value")
         data = value["data"]
         if not isinstance(data, str):
             raise ValueError("Key 'data' must be a string")
-        return P.CameraFrameValue(data=base64.b64decode(data))
+        return K.CameraFrameValue(data=base64.b64decode(data))
 
 
 class JsonAudioFrameSerializer(AudioFrameSerializer[JsonValue]):
     def serialize_audio_frame(
         self: "JsonAudioFrameSerializer",
-        schema: P.AudioFrameSchema,
-        value: P.AudioFrameValue,
+        schema: K.AudioFrameSchema,
+        value: K.AudioFrameValue,
     ) -> dict[str, str]:
         return {"data": base64.b64encode(value.data).decode("utf-8")}
 
     def deserialize_audio_frame(
         self: "JsonAudioFrameSerializer",
-        schema: P.AudioFrameSchema,
+        schema: K.AudioFrameSchema,
         value: JsonValue,
-    ) -> P.AudioFrameValue:
+    ) -> K.AudioFrameValue:
         if "data" not in value:
             raise ValueError("Key 'data' not found in value")
         data = value["data"]
         if not isinstance(data, str):
             raise ValueError("Key 'data' must be a string")
-        return P.AudioFrameValue(data=base64.b64decode(data))
+        return K.AudioFrameValue(data=base64.b64decode(data))
 
 
 class JsonImuSerializer(ImuSerializer[JsonValue]):
     def serialize_imu(
         self: "JsonImuSerializer",
-        schema: P.ImuSchema,
-        value: P.ImuValue,
+        schema: K.ImuSchema,
+        value: K.ImuValue,
     ) -> dict[str, list[float]]:
         data: dict[str, list[float]] = {}
         if schema.use_accelerometer:
@@ -283,10 +283,10 @@ class JsonImuSerializer(ImuSerializer[JsonValue]):
 
     def deserialize_imu(
         self: "JsonImuSerializer",
-        schema: P.ImuSchema,
+        schema: K.ImuSchema,
         value: JsonValue,
-    ) -> P.ImuValue:
-        imu_value = P.ImuValue()
+    ) -> K.ImuValue:
+        imu_value = K.ImuValue()
         if schema.use_accelerometer:
             if not isinstance(linear_acceleration := value["linear_acceleration"], list):
                 raise ValueError("Key 'linear_acceleration' must be a list")
@@ -314,38 +314,38 @@ class JsonImuSerializer(ImuSerializer[JsonValue]):
 class JsonTimestampSerializer(TimestampSerializer[JsonValue]):
     def serialize_timestamp(
         self: "JsonTimestampSerializer",
-        schema: P.TimestampSchema,
-        value: P.TimestampValue,
+        schema: K.TimestampSchema,
+        value: K.TimestampValue,
     ) -> dict[str, int]:
         return {"seconds": value.seconds, "nanos": value.nanos}
 
     def deserialize_timestamp(
         self: "JsonTimestampSerializer",
-        schema: P.TimestampSchema,
+        schema: K.TimestampSchema,
         value: JsonValue,
-    ) -> P.TimestampValue:
+    ) -> K.TimestampValue:
         if "seconds" not in value or "nanos" not in value:
             raise ValueError("Key 'seconds' or 'nanos' not found in value")
         seconds = value["seconds"]
         nanos = value["nanos"]
         if not isinstance(seconds, int) or not isinstance(nanos, int):
             raise ValueError("Key 'seconds' and 'nanos' must be integers")
-        return P.TimestampValue(seconds=seconds, nanos=nanos)
+        return K.TimestampValue(seconds=seconds, nanos=nanos)
 
 
 class JsonVectorCommandSerializer(VectorCommandSerializer[JsonValue]):
     def serialize_vector_command(
         self: "JsonVectorCommandSerializer",
-        schema: P.VectorCommandSchema,
-        value: P.VectorCommandValue,
+        schema: K.VectorCommandSchema,
+        value: K.VectorCommandValue,
     ) -> dict[str, list[float]]:
         return {"values": list(value.values)}
 
     def deserialize_vector_command(
         self: "JsonVectorCommandSerializer",
-        schema: P.VectorCommandSchema,
+        schema: K.VectorCommandSchema,
         value: JsonValue,
-    ) -> P.VectorCommandValue:
+    ) -> K.VectorCommandValue:
         if "values" not in value:
             raise ValueError("Key 'values' not found in value")
         values = value["values"]
@@ -353,28 +353,28 @@ class JsonVectorCommandSerializer(VectorCommandSerializer[JsonValue]):
             raise ValueError("Key 'values' must be a list")
         if len(values) != schema.dimensions:
             raise ValueError(f"Length of list must match number of dimensions: {len(values)} != {schema.dimensions}")
-        return P.VectorCommandValue(values=[as_float(v) for v in values])
+        return K.VectorCommandValue(values=[as_float(v) for v in values])
 
 
 class JsonStateTensorSerializer(StateTensorSerializer[JsonValue]):
     def serialize_state_tensor(
         self: "JsonStateTensorSerializer",
-        schema: P.StateTensorSchema,
-        value: P.StateTensorValue,
+        schema: K.StateTensorSchema,
+        value: K.StateTensorValue,
     ) -> dict[str, str]:
         return {"data": base64.b64encode(value.data).decode("utf-8")}
 
     def deserialize_state_tensor(
         self: "JsonStateTensorSerializer",
-        schema: P.StateTensorSchema,
+        schema: K.StateTensorSchema,
         value: JsonValue,
-    ) -> P.StateTensorValue:
+    ) -> K.StateTensorValue:
         if "data" not in value:
             raise ValueError("Key 'data' not found in value")
         data = value["data"]
         if not isinstance(data, str):
             raise ValueError("Key 'data' must be a string")
-        return P.StateTensorValue(data=base64.b64decode(data))
+        return K.StateTensorValue(data=base64.b64decode(data))
 
 
 class JsonSerializer(
@@ -390,10 +390,10 @@ class JsonSerializer(
     JsonStateTensorSerializer,
     Serializer[JsonValue],
 ):
-    def __init__(self: "JsonSerializer", schema: P.ValueSchema) -> None:
+    def __init__(self: "JsonSerializer", schema: K.ValueSchema) -> None:
         Serializer.__init__(self, schema=schema)
 
 
 class JsonMultiSerializer(MultiSerializer[JsonValue]):
-    def __init__(self: "JsonMultiSerializer", schema: P.IOSchema) -> None:
+    def __init__(self: "JsonMultiSerializer", schema: K.IOSchema) -> None:
         super().__init__([JsonSerializer(schema=s) for s in schema.values])

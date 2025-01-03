@@ -6,89 +6,89 @@ import onnx
 import pytest
 import torch
 
-from kinfer import proto as P
+from kinfer import proto as K
 from kinfer.export.pytorch import KINFER_METADATA_KEY, export_model
 
 
 @pytest.fixture
-def complex_schema() -> P.ModelSchema:
+def complex_schema() -> K.ModelSchema:
     """Create a complex model schema for testing."""
-    return P.ModelSchema(
-        input_schema=P.IOSchema(
+    return K.ModelSchema(
+        input_schema=K.IOSchema(
             values=[
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="joint_positions",
-                    joint_positions=P.JointPositionsSchema(
-                        unit=P.JointPositionUnit.DEGREES,
+                    joint_positions=K.JointPositionsSchema(
+                        unit=K.JointPositionUnit.DEGREES,
                         joint_names=["joint1", "joint2", "joint3"],
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="joint_velocities",
-                    joint_velocities=P.JointVelocitiesSchema(
-                        unit=P.JointVelocityUnit.DEGREES_PER_SECOND,
+                    joint_velocities=K.JointVelocitiesSchema(
+                        unit=K.JointVelocityUnit.DEGREES_PER_SECOND,
                         joint_names=["joint1", "joint2", "joint3"],
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="joint_torques",
-                    joint_torques=P.JointTorquesSchema(
-                        unit=P.JointTorqueUnit.NEWTON_METERS,
+                    joint_torques=K.JointTorquesSchema(
+                        unit=K.JointTorqueUnit.NEWTON_METERS,
                         joint_names=["joint1", "joint2", "joint3"],
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="camera_frame",
-                    camera_frame=P.CameraFrameSchema(
+                    camera_frame=K.CameraFrameSchema(
                         width=64,
                         height=64,
                         channels=3,
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="audio_frame",
-                    audio_frame=P.AudioFrameSchema(
+                    audio_frame=K.AudioFrameSchema(
                         channels=1,
                         sample_rate=16000,
-                        dtype=P.DType.FP32,
+                        dtype=K.DType.FP32,
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="imu",
-                    imu=P.ImuSchema(
+                    imu=K.ImuSchema(
                         use_accelerometer=True,
                         use_gyroscope=True,
                         use_magnetometer=True,
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="timestamp",
-                    timestamp=P.TimestampSchema(),
+                    timestamp=K.TimestampSchema(),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="vector_command",
-                    vector_command=P.VectorCommandSchema(
+                    vector_command=K.VectorCommandSchema(
                         dimensions=3,
                     ),
                 ),
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="state_tensor",
-                    state_tensor=P.StateTensorSchema(
+                    state_tensor=K.StateTensorSchema(
                         shape=[1, 10],
-                        dtype=P.DType.FP32,
+                        dtype=K.DType.FP32,
                     ),
                 ),
             ],
         ),
-        output_schema=P.IOSchema(
+        output_schema=K.IOSchema(
             values=[
-                P.ValueSchema(
+                K.ValueSchema(
                     value_name="joint_commands",
-                    joint_commands=P.JointCommandsSchema(
+                    joint_commands=K.JointCommandsSchema(
                         joint_names=["joint1", "joint2", "joint3"],
-                        torque_unit=P.JointTorqueUnit.NEWTON_METERS,
-                        velocity_unit=P.JointVelocityUnit.RADIANS_PER_SECOND,
-                        position_unit=P.JointPositionUnit.RADIANS,
+                        torque_unit=K.JointTorqueUnit.NEWTON_METERS,
+                        velocity_unit=K.JointVelocityUnit.RADIANS_PER_SECOND,
+                        position_unit=K.JointPositionUnit.RADIANS,
                     ),
                 ),
             ],
@@ -190,7 +190,7 @@ class DummyModel(torch.nn.Module):
         return output.reshape(3, 5)  # [3, 5] for 3 joints × (pos, vel, torque, kp, kd)
 
 
-def test_schema_persistence(tmp_path: Path, complex_schema: P.ModelSchema) -> None:
+def test_schema_persistence(tmp_path: Path, complex_schema: K.ModelSchema) -> None:
     """Test that schema is correctly persisted in model metadata."""
     model = DummyModel()
     jit_model = torch.jit.script(model)

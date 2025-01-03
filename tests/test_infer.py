@@ -8,7 +8,7 @@ import onnx
 import pytest
 import torch
 
-from kinfer import proto as P
+from kinfer import proto as K
 from kinfer.export.pytorch import export_model
 from kinfer.inference.python import ONNXModel
 
@@ -50,25 +50,25 @@ def model_path(tmp_path: Path) -> str:
     save_path = str(tmp_path / "test_model.onnx")
     exported_model = export_model(
         model=jit_model,
-        schema=P.ModelSchema(
-            input_schema=P.IOSchema(
+        schema=K.ModelSchema(
+            input_schema=K.IOSchema(
                 values=[
-                    P.ValueSchema(
+                    K.ValueSchema(
                         value_name="x",
-                        state_tensor=P.StateTensorSchema(
+                        state_tensor=K.StateTensorSchema(
                             shape=[1, config.in_features],
-                            dtype=P.DType.FP32,
+                            dtype=K.DType.FP32,
                         ),
                     ),
                 ],
             ),
-            output_schema=P.IOSchema(
+            output_schema=K.IOSchema(
                 values=[
-                    P.ValueSchema(
+                    K.ValueSchema(
                         value_name="output",
-                        state_tensor=P.StateTensorSchema(
+                        state_tensor=K.StateTensorSchema(
                             shape=[1, 1],
-                            dtype=P.DType.FP32,
+                            dtype=K.DType.FP32,
                         ),
                     ),
                 ],
@@ -90,12 +90,12 @@ def test_model_inference(model_path: str) -> None:
     """Test model inference with different input formats."""
     model = ONNXModel(model_path)
 
-    inputs = P.IO(
+    inputs = K.IO(
         values=[
-            P.Value(
-                state_tensor=P.StateTensorValue(data=np.random.randn(1, 10).astype(np.float32).tobytes()),
+            K.Value(
+                state_tensor=K.StateTensorValue(data=np.random.randn(1, 10).astype(np.float32).tobytes()),
             ),
         ],
     )
     outputs = model(inputs)
-    assert isinstance(outputs, P.IO)
+    assert isinstance(outputs, K.IO)

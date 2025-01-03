@@ -1,68 +1,68 @@
 """Tests the schema serializer."""
 
-from kinfer import proto as P
+from kinfer import proto as K
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
 from kinfer.serialize.schema import get_dummy_io
 
 
 def test_serialize_schema() -> None:
-    input_schema = P.IOSchema(
+    input_schema = K.IOSchema(
         values=[
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_1",
-                joint_positions=P.JointPositionsSchema(
-                    unit=P.JointPositionUnit.DEGREES,
+                joint_positions=K.JointPositionsSchema(
+                    unit=K.JointPositionUnit.DEGREES,
                     joint_names=["joint_1", "joint_2", "joint_3"],
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_2",
-                joint_velocities=P.JointVelocitiesSchema(
-                    unit=P.JointVelocityUnit.DEGREES_PER_SECOND,
+                joint_velocities=K.JointVelocitiesSchema(
+                    unit=K.JointVelocityUnit.DEGREES_PER_SECOND,
                     joint_names=["joint_1", "joint_2", "joint_3"],
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_3",
-                joint_torques=P.JointTorquesSchema(
-                    unit=P.JointTorqueUnit.NEWTON_METERS,
+                joint_torques=K.JointTorquesSchema(
+                    unit=K.JointTorqueUnit.NEWTON_METERS,
                     joint_names=["joint_1", "joint_2", "joint_3"],
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_4",
-                camera_frame=P.CameraFrameSchema(
+                camera_frame=K.CameraFrameSchema(
                     width=1920,
                     height=1080,
                     channels=3,
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_5",
-                audio_frame=P.AudioFrameSchema(
+                audio_frame=K.AudioFrameSchema(
                     channels=2,
                     sample_rate=44100,
-                    dtype=P.DType.UINT8,
+                    dtype=K.DType.UINT8,
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_6",
-                imu=P.ImuSchema(
+                imu=K.ImuSchema(
                     use_accelerometer=True,
                     use_gyroscope=True,
                     use_magnetometer=True,
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_7",
-                timestamp=P.TimestampSchema(
+                timestamp=K.TimestampSchema(
                     start_seconds=1728000000,
                     start_nanos=0,
                 ),
             ),
-            P.ValueSchema(
+            K.ValueSchema(
                 value_name="input_8",
-                vector_command=P.VectorCommandSchema(
+                vector_command=K.VectorCommandSchema(
                     dimensions=3,
                 ),
             ),

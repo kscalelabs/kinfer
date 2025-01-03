@@ -10,7 +10,7 @@ import onnxruntime as ort
 import torch
 from torch import Tensor
 
-from kinfer import proto as P
+from kinfer import proto as K
 from kinfer.serialize.pytorch import PyTorchMultiSerializer
 from kinfer.serialize.schema import get_dummy_io
 from kinfer.serialize.utils import check_names_match
@@ -18,7 +18,7 @@ from kinfer.serialize.utils import check_names_match
 KINFER_METADATA_KEY = "kinfer_metadata"
 
 
-def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: P.ModelSchema) -> onnx.ModelProto:
+def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: K.ModelSchema) -> onnx.ModelProto:
     """Add metadata to ONNX model.
 
     Args:
@@ -37,7 +37,7 @@ def _add_metadata_to_onnx(model_proto: onnx.ModelProto, schema: P.ModelSchema) -
     return model_proto
 
 
-def export_model(model: torch.jit.ScriptModule, schema: P.ModelSchema) -> onnx.ModelProto:
+def export_model(model: torch.jit.ScriptModule, schema: K.ModelSchema) -> onnx.ModelProto:
     """Export PyTorch model to ONNX format with metadata.
 
     Args:

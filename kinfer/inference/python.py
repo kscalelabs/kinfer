@@ -6,17 +6,18 @@ from pathlib import Path
 import onnx
 import onnxruntime as ort
 
-from kinfer import proto as P
+from kinfer import proto as K
 from kinfer.export.pytorch import KINFER_METADATA_KEY
+from kinfer.inference.base import KModel
 from kinfer.serialize.numpy import NumpyMultiSerializer
 
 
-def _read_schema(model: onnx.ModelProto) -> P.ModelSchema:
+def _read_schema(model: onnx.ModelProto) -> K.ModelSchema:
     for prop in model.metadata_props:
         if prop.key == KINFER_METADATA_KEY:
             try:
                 schema_bytes = base64.b64decode(prop.value)
-                schema = P.ModelSchema()
+                schema = K.ModelSchema()
                 schema.ParseFromString(schema_bytes)
                 return schema
             except Exception as e:
@@ -27,7 +28,7 @@ def _read_schema(model: onnx.ModelProto) -> P.ModelSchema:
     raise ValueError(f"{KINFER_METADATA_KEY} not found in model metadata")
 
 
-class ONNXModel:
+class ONNXModel(KModel):
     """Wrapper for ONNX model inference."""
 
     def __init__(self: "ONNXModel", model_path: str | Path) -> None:
@@ -47,7 +48,10 @@ class ONNXModel:
         self._input_serializer = NumpyMultiSerializer(self._schema.input_schema)
         self._output_serializer = NumpyMultiSerializer(self._schema.output_schema)
 
-    def __call__(self: "ONNXModel", inputs: P.IO) -> P.IO:
+    def get_schema(self) -> K.ModelSchema:
+        return self._schema
+
+    def __call__(self, inputs: K.IO) -> K.IO:
         """Run inference on input data.
 
         Args:
@@ -60,33 +64,3 @@ class ONNXModel:
         outputs_np = self.session.run(None, inputs_np)
         outputs = self._output_serializer.deserialize_io(outputs_np)
         return outputs
-
-    @property
-    def input_schema(self: "ONNXModel") -> P.IOSchema:
-        """Get the input schema."""
-        return self._schema.input_schema
-
-    @property
-    def output_schema(self: "ONNXModel") -> P.IOSchema:
-        """Get the output schema."""
-        return self._schema.output_schema
-
-    @property
-    def schema_input_keys(self: "ONNXModel") -> list[str]:
-        """Get all value names from input schemas.
-
-        Returns:
-            List of value names from input schema.
-        """
-        input_names = [value.value_name for value in self._schema.input_schema.values]
-        return input_names
-
-    @property
-    def schema_output_keys(self: "ONNXModel") -> list[str]:
-        """Get all value names from output schemas.
-
-        Returns:
-            List of value names from output schema.
-        """
-        output_names = [value.value_name for value in self._schema.output_schema.values]
-        return output_names
