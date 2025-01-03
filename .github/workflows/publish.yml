@@ -21,9 +21,10 @@ concurrency:
 jobs:
   build-wheels:
     name: Build ${{ matrix.arch }} wheels
-    timeout-minutes: 360
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest
@@ -68,20 +69,30 @@ jobs:
         with:
           platforms: all
 
+      - name: Cache pip and cibuildwheel
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/cibuildwheel
+          key: ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-
+
       - name: Build package
         env:
           CIBW_SKIP: ${{ matrix.skip }}
           CIBW_ARCHS_LINUX: ${{ matrix.arch }}
           CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-          CIBW_BEFORE_ALL_LINUX: |
-            yum install -y libudev-devel pkgconfig python3-devel python3-pip python3-wheel
-          CIBW_BEFORE_BUILD: |
+          CIBW_BUILD_VERBOSITY: 1
+          CARGO_NET_RETRY: 2
+          RUST_BACKTRACE: 1
+          RUSTC_WRAPPER: sccache
+          CIBW_BEFORE_ALL_LINUX: >
+            yum install -y libudev-devel pkgconfig python3-devel python3-pip python3-wheel &&
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            export PATH="$HOME/.cargo/bin:$PATH"
-            pip install setuptools-rust
-          CIBW_ENVIRONMENT: |
-            PATH="/usr/local/bin:$HOME/.cargo/bin:$PATH"
-            CARGO_NET_GIT_FETCH_WITH_CLI=true
+          CIBW_BEFORE_BUILD: pip install setuptools-rust
+          CIBW_ENVIRONMENT: PATH="/usr/local/bin:$HOME/.cargo/bin:$PATH" CARGO_NET_GIT_FETCH_WITH_CLI=true
         run: |
           cibuildwheel --output-dir dist
 
@@ -172,21 +183,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libudev-dev pkg-config
 
-      - name: Cache Cargo registry
+      - name: Cache Cargo dependencies
         uses: actions/cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-registry
-
-      - name: Cache Cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index
-          restore-keys: |
-            ${{ runner.os }}-cargo-index
+            ${{ runner.os }}-cargo-
 
       - name: Publish Kinfer Rust package to crates.io
         if: ${{ inputs.publish_kinfer_rust }}
