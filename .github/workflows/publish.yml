@@ -79,6 +79,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-
 
+      - name: Install sccache
+        run: |
+          cargo install sccache
+
       - name: Build package
         env:
           CIBW_SKIP: ${{ matrix.skip }}
