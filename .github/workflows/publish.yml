@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build-wheels:
     name: Build ${{ matrix.arch }} wheels
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -75,7 +75,7 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/cibuildwheel
-          key: ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-${{ hashFiles('**/pyproject.toml') }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-${{ hashFiles('**/requirements.txt', '**/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-
 
@@ -92,6 +92,7 @@ jobs:
           CARGO_NET_RETRY: 2
           RUST_BACKTRACE: 1
           RUSTC_WRAPPER: sccache
+          RUST_LOG: sccache=debug
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y libudev-devel pkgconfig python3-devel python3-pip python3-wheel &&
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
