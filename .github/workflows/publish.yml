@@ -69,15 +69,16 @@ jobs:
         with:
           platforms: all
 
-      - name: Cache pip and cibuildwheel
+      - name: Cache pip, cibuildwheel and dist
         uses: actions/cache@v3
         with:
           path: |
             ~/.cache/pip
             ~/.cache/cibuildwheel
-          key: ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-${{ hashFiles('**/requirements.txt', '**/Cargo.toml') }}
+            dist
+          key: ${{ runner.os }}-${{ matrix.arch }}-pip-cibw
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.arch }}-pip-cibw-
+            ${{ runner.os }}-${{ matrix.arch }}-pip-cibw
 
       - name: Install sccache
         run: |
