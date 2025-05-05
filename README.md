@@ -33,4 +33,21 @@ $ export DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/onnxruntime/1.20.1/lib:$DYLD_LIB
 
 Don't use common names for the inputs to your forward pass. E.g. `input`, `output`, `state`, `state_tensor`, `buffer`, etc.
 
-This is because ONNX has internal names for the model and if there's a conflict, the inputs will have a .1, .2, etc. suffix which makes it really hard to figure out what value_name to pass into your kinfer io values. 
+This is because ONNX has internal names for the model and if there's a conflict, the inputs will have a .1, .2, etc. suffix which makes it really hard to figure out what value_name to pass into your kinfer io values.
+
+## Basics
+
+Each `kinfer` model is composed of two static neural network graphs, `init` and `step`. They are then run in the following control loop:
+
+```python
+state = init()
+while True:
+  model_input = {}
+  for name in input_names:
+    model_input[name] = get_model_input(name)
+  model_output, state = step(model_input, state)
+  do_model_output(model_output)
+  sleep_until(next_step_time)
+```
+
+The `kinfer` client implements the functions `get_model_input` and `do_model_output`. `kinfer` provides handshake warnings for certain common keys.
