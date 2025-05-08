@@ -4,6 +4,3 @@
 torch
 onnx
 onnxruntime
-
-# Protocol Buffers
-protobuf
