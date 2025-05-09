@@ -1,6 +1,5 @@
 # requirements.txt
 
 # Machine Learning
-torch
 onnx
 onnxruntime

@@ -41,6 +41,7 @@ module = [
     "onnxruntime.*",
     "onnx.*",
     "torch.*",
+    "tf2onnx.*",
     "setuptools",
     "setuptools_rust",
 ]
