@@ -1,32 +1,54 @@
 """Jax model export utilities."""
 
+import inspect
+import io
 import logging
-from pathlib import Path
-from typing import Callable
 
 import tensorflow as tf
 import tf2onnx
 from equinox.internal._finalise_jaxpr import finalise_fn
 from jax.experimental import jax2tf
+from jaxlib.xla_extension import PjitFunction
+
+from kinfer.export.common import get_shape
 
 logger = logging.getLogger(__name__)
 
 
-def export_onnx(
-    model: Callable,
-    input_shapes: list[tuple[int, ...]],
-    output_dir: str | Path = "export",
+def export_fn(
+    model: PjitFunction,
+    *,
+    num_joints: int | None = None,
+    carry_shape: tuple[int, ...] | None = None,
     opset: int = 13,
-) -> None:
+) -> bytes:
     """Export a JAX function to ONNX."""
+    if not isinstance(model, PjitFunction):
+        raise ValueError("Model must be a PjitFunction")
+
+    params = inspect.signature(model).parameters
+    input_names = list(params.keys())
+
+    # Gets the dummy input tensors for exporting the model.
+    tf_args = []
+    for name in input_names:
+        shape = get_shape(
+            name,
+            num_joints=num_joints,
+            carry_shape=carry_shape,
+        )
+        tf_args.append(tf.TensorSpec(shape, tf.float32))
+
     finalised_fn = finalise_fn(model)
     tf_fn = tf.function(jax2tf.convert(finalised_fn, enable_xla=False))
-    tf_args = [tf.TensorSpec(input_shape, tf.float32) for input_shape in input_shapes]
 
-    logger.info("Exporting model to %s", output_dir)
-    _ = tf2onnx.convert.from_function(
+    model_proto, external_tensor_storage = tf2onnx.convert.from_function(
         tf_fn,
         input_signature=tf_args,
         opset=opset,
-        output_path=output_dir,
+        large_model=True,
     )
+    buffer = io.BytesIO()
+    tf2onnx.utils.save_onnx_zip(buffer, model_proto, external_tensor_storage)
+    buffer.seek(0)
+    return buffer.read()

@@ -1,4 +1,4 @@
-"""Tests for model inference functionality."""
+"""Tests for model inference functionality on a PyTorch model."""
 
 import torch
 from torch import Tensor
