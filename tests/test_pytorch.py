@@ -1,6 +1,9 @@
 """Tests for model inference functionality on a PyTorch model."""
 
 import logging
+import tarfile
+import tempfile
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -65,7 +68,7 @@ class DummyModelProvider(ModelProviderABC):
         logger.info("Taking action: %s", action)
 
 
-def test_export() -> None:
+def test_export(tmpdir: Path) -> None:
     joint_names = ["left_arm", "right_arm", "left_leg", "right_leg"]
 
     init_fn_onnx = export_fn(
@@ -85,9 +88,18 @@ def test_export() -> None:
         carry_shape=(10,),
     )
 
-    model_provider = DummyModelProvider()
+    # Saves the kinfer model to a file.
+    kinfer_model_path = Path(tmpdir) / "kinfer_model.tar"
+    with open(kinfer_model_path, "wb") as f:
+        f.write(kinfer_model)
 
-    model_runner = PyModelRunner(kinfer_model, model_provider)
+    # Ensures that we can open the file like a regular tar file.
+    with tarfile.open(kinfer_model_path, "r") as f:
+        assert len(f.getmembers()) == 3
+
+    # Creates a model runner from the kinfer model.
+    model_provider = DummyModelProvider()
+    model_runner = PyModelRunner(str(kinfer_model_path), model_provider)
 
     carry = model_runner.init()
     assert carry.shape == (10,)
@@ -99,4 +111,5 @@ def test_export() -> None:
 
 if __name__ == "__main__":
     # python -m tests.test_pytorch
-    test_export()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_export(Path(tmpdir))
