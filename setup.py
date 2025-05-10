@@ -2,9 +2,7 @@
 #!/usr/bin/env python
 """Setup script for the project."""
 
-import os
 import re
-import shutil
 import subprocess
 from typing import List
 
@@ -50,19 +48,7 @@ requirements_jax = [
 
 class RustBuildExt(build_ext):
     def run(self) -> None:
-        # Generate the stub file
         subprocess.run(["cargo", "run", "--bin", "stub_gen"], check=True)
-
-        # Move the generated stub file to parent directory
-        src_file = "kinfer/rust_bindings/rust_bindings.pyi"
-        dst_file = "kinfer/rust_bindings.pyi"
-        if os.path.exists(src_file) and not os.path.exists(dst_file):
-            shutil.move(src_file, dst_file)
-        if not os.path.exists(dst_file):
-            raise RuntimeError(f"Failed to generate {dst_file}")
-        if os.path.exists(src_file):
-            os.remove(src_file)
-
         super().run()
 
 

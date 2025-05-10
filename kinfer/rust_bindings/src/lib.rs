@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use kinfer::model::{ModelInputProvider, ModelRunner};
+use kinfer::model::{ModelProvider, ModelRunner};
 use ndarray::{Array, IxDyn};
 use numpy::ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
 use numpy::{IntoPyArray, PyArrayDyn, PyArrayMethods, PyReadonlyArrayDyn};
@@ -20,55 +20,62 @@ fn get_version() -> String {
 
 #[pyclass(subclass)]
 #[gen_stub_pyclass]
-pub struct ModelInputProviderABC;
+pub struct ModelProviderABC;
 
 #[gen_stub_pymethods]
 #[pymethods]
-impl ModelInputProviderABC {
+impl ModelProviderABC {
     #[new]
     fn new() -> Self {
-        ModelInputProviderABC
+        ModelProviderABC
     }
 
-    fn get_joint_angles(&self, _joint_names: Vec<String>) -> PyResult<PyObject> {
+    fn get_joint_angles(&self, _joint_names: Vec<String>) -> PyResult<Py<PyArrayDyn<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_joint_angles",
         ))
     }
 
-    fn get_joint_angular_velocities(&self, _joint_names: Vec<String>) -> PyResult<PyObject> {
+    fn get_joint_angular_velocities(
+        &self,
+        _joint_names: Vec<String>,
+    ) -> PyResult<Py<PyArrayDyn<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_joint_angular_velocities",
         ))
     }
 
-    fn get_projected_gravity(&self) -> PyResult<PyObject> {
+    fn get_projected_gravity(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_projected_gravity",
         ))
     }
 
-    fn get_accelerometer(&self) -> PyResult<PyObject> {
+    fn get_accelerometer(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_accelerometer",
         ))
     }
 
-    fn get_gyroscope(&self) -> PyResult<PyObject> {
+    fn get_gyroscope(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_gyroscope",
         ))
+    }
+
+    fn take_action(&self, _action: Py<PyArrayDyn<f32>>) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("Must override take_action"))
     }
 }
 
 #[gen_stub_pyclass]
 #[pyclass]
 #[derive(Clone)]
-struct PyModelInputProvider {
-    obj: Arc<Py<PyAny>>,
+struct PyModelProvider {
+    obj: Arc<Py<ModelProviderABC>>,
 }
 
-impl PyModelInputProvider {
+impl PyModelProvider {
     async fn call_python_async(
         &self,
         method: &str,
@@ -97,17 +104,16 @@ impl PyModelInputProvider {
     }
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
-impl PyModelInputProvider {
+impl PyModelProvider {
     #[new]
-    fn new(obj: Py<PyAny>) -> Self {
+    fn new(obj: Py<ModelProviderABC>) -> Self {
         Self { obj: Arc::new(obj) }
     }
 }
 
 #[async_trait]
-impl ModelInputProvider for PyModelInputProvider {
+impl ModelProvider for PyModelProvider {
     async fn get_joint_angles(
         &self,
         joint_names: &[String],
@@ -141,6 +147,18 @@ impl ModelInputProvider for PyModelInputProvider {
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
         self.call_python_async("get_gyroscope", vec![]).await
     }
+
+    async fn take_action(
+        &self,
+        action: Array<f32, IxDyn>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let args = Python::with_gil(|py| -> PyResult<Vec<Py<PyAny>>> {
+            let array = numpy::PyArray::from_array(py, &action);
+            Ok(vec![array.into()])
+        })?;
+        self.call_python_async("take_action", args).await?;
+        Ok(())
+    }
 }
 
 #[gen_stub_pyclass]
@@ -154,9 +172,9 @@ struct PyModelRunner {
 #[pymethods]
 impl PyModelRunner {
     #[new]
-    fn new(model_path: String, input_provider: Py<PyAny>) -> PyResult<Self> {
-        let input_provider = Arc::new(PyModelInputProvider {
-            obj: Arc::new(input_provider),
+    fn new(model_path: String, provider: Py<ModelProviderABC>) -> PyResult<Self> {
+        let input_provider = Arc::new(PyModelProvider {
+            obj: Arc::new(provider),
         });
 
         let runner = tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -170,7 +188,7 @@ impl PyModelRunner {
         })
     }
 
-    fn init(&self) -> PyResult<Py<PyAny>> {
+    fn init(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
         let runner = self.runner.clone();
         let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
             runner
@@ -184,13 +202,37 @@ impl PyModelRunner {
             Ok(array.into())
         })
     }
+
+    fn step(
+        &self,
+        carry: Py<PyArrayDyn<f32>>,
+    ) -> PyResult<(Py<PyArrayDyn<f32>>, Py<PyArrayDyn<f32>>)> {
+        let runner = self.runner.clone();
+        let carry_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let carry_array = carry.bind(py);
+            Ok(carry_array.to_owned_array())
+        })?;
+
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            runner
+                .step(carry_array)
+                .await
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+        })?;
+
+        Python::with_gil(|py| {
+            let (output, carry) = result;
+            let output_array = numpy::PyArray::from_array(py, &output);
+            let carry_array = numpy::PyArray::from_array(py, &carry);
+            Ok((output_array.into(), carry_array.into()))
+        })
+    }
 }
 
 #[pymodule]
 fn rust_bindings(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_version, m)?)?;
-    m.add_class::<ModelInputProviderABC>()?;
-    m.add_class::<PyModelInputProvider>()?;
+    m.add_class::<ModelProviderABC>()?;
     m.add_class::<PyModelRunner>()?;
     Ok(())
 }

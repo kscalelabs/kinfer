@@ -17,7 +17,7 @@ struct ModelMetadata {
 }
 
 #[async_trait]
-pub trait ModelInputProvider: Send + Sync {
+pub trait ModelProvider: Send + Sync {
     async fn get_joint_angles(
         &self,
         joint_names: &[String],
@@ -29,19 +29,23 @@ pub trait ModelInputProvider: Send + Sync {
     async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
     async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
+    async fn take_action(
+        &self,
+        action: Array<f32, IxDyn>,
+    ) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 pub struct ModelRunner {
     init_session: Session,
     step_session: Session,
     joint_names: Vec<String>,
-    input_provider: Arc<dyn ModelInputProvider>,
+    provider: Arc<dyn ModelProvider>,
 }
 
 impl ModelRunner {
     pub async fn new<P: AsRef<Path>>(
         model_path: P,
-        input_provider: Arc<dyn ModelInputProvider>,
+        input_provider: Arc<dyn ModelProvider>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut file = File::open(model_path).await?;
         let mut buffer = Vec::new();
@@ -91,7 +95,7 @@ impl ModelRunner {
             init_session,
             step_session,
             joint_names: metadata.joint_names,
-            input_provider,
+            provider: input_provider,
         })
     }
 
@@ -199,27 +203,25 @@ impl ModelRunner {
         // Get all required inputs
         inputs.insert(
             "joint_angles".to_string(),
-            self.input_provider
-                .get_joint_angles(&self.joint_names)
-                .await?,
+            self.provider.get_joint_angles(&self.joint_names).await?,
         );
         inputs.insert(
             "joint_angular_velocities".to_string(),
-            self.input_provider
+            self.provider
                 .get_joint_angular_velocities(&self.joint_names)
                 .await?,
         );
         inputs.insert(
             "projected_gravity".to_string(),
-            self.input_provider.get_projected_gravity().await?,
+            self.provider.get_projected_gravity().await?,
         );
         inputs.insert(
             "accelerometer".to_string(),
-            self.input_provider.get_accelerometer().await?,
+            self.provider.get_accelerometer().await?,
         );
         inputs.insert(
             "gyroscope".to_string(),
-            self.input_provider.get_gyroscope().await?,
+            self.provider.get_gyroscope().await?,
         );
         inputs.insert("carry".to_string(), carry);
 
