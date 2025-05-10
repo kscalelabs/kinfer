@@ -7,6 +7,7 @@ __all__ = [
 import io
 import json
 import tarfile
+from pathlib import Path
 
 import onnx
 
@@ -82,3 +83,13 @@ def pack(
 
     buffer.seek(0)
     return buffer.read()
+
+
+def save(model: bytes, path: Path) -> None:
+    with open(path, "wb") as f:
+        f.write(model)
+
+
+def load(path: Path) -> bytes:
+    with open(path, "rb") as f:
+        return f.read()

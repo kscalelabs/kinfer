@@ -1,7 +1,6 @@
 """Jax model export utilities."""
 
 import inspect
-import io
 import logging
 
 import tensorflow as tf
@@ -37,18 +36,15 @@ def export_fn(
             num_joints=num_joints,
             carry_shape=carry_shape,
         )
-        tf_args.append(tf.TensorSpec(shape, tf.float32))
+        tf_args.append(tf.TensorSpec(shape, tf.float32, name=name))
 
     finalised_fn = finalise_fn(model)
     tf_fn = tf.function(jax2tf.convert(finalised_fn, enable_xla=False))
 
-    model_proto, external_tensor_storage = tf2onnx.convert.from_function(
+    model_proto, _ = tf2onnx.convert.from_function(
         tf_fn,
         input_signature=tf_args,
         opset=opset,
-        large_model=True,
+        large_model=False,
     )
-    buffer = io.BytesIO()
-    tf2onnx.utils.save_onnx_zip(buffer, model_proto, external_tensor_storage)
-    buffer.seek(0)
-    return buffer.read()
+    return model_proto.SerializeToString()

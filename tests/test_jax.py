@@ -5,6 +5,7 @@ from jax import numpy as jnp
 
 from kinfer.export.jax import export_fn
 from kinfer.export.serialize import pack
+from kinfer.rust_bindings import get_version
 
 
 @jax.jit
@@ -52,3 +53,10 @@ def test_export() -> None:
         joint_names=joint_names,
         carry_shape=(10,),
     )
+
+    print("Version:", get_version())
+
+
+if __name__ == "__main__":
+    # python -m tests.test_jax
+    test_export()

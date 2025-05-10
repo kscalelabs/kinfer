@@ -32,6 +32,7 @@ requirements_dev = [
     "mypy",
     "pytest",
     "ruff",
+    "types-tensorflow",
 ]
 
 requirements_pytorch = [

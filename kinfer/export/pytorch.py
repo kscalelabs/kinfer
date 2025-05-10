@@ -50,7 +50,8 @@ def export_fn(
         model=model,
         f=buffer,  # type: ignore[arg-type]
         args=tuple(args),
-        input_names=input_names
+        input_names=input_names,
+        external_data=False,
     )
     buffer.seek(0)
     return buffer.read()

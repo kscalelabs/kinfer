@@ -52,3 +52,8 @@ def test_export() -> None:
         joint_names=joint_names,
         carry_shape=(10,),
     )
+
+
+if __name__ == "__main__":
+    # python -m tests.test_pytorch
+    test_export()
