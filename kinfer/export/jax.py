@@ -7,8 +7,8 @@ import logging
 import tensorflow as tf
 import tf2onnx
 from equinox.internal._finalise_jaxpr import finalise_fn
+from jax._src.stages import Wrapped
 from jax.experimental import jax2tf
-from jaxlib.xla_extension import PjitFunction
 
 from kinfer.export.common import get_shape
 
@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 def export_fn(
-    model: PjitFunction,
+    model: Wrapped,
     *,
     num_joints: int | None = None,
     carry_shape: tuple[int, ...] | None = None,
     opset: int = 13,
 ) -> bytes:
     """Export a JAX function to ONNX."""
-    if not isinstance(model, PjitFunction):
-        raise ValueError("Model must be a PjitFunction")
+    if not isinstance(model, Wrapped):
+        raise ValueError("Model must be a Wrapped function")
 
     params = inspect.signature(model).parameters
     input_names = list(params.keys())

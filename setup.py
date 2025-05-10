@@ -43,6 +43,7 @@ requirements_jax = [
     "tf2onnx",
     "jax",
     "equinox",
+    "numpy<2",
 ]
 
 
