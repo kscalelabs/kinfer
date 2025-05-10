@@ -1,10 +1,13 @@
 use async_trait::async_trait;
 
-use kinfer::model::ModelInputProvider;
+use kinfer::model::{ModelInputProvider, ModelRunner};
 use ndarray::{Array, IxDyn};
+use numpy::ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
+use numpy::{IntoPyArray, PyArrayDyn, PyArrayMethods, PyReadonlyArrayDyn};
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use pyo3::{pymodule, types::PyModule, Bound, PyResult, Python};
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyfunction, gen_stub_pymethods};
 use std::sync::Arc;
@@ -58,9 +61,9 @@ impl ModelInputProviderABC {
     }
 }
 
+#[gen_stub_pyclass]
 #[pyclass]
 #[derive(Clone)]
-#[gen_stub_pyclass]
 struct PyModelInputProvider {
     obj: Arc<Py<PyAny>>,
 }
@@ -140,11 +143,55 @@ impl ModelInputProvider for PyModelInputProvider {
     }
 }
 
+#[gen_stub_pyclass]
+#[pyclass]
+#[derive(Clone)]
+struct PyModelRunner {
+    runner: Arc<ModelRunner>,
+}
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl PyModelRunner {
+    #[new]
+    fn new(model_path: String, input_provider: Py<PyAny>) -> PyResult<Self> {
+        let input_provider = Arc::new(PyModelInputProvider {
+            obj: Arc::new(input_provider),
+        });
+
+        let runner = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ModelRunner::new(model_path, input_provider)
+                .await
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+        })?;
+
+        Ok(Self {
+            runner: Arc::new(runner),
+        })
+    }
+
+    fn init(&self) -> PyResult<Py<PyAny>> {
+        let runner = self.runner.clone();
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            runner
+                .init()
+                .await
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+        })?;
+
+        Python::with_gil(|py| {
+            let array = numpy::PyArray::from_array(py, &result);
+            Ok(array.into())
+        })
+    }
+}
+
 #[pymodule]
 fn rust_bindings(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_version, m)?)?;
     m.add_class::<ModelInputProviderABC>()?;
     m.add_class::<PyModelInputProvider>()?;
+    m.add_class::<PyModelRunner>()?;
     Ok(())
 }
 
