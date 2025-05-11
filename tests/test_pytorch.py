@@ -26,7 +26,7 @@ CARRY_SIZE = 10
 
 @torch.jit.script
 def init_fn() -> Tensor:
-    return torch.zeros((CARRY_SIZE,))
+    return torch.zeros((10,))
 
 
 @torch.jit.script
