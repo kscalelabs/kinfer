@@ -47,23 +47,21 @@ def step_fn(
 
 
 def test_export(tmpdir: Path) -> None:
-    joint_names = ["left_arm", "right_arm", "left_leg", "right_leg"]
-
     init_fn_onnx = export_fn(
         model=init_fn,
     )
 
     step_fn_onnx = export_fn(
         model=step_fn,
-        num_joints=len(joint_names),
-        carry_shape=(10,),
+        num_joints=NUM_JOINTS,
+        carry_shape=(CARRY_SIZE,),
     )
 
     kinfer_model = pack(
         init_fn_onnx,
         step_fn_onnx,
-        joint_names=joint_names,
-        carry_shape=(10,),
+        joint_names=JOINT_NAMES,
+        carry_shape=(CARRY_SIZE,),
     )
 
     # Saves the model to disk.
@@ -101,11 +99,11 @@ def test_export(tmpdir: Path) -> None:
     model_runner = PyModelRunner(str(kinfer_path), model_provider)
 
     carry = model_runner.init()
-    assert carry.shape == (10,)
+    assert carry.shape == (CARRY_SIZE,)
     for _ in range(3):
         output, carry = model_runner.step(carry)
         model_runner.take_action(output)
-        assert carry.shape == (10,), f"Carry shape: {carry.shape}"
+        assert carry.shape == (CARRY_SIZE,), f"Carry shape: {carry.shape}"
 
     assert num_actions == 3
 

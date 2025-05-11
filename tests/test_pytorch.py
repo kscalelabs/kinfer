@@ -26,7 +26,7 @@ CARRY_SIZE = 10
 
 @torch.jit.script
 def init_fn() -> Tensor:
-    return torch.zeros((10,))
+    return torch.zeros((CARRY_SIZE,))
 
 
 @torch.jit.script
@@ -51,23 +51,21 @@ def step_fn(
 
 
 def test_export(tmpdir: Path) -> None:
-    joint_names = ["left_arm", "right_arm", "left_leg", "right_leg"]
-
     init_fn_onnx = export_fn(
         model=init_fn,
     )
 
     step_fn_onnx = export_fn(
         model=step_fn,
-        num_joints=len(joint_names),
-        carry_shape=(10,),
+        num_joints=NUM_JOINTS,
+        carry_shape=(CARRY_SIZE,),
     )
 
     kinfer_model = pack(
         init_fn_onnx,
         step_fn_onnx,
-        joint_names=joint_names,
-        carry_shape=(10,),
+        joint_names=JOINT_NAMES,
+        carry_shape=(CARRY_SIZE,),
     )
 
     # Saves the model to disk.
@@ -82,7 +80,7 @@ def test_export(tmpdir: Path) -> None:
         if (fpath := tar.extractfile("metadata.json")) is None:
             raise ValueError("metadata.json not found")
         metadata = Metadata.model_validate_json(fpath.read().decode("utf-8"))
-        assert metadata.joint_names == joint_names
+        assert metadata.joint_names == JOINT_NAMES
 
         # Validates that we can construct a session in Python.
         if (fpath := tar.extractfile("init_fn.onnx")) is None:
@@ -125,11 +123,11 @@ def test_export(tmpdir: Path) -> None:
     model_runner = PyModelRunner(str(kinfer_path), model_provider)
 
     carry = model_runner.init()
-    assert carry.shape == (10,)
+    assert carry.shape == (CARRY_SIZE,)
     for _ in range(3):
         output, carry = model_runner.step(carry)
         model_runner.take_action(output)
-        assert carry.shape == (10,), f"Carry shape: {carry.shape}"
+        assert carry.shape == (CARRY_SIZE,), f"Carry shape: {carry.shape}"
     assert num_actions == 3
 
     # Tests the runtime, which runs in a separate Rust thread.
