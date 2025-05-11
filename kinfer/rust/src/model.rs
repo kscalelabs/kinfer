@@ -16,6 +16,7 @@ use tokio::io::AsyncReadExt;
 #[derive(Debug, Deserialize)]
 struct ModelMetadata {
     joint_names: Vec<String>,
+    num_commands: Option<usize>,
 }
 
 impl ModelMetadata {
@@ -134,7 +135,7 @@ impl ModelRunner {
             .to_vec();
 
         // Validate step_fn inputs and outputs
-        Self::validate_step_fn(&step_session, metadata.joint_names.len(), &carry_shape)?;
+        Self::validate_step_fn(&step_session, &metadata, &carry_shape)?;
 
         Ok(Self {
             init_session,
@@ -146,7 +147,7 @@ impl ModelRunner {
 
     fn validate_step_fn(
         session: &Session,
-        num_joints: usize,
+        metadata: &ModelMetadata,
         carry_shape: &[i64],
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Validate inputs
@@ -158,6 +159,7 @@ impl ModelRunner {
 
             match input.name.as_str() {
                 "joint_angles" | "joint_angular_velocities" => {
+                    let num_joints = metadata.joint_names.len();
                     if *dims != vec![num_joints as i64] {
                         return Err(format!(
                             "Expected shape [{num_joints}] for input `{}`, got {:?}",
@@ -170,6 +172,16 @@ impl ModelRunner {
                     if *dims != vec![3] {
                         return Err(format!(
                             "Expected shape [3] for input `{}`, got {:?}",
+                            input.name, dims
+                        )
+                        .into());
+                    }
+                }
+                "command" => {
+                    let num_commands = metadata.num_commands.ok_or("num_commands is not set")?;
+                    if *dims != vec![num_commands as i64] {
+                        return Err(format!(
+                            "Expected shape [{num_commands}] for input `{}`, got {:?}",
                             input.name, dims
                         )
                         .into());
@@ -197,6 +209,7 @@ impl ModelRunner {
             .output_type
             .tensor_dimensions()
             .ok_or("Missing tensor type")?;
+        let num_joints = metadata.joint_names.len();
         if *output_shape != vec![num_joints as i64] {
             return Err(format!(
                 "Expected output shape [{num_joints}], got {:?}",

@@ -19,6 +19,7 @@ def export_fn(
     model: torch.jit.ScriptFunction,
     *,
     num_joints: int | None = None,
+    num_commands: int | None = None,
     carry_shape: tuple[int, ...] | None = None,
 ) -> ModelProto:
     """Exports a PyTorch function to ONNX.
@@ -26,6 +27,7 @@ def export_fn(
     Args:
         model: The model to export.
         num_joints: The number of joints in the model.
+        num_commands: The number of commands in the model.
         carry_shape: The shape of the carry tensor.
 
     Returns:
@@ -43,6 +45,7 @@ def export_fn(
         shape = get_shape(
             name,
             num_joints=num_joints,
+            num_commands=num_commands,
             carry_shape=carry_shape,
         )
         args.append(torch.zeros(shape))
