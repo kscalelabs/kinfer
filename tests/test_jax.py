@@ -64,8 +64,9 @@ class DummyModelProvider(ModelProviderABC):
     def get_gyroscope(self) -> np.ndarray:
         return np.random.randn(3)
 
-    def take_action(self, action: np.ndarray) -> None:
-        logger.info("Taking action: %s", action)
+    def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
+        assert joint_names == JOINT_NAMES
+        assert action.shape == (NUM_JOINTS,)
 
 
 def test_export(tmpdir: Path) -> None:
@@ -100,7 +101,7 @@ def test_export(tmpdir: Path) -> None:
     assert carry.shape == (10,)
     for _ in range(3):
         output, carry = model_runner.step(carry)
-        assert output.shape == (len(joint_names),), f"Output shape: {output.shape}"
+        model_runner.take_action(output)
         assert carry.shape == (10,), f"Carry shape: {carry.shape}"
 
 

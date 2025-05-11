@@ -22,7 +22,7 @@ class ModelProviderABC:
     def get_gyroscope(self) -> numpy.typing.NDArray[numpy.float32]:
         ...
 
-    def take_action(self, action:numpy.typing.NDArray[numpy.float32]) -> None:
+    def take_action(self, joint_names:typing.Sequence[str], action:numpy.typing.NDArray[numpy.float32]) -> None:
         ...
 
 
@@ -35,6 +35,24 @@ class PyModelRunner:
         ...
 
     def step(self, carry:numpy.typing.NDArray[numpy.float32]) -> tuple[numpy.typing.NDArray[numpy.float32], numpy.typing.NDArray[numpy.float32]]:
+        ...
+
+    def take_action(self, action:numpy.typing.NDArray[numpy.float32]) -> None:
+        ...
+
+
+class PyModelRuntime:
+    def __new__(cls,model_runner:PyModelRunner, dt:int): ...
+    def set_slowdown_factor(self, slowdown_factor:int) -> None:
+        ...
+
+    def set_magnitude_factor(self, magnitude_factor:float) -> None:
+        ...
+
+    def start(self) -> None:
+        ...
+
+    def stop(self) -> None:
         ...
 
 

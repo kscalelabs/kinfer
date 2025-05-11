@@ -10,6 +10,7 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 use tar::Archive;
+use thiserror::Error;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
@@ -24,33 +25,39 @@ impl ModelMetadata {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ModelError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Provider error: {0}")]
+    Provider(String),
+}
+
 #[async_trait]
 pub trait ModelProvider: Send + Sync {
     async fn get_joint_angles(
         &self,
         joint_names: &[String],
-    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
+    ) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_joint_angular_velocities(
         &self,
         joint_names: &[String],
-    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
-    async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
-    async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
-    async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
-    async fn get_carry(
-        &self,
-        carry: Array<f32, IxDyn>,
-    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
+    ) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn take_action(
         &self,
+        joint_names: Vec<String>,
         action: Array<f32, IxDyn>,
-    ) -> Result<(), Box<dyn std::error::Error>>;
+    ) -> Result<(), ModelError>;
 }
 
 pub struct ModelRunner {
     init_session: Session,
     step_session: Session,
-    joint_names: Vec<String>,
+    metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
 }
 
@@ -133,7 +140,7 @@ impl ModelRunner {
         Ok(Self {
             init_session,
             step_session,
-            joint_names: metadata.joint_names,
+            metadata,
             provider: input_provider,
         })
     }
@@ -221,13 +228,6 @@ impl ModelRunner {
         Ok(output_tensor.view().to_owned())
     }
 
-    async fn _copy_carry(
-        &self,
-        carry: Array<f32, IxDyn>,
-    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        Ok(carry)
-    }
-
     pub async fn step(
         &self,
         carry: Array<f32, IxDyn>,
@@ -244,10 +244,12 @@ impl ModelRunner {
         let mut futures = Vec::new();
         for name in &input_names {
             match name.as_str() {
-                "joint_angles" => futures.push(self.provider.get_joint_angles(&self.joint_names)),
+                "joint_angles" => {
+                    futures.push(self.provider.get_joint_angles(&self.metadata.joint_names))
+                }
                 "joint_angular_velocities" => futures.push(
                     self.provider
-                        .get_joint_angular_velocities(&self.joint_names),
+                        .get_joint_angular_velocities(&self.metadata.joint_names),
                 ),
                 "projected_gravity" => futures.push(self.provider.get_projected_gravity()),
                 "accelerometer" => futures.push(self.provider.get_accelerometer()),
@@ -282,5 +284,21 @@ impl ModelRunner {
             output_tensor.view().to_owned(),
             carry_tensor.view().to_owned(),
         ))
+    }
+
+    pub async fn take_action(
+        &self,
+        action: Array<f32, IxDyn>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.provider
+            .take_action(self.metadata.joint_names.clone(), action)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_joint_angles(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
+        let joint_names = &self.metadata.joint_names;
+        let joint_angles = self.provider.get_joint_angles(joint_names).await?;
+        Ok(joint_angles)
     }
 }

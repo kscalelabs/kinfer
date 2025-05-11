@@ -3,6 +3,7 @@
 import logging
 import tarfile
 import tempfile
+import time
 from pathlib import Path
 from typing import Sequence
 
@@ -14,7 +15,7 @@ from torch import Tensor
 from kinfer.common.types import Metadata
 from kinfer.export.pytorch import export_fn
 from kinfer.export.serialize import pack
-from kinfer.rust_bindings import ModelProviderABC, PyModelRunner
+from kinfer.rust_bindings import ModelProviderABC, PyModelRunner, PyModelRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -47,28 +48,6 @@ def step_fn(
     ) * joint_angles
     next_carry = carry + 1
     return output, next_carry
-
-
-class DummyModelProvider(ModelProviderABC):
-    def get_joint_angles(self, joint_names: Sequence[str]) -> np.ndarray:
-        assert len(joint_names) == NUM_JOINTS
-        return np.random.randn(NUM_JOINTS)
-
-    def get_joint_angular_velocities(self, joint_names: Sequence[str]) -> np.ndarray:
-        assert len(joint_names) == NUM_JOINTS
-        return np.random.randn(NUM_JOINTS)
-
-    def get_projected_gravity(self) -> np.ndarray:
-        return np.random.randn(3)
-
-    def get_accelerometer(self) -> np.ndarray:
-        return np.random.randn(3)
-
-    def get_gyroscope(self) -> np.ndarray:
-        return np.random.randn(3)
-
-    def take_action(self, action: np.ndarray) -> None:
-        logger.info("Taking action: %s", action)
 
 
 def test_export(tmpdir: Path) -> None:
@@ -115,6 +94,32 @@ def test_export(tmpdir: Path) -> None:
         step_session = onnxruntime.InferenceSession(fpath.read())
         assert step_session.get_modelmeta().graph_name == "main_graph"
 
+    num_actions = 0
+
+    class DummyModelProvider(ModelProviderABC):
+        def get_joint_angles(self, joint_names: Sequence[str]) -> np.ndarray:
+            assert len(joint_names) == NUM_JOINTS
+            return np.random.randn(NUM_JOINTS)
+
+        def get_joint_angular_velocities(self, joint_names: Sequence[str]) -> np.ndarray:
+            assert len(joint_names) == NUM_JOINTS
+            return np.random.randn(NUM_JOINTS)
+
+        def get_projected_gravity(self) -> np.ndarray:
+            return np.random.randn(3)
+
+        def get_accelerometer(self) -> np.ndarray:
+            return np.random.randn(3)
+
+        def get_gyroscope(self) -> np.ndarray:
+            return np.random.randn(3)
+
+        def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
+            assert joint_names == JOINT_NAMES
+            assert action.shape == (NUM_JOINTS,)
+            nonlocal num_actions
+            num_actions += 1
+
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
     model_runner = PyModelRunner(str(kinfer_path), model_provider)
@@ -123,8 +128,17 @@ def test_export(tmpdir: Path) -> None:
     assert carry.shape == (10,)
     for _ in range(3):
         output, carry = model_runner.step(carry)
-        assert output.shape == (len(joint_names),), f"Output shape: {output.shape}"
+        model_runner.take_action(output)
         assert carry.shape == (10,), f"Carry shape: {carry.shape}"
+    assert num_actions == 3
+
+    # Tests the runtime, which runs in a separate Rust thread.
+    dt = 10
+    model_runtime = PyModelRuntime(model_runner, dt)
+    model_runtime.start()
+    time.sleep(dt * 4.5 / 1000)
+    model_runtime.stop()
+    assert num_actions == 8, f"num_actions: {num_actions}"
 
 
 if __name__ == "__main__":
