@@ -100,14 +100,19 @@ def test_export(tmpdir: Path) -> None:
         assert tar.getnames() == ["init_fn.onnx", "step_fn.onnx", "metadata.json"]
 
         # Checks that joint_names.json is valid JSON.
-        with tar.extractfile("metadata.json") as f:
-            metadata = Metadata.model_validate_json(f.read().decode("utf-8"))
+        if (fpath := tar.extractfile("metadata.json")) is None:
+            raise ValueError("metadata.json not found")
+        metadata = Metadata.model_validate_json(fpath.read().decode("utf-8"))
         assert metadata.joint_names == joint_names
 
         # Validates that we can construct a session in Python.
-        init_session = onnxruntime.InferenceSession(tar.extractfile("init_fn.onnx").read())
+        if (fpath := tar.extractfile("init_fn.onnx")) is None:
+            raise ValueError("init_fn.onnx not found")
+        init_session = onnxruntime.InferenceSession(fpath.read())
         assert init_session.get_modelmeta().graph_name == "main_graph"
-        step_session = onnxruntime.InferenceSession(tar.extractfile("step_fn.onnx").read())
+        if (fpath := tar.extractfile("step_fn.onnx")) is None:
+            raise ValueError("step_fn.onnx not found")
+        step_session = onnxruntime.InferenceSession(fpath.read())
         assert step_session.get_modelmeta().graph_name == "main_graph"
 
     # Creates a model runner from the kinfer model.

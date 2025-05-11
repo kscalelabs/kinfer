@@ -83,17 +83,13 @@ impl ModelProviderABC {
 #[derive(Clone)]
 struct PyModelProvider {
     obj: Arc<Py<ModelProviderABC>>,
-    lock: Arc<Mutex<()>>, // Add mutex for synchronization
 }
 
 #[pymethods]
 impl PyModelProvider {
     #[new]
     fn new(obj: Py<ModelProviderABC>) -> Self {
-        Self {
-            obj: Arc::new(obj),
-            lock: Arc::new(Mutex::new(())), // Initialize mutex
-        }
+        Self { obj: Arc::new(obj) }
     }
 }
 
@@ -103,7 +99,6 @@ impl ModelProvider for PyModelProvider {
         &self,
         joint_names: &[String],
     ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let obj = self.obj.clone();
             let args = (joint_names,);
@@ -118,7 +113,6 @@ impl ModelProvider for PyModelProvider {
         &self,
         joint_names: &[String],
     ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let obj = self.obj.clone();
             let args = (joint_names,);
@@ -130,7 +124,6 @@ impl ModelProvider for PyModelProvider {
     }
 
     async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let obj = self.obj.clone();
             let args = ();
@@ -142,7 +135,6 @@ impl ModelProvider for PyModelProvider {
     }
 
     async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let obj = self.obj.clone();
             let args = ();
@@ -154,7 +146,6 @@ impl ModelProvider for PyModelProvider {
     }
 
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let obj = self.obj.clone();
             let args = ();
@@ -169,7 +160,6 @@ impl ModelProvider for PyModelProvider {
         &self,
         carry: Array<f32, IxDyn>,
     ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         Ok(carry)
     }
 
@@ -177,7 +167,6 @@ impl ModelProvider for PyModelProvider {
         &self,
         action: Array<f32, IxDyn>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let _guard = self.lock.lock().await;
         Python::with_gil(|py| -> PyResult<()> {
             let obj = self.obj.clone();
             let action_1d = action
@@ -205,7 +194,6 @@ impl PyModelRunner {
     fn new(model_path: String, provider: Py<ModelProviderABC>) -> PyResult<Self> {
         let input_provider = Arc::new(PyModelProvider {
             obj: Arc::new(provider),
-            lock: Arc::new(Mutex::new(())),
         });
 
         let runner = tokio::runtime::Runtime::new().unwrap().block_on(async {
