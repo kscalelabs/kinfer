@@ -30,9 +30,9 @@ jobs:
           - os: ubuntu-latest
             arch: x86_64
             skip: "pp* *-musllinux*"
-          - os: ubuntu-latest
-            arch: aarch64
-            skip: "pp* *-musllinux* cp313-*"
+          # - os: ubuntu-latest
+          #   arch: aarch64
+          #   skip: "pp* *-musllinux* cp313-*"
           - os: macos-latest
             arch: arm64
             skip: "pp* cp313-*"
