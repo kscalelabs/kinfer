@@ -46,6 +46,7 @@ pub trait ModelProvider: Send + Sync {
     async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_command(&self) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn take_action(
         &self,
@@ -266,6 +267,7 @@ impl ModelRunner {
                 "projected_gravity" => futures.push(self.provider.get_projected_gravity()),
                 "accelerometer" => futures.push(self.provider.get_accelerometer()),
                 "gyroscope" => futures.push(self.provider.get_gyroscope()),
+                "command" => futures.push(self.provider.get_command()),
                 "carry" => futures.push(self.provider.get_carry(carry.clone())),
                 _ => return Err(format!("Unknown input name: {}", name).into()),
             }
