@@ -4,6 +4,7 @@ import logging
 import tarfile
 import tempfile
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 import onnxruntime
@@ -49,24 +50,24 @@ def step_fn(
 
 
 class DummyModelProvider(ModelProviderABC):
-    def get_joint_angles(self, joint_names: list[str]) -> np.ndarray[np.float32]:
+    def get_joint_angles(self, joint_names: Sequence[str]) -> np.ndarray:
         assert len(joint_names) == NUM_JOINTS
         return np.random.randn(NUM_JOINTS)
 
-    def get_joint_angular_velocities(self, joint_names: list[str]) -> np.ndarray[np.float32]:
+    def get_joint_angular_velocities(self, joint_names: Sequence[str]) -> np.ndarray:
         assert len(joint_names) == NUM_JOINTS
         return np.random.randn(NUM_JOINTS)
 
-    def get_projected_gravity(self) -> np.ndarray[np.float32]:
+    def get_projected_gravity(self) -> np.ndarray:
         return np.random.randn(3)
 
-    def get_accelerometer(self) -> np.ndarray[np.float32]:
+    def get_accelerometer(self) -> np.ndarray:
         return np.random.randn(3)
 
-    def get_gyroscope(self) -> np.ndarray[np.float32]:
+    def get_gyroscope(self) -> np.ndarray:
         return np.random.randn(3)
 
-    def take_action(self, action: np.ndarray[np.float32]) -> None:
+    def take_action(self, action: np.ndarray) -> None:
         logger.info("Taking action: %s", action)
 
 
@@ -83,7 +84,6 @@ def test_export(tmpdir: Path) -> None:
         carry_shape=(10,),
     )
 
-    root_dir = Path(tmpdir)
     kinfer_model = pack(
         init_fn_onnx,
         step_fn_onnx,
@@ -92,6 +92,7 @@ def test_export(tmpdir: Path) -> None:
     )
 
     # Saves the model to disk.
+    root_dir = Path(tmpdir)
     (kinfer_path := root_dir / "model.kinfer").write_bytes(kinfer_model)
 
     # Ensures that we can open the file like a regular tar file.
@@ -111,7 +112,6 @@ def test_export(tmpdir: Path) -> None:
 
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
-    # model_provider = ModelProviderABC()
     model_runner = PyModelRunner(str(kinfer_path), model_provider)
 
     carry = model_runner.init()
