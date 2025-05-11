@@ -46,29 +46,6 @@ def step_fn(
     return output, next_carry
 
 
-class DummyModelProvider(ModelProviderABC):
-    def get_joint_angles(self, joint_names: Sequence[str]) -> np.ndarray:
-        assert len(joint_names) == NUM_JOINTS
-        return np.random.randn(NUM_JOINTS)
-
-    def get_joint_angular_velocities(self, joint_names: Sequence[str]) -> np.ndarray:
-        assert len(joint_names) == NUM_JOINTS
-        return np.random.randn(NUM_JOINTS)
-
-    def get_projected_gravity(self) -> np.ndarray:
-        return np.random.randn(3)
-
-    def get_accelerometer(self) -> np.ndarray:
-        return np.random.randn(3)
-
-    def get_gyroscope(self) -> np.ndarray:
-        return np.random.randn(3)
-
-    def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
-        assert joint_names == JOINT_NAMES
-        assert action.shape == (NUM_JOINTS,)
-
-
 def test_export(tmpdir: Path) -> None:
     joint_names = ["left_arm", "right_arm", "left_leg", "right_leg"]
 
@@ -93,6 +70,32 @@ def test_export(tmpdir: Path) -> None:
     root_dir = Path(tmpdir)
     (kinfer_path := root_dir / "model.kinfer").write_bytes(kinfer_model)
 
+    num_actions = 0
+
+    class DummyModelProvider(ModelProviderABC):
+        def get_joint_angles(self, joint_names: Sequence[str]) -> np.ndarray:
+            assert len(joint_names) == NUM_JOINTS
+            return np.random.randn(NUM_JOINTS)
+
+        def get_joint_angular_velocities(self, joint_names: Sequence[str]) -> np.ndarray:
+            assert len(joint_names) == NUM_JOINTS
+            return np.random.randn(NUM_JOINTS)
+
+        def get_projected_gravity(self) -> np.ndarray:
+            return np.random.randn(3)
+
+        def get_accelerometer(self) -> np.ndarray:
+            return np.random.randn(3)
+
+        def get_gyroscope(self) -> np.ndarray:
+            return np.random.randn(3)
+
+        def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
+            assert joint_names == JOINT_NAMES
+            assert action.shape == (NUM_JOINTS,)
+            nonlocal num_actions
+            num_actions += 1
+
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
     model_runner = PyModelRunner(str(kinfer_path), model_provider)
@@ -103,6 +106,8 @@ def test_export(tmpdir: Path) -> None:
         output, carry = model_runner.step(carry)
         model_runner.take_action(output)
         assert carry.shape == (10,), f"Carry shape: {carry.shape}"
+
+    assert num_actions == 3
 
 
 if __name__ == "__main__":

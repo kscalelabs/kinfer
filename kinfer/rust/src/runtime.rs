@@ -1,22 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::runtime::Runtime;
 
 use crate::model::{ModelError, ModelRunner};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-
-#[derive(Error, Debug)]
-pub enum RuntimeError {
-    #[error("Model error: {0}")]
-    Model(#[from] ModelError),
-    #[error("Runtime error: {0}")]
-    Runtime(#[from] std::io::Error),
-}
-
-unsafe impl Send for RuntimeError {}
-unsafe impl Sync for RuntimeError {}
 
 pub struct ModelRuntime {
     model_runner: Arc<ModelRunner>,
@@ -50,7 +38,7 @@ impl ModelRuntime {
         self.magnitude_factor = magnitude_factor;
     }
 
-    pub fn start(&mut self) -> Result<(), RuntimeError> {
+    pub fn start(&mut self) -> Result<(), ModelError> {
         if self.running.load(Ordering::Relaxed) {
             return Ok(());
         }
@@ -100,7 +88,7 @@ impl ModelRuntime {
 
                 joint_positions = output;
             }
-            Ok::<(), RuntimeError>(())
+            Ok::<(), ModelError>(())
         });
 
         self.runtime = Some(runtime);
