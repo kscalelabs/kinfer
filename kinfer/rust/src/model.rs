@@ -1,19 +1,27 @@
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
-
 use async_trait::async_trait;
+use flate2::read::GzDecoder;
+use futures_util::future;
 use ndarray::{Array, IxDyn};
-use ort::session::builder::GraphOptimizationLevel;
 use ort::session::Session;
 use ort::value::Value;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::io::Read;
+use std::path::Path;
+use std::sync::Arc;
+use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
 #[derive(Debug, Deserialize)]
 struct ModelMetadata {
     joint_names: Vec<String>,
+}
+
+impl ModelMetadata {
+    fn model_validate_json(json: String) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_str(&json)?)
+    }
 }
 
 #[async_trait]
@@ -29,6 +37,10 @@ pub trait ModelProvider: Send + Sync {
     async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
     async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
+    async fn get_carry(
+        &self,
+        carry: Array<f32, IxDyn>,
+    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>>;
     async fn take_action(
         &self,
         action: Array<f32, IxDyn>,
@@ -48,30 +60,57 @@ impl ModelRunner {
         input_provider: Arc<dyn ModelProvider>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut file = File::open(model_path).await?;
+
+        // Read entire file into memory
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
 
-        let mut archive = tar::Archive::new(std::io::Cursor::new(buffer));
+        // Decompress and read the tar archive from memory
+        let gz = GzDecoder::new(&buffer[..]);
+        let mut archive = Archive::new(gz);
 
         // Extract and validate joint names
-        let mut joint_names_file = None;
-        let mut init_fn = None;
-        let mut step_fn = None;
+        let mut metadata: Option<String> = None;
+        let mut init_fn: Option<Vec<u8>> = None;
+        let mut step_fn: Option<Vec<u8>> = None;
 
         for entry in archive.entries()? {
-            let entry = entry?;
-            match entry.path()?.to_str() {
-                Some("joint_names.json") => joint_names_file = Some(entry),
-                Some("init_fn.onnx") => init_fn = Some(entry),
-                Some("step_fn.onnx") => step_fn = Some(entry),
-                _ => continue,
+            let mut entry = entry?;
+            let path = entry.path()?;
+            let path_str = path.to_string_lossy();
+
+            match path_str.as_ref() {
+                "metadata.json" => {
+                    let mut contents = String::new();
+                    entry.read_to_string(&mut contents)?;
+                    metadata = Some(contents);
+                }
+                "init_fn.onnx" => {
+                    let size = entry.size() as usize;
+                    let mut contents = vec![0u8; size];
+                    entry.read_exact(&mut contents)?;
+                    assert_eq!(contents.len(), entry.size() as usize);
+                    init_fn = Some(contents);
+                }
+                "step_fn.onnx" => {
+                    let size = entry.size() as usize;
+                    let mut contents = vec![0u8; size];
+                    entry.read_exact(&mut contents)?;
+                    assert_eq!(contents.len(), entry.size() as usize);
+                    step_fn = Some(contents);
+                }
+                _ => return Err("Unknown entry".into()),
             }
         }
 
-        let metadata: ModelMetadata =
-            serde_json::from_reader(joint_names_file.ok_or("Missing joint_names.json")?)?;
-        let init_session = Self::load_session(init_fn.ok_or("Missing init_fn.onnx")?)?;
-        let step_session = Self::load_session(step_fn.ok_or("Missing step_fn.onnx")?)?;
+        // Reads the files.
+        let metadata = ModelMetadata::model_validate_json(
+            metadata.ok_or("metadata.json not found in archive")?,
+        )?;
+        let init_session = Session::builder()?
+            .commit_from_memory(&init_fn.ok_or("init_fn.onnx not found in archive")?)?;
+        let step_session = Session::builder()?
+            .commit_from_memory(&step_fn.ok_or("step_fn.onnx not found in archive")?)?;
 
         // Validate init_fn has no inputs and one output
         if !init_session.inputs.is_empty() {
@@ -97,18 +136,6 @@ impl ModelRunner {
             joint_names: metadata.joint_names,
             provider: input_provider,
         })
-    }
-
-    fn load_session<R: std::io::Read>(
-        mut reader: R,
-    ) -> Result<Session, Box<dyn std::error::Error>> {
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer)?;
-
-        Ok(Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level3)?
-            .with_intra_threads(4)?
-            .commit_from_memory(&buffer)?)
     }
 
     fn validate_step_fn(
@@ -194,36 +221,47 @@ impl ModelRunner {
         Ok(output_tensor.view().to_owned())
     }
 
+    async fn _copy_carry(
+        &self,
+        carry: Array<f32, IxDyn>,
+    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
+        Ok(carry)
+    }
+
     pub async fn step(
         &self,
         carry: Array<f32, IxDyn>,
     ) -> Result<(Array<f32, IxDyn>, Array<f32, IxDyn>), Box<dyn std::error::Error>> {
-        let mut inputs = HashMap::new();
+        // Gets the model input names.
+        let input_names: Vec<String> = self
+            .step_session
+            .inputs
+            .iter()
+            .map(|i| i.name.clone())
+            .collect();
 
-        // Get all required inputs
-        inputs.insert(
-            "joint_angles".to_string(),
-            self.provider.get_joint_angles(&self.joint_names).await?,
-        );
-        inputs.insert(
-            "joint_angular_velocities".to_string(),
-            self.provider
-                .get_joint_angular_velocities(&self.joint_names)
-                .await?,
-        );
-        inputs.insert(
-            "projected_gravity".to_string(),
-            self.provider.get_projected_gravity().await?,
-        );
-        inputs.insert(
-            "accelerometer".to_string(),
-            self.provider.get_accelerometer().await?,
-        );
-        inputs.insert(
-            "gyroscope".to_string(),
-            self.provider.get_gyroscope().await?,
-        );
-        inputs.insert("carry".to_string(), carry);
+        // Calls the relevant getter methods in parallel.
+        let mut futures = Vec::new();
+        for name in &input_names {
+            match name.as_str() {
+                "joint_angles" => futures.push(self.provider.get_joint_angles(&self.joint_names)),
+                "joint_angular_velocities" => futures.push(
+                    self.provider
+                        .get_joint_angular_velocities(&self.joint_names),
+                ),
+                "projected_gravity" => futures.push(self.provider.get_projected_gravity()),
+                "accelerometer" => futures.push(self.provider.get_accelerometer()),
+                "gyroscope" => futures.push(self.provider.get_gyroscope()),
+                "carry" => futures.push(self.provider.get_carry(carry.clone())),
+                _ => return Err(format!("Unknown input name: {}", name).into()),
+            }
+        }
+
+        let results = future::try_join_all(futures).await?;
+        let mut inputs = HashMap::new();
+        for (name, value) in input_names.iter().zip(results) {
+            inputs.insert(name.clone(), value);
+        }
 
         // Convert inputs to ONNX values
         let mut input_values: Vec<(&str, Value)> = Vec::new();

@@ -8,6 +8,7 @@ import tf2onnx
 from equinox.internal._finalise_jaxpr import finalise_fn
 from jax._src.stages import Wrapped
 from jax.experimental import jax2tf
+from onnx.onnx_pb import ModelProto
 
 from kinfer.export.common import get_shape
 
@@ -20,7 +21,7 @@ def export_fn(
     num_joints: int | None = None,
     carry_shape: tuple[int, ...] | None = None,
     opset: int = 13,
-) -> bytes:
+) -> ModelProto:
     """Export a JAX function to ONNX."""
     if not isinstance(model, Wrapped):
         raise ValueError("Model must be a Wrapped function")
@@ -47,4 +48,4 @@ def export_fn(
         opset=opset,
         large_model=False,
     )
-    return model_proto.SerializeToString()
+    return model_proto

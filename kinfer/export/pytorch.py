@@ -7,7 +7,9 @@ __all__ = [
 import io
 from typing import cast
 
+import onnx
 import torch
+from onnx.onnx_pb import ModelProto
 from torch._C import FunctionSchema
 
 from kinfer.export.common import get_shape
@@ -18,7 +20,7 @@ def export_fn(
     *,
     num_joints: int | None = None,
     carry_shape: tuple[int, ...] | None = None,
-) -> bytes:
+) -> ModelProto:
     """Exports a PyTorch function to ONNX.
 
     Args:
@@ -27,7 +29,7 @@ def export_fn(
         carry_shape: The shape of the carry tensor.
 
     Returns:
-        A BytesIO object containing the ONNX model.
+        The ONNX model as a `ModelProto`.
     """
     if not isinstance(model, torch.jit.ScriptFunction):
         raise ValueError("Model must be a torch.jit.ScriptFunction")
@@ -54,4 +56,5 @@ def export_fn(
         external_data=False,
     )
     buffer.seek(0)
-    return buffer.read()
+    model_bytes = buffer.read()
+    return onnx.load_from_string(model_bytes)

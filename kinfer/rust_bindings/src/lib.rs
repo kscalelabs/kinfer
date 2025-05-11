@@ -1,16 +1,15 @@
 use async_trait::async_trait;
-
 use kinfer::model::{ModelProvider, ModelRunner};
-use ndarray::{Array, IxDyn};
-use numpy::ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
-use numpy::{IntoPyArray, PyArrayDyn, PyArrayMethods, PyReadonlyArrayDyn};
+use ndarray::{Array, Ix1, IxDyn};
+use numpy::{PyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyDict, PyTuple};
 use pyo3::{pymodule, types::PyModule, Bound, PyResult, Python};
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyfunction, gen_stub_pymethods};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[pyfunction]
 #[gen_stub_pyfunction]
@@ -30,41 +29,52 @@ impl ModelProviderABC {
         ModelProviderABC
     }
 
-    fn get_joint_angles(&self, _joint_names: Vec<String>) -> PyResult<Py<PyArrayDyn<f32>>> {
-        Err(PyNotImplementedError::new_err(
-            "Must override get_joint_angles",
-        ))
-    }
-
-    fn get_joint_angular_velocities(
+    fn get_joint_angles<'py>(
         &self,
-        _joint_names: Vec<String>,
-    ) -> PyResult<Py<PyArrayDyn<f32>>> {
-        Err(PyNotImplementedError::new_err(
-            "Must override get_joint_angular_velocities",
-        ))
+        joint_names: Vec<String>,
+    ) -> PyResult<Bound<'py, PyArray1<f32>>> {
+        let n = joint_names.len();
+        Err(PyNotImplementedError::new_err(format!(
+            "Must override get_joint_angles with {} joint names",
+            n
+        )))
     }
 
-    fn get_projected_gravity(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
+    fn get_joint_angular_velocities<'py>(
+        &self,
+        joint_names: Vec<String>,
+    ) -> PyResult<Bound<'py, PyArray1<f32>>> {
+        let n = joint_names.len();
+        Err(PyNotImplementedError::new_err(format!(
+            "Must override get_joint_angular_velocities with {} joint names",
+            n
+        )))
+    }
+
+    fn get_projected_gravity<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_projected_gravity",
         ))
     }
 
-    fn get_accelerometer(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
+    fn get_accelerometer<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_accelerometer",
         ))
     }
 
-    fn get_gyroscope(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
+    fn get_gyroscope<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
         Err(PyNotImplementedError::new_err(
             "Must override get_gyroscope",
         ))
     }
 
-    fn take_action(&self, _action: Py<PyArrayDyn<f32>>) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err("Must override take_action"))
+    fn take_action<'py>(&self, action: Bound<'py, PyArray1<f32>>) -> PyResult<()> {
+        let n = action.len()?;
+        Err(PyNotImplementedError::new_err(format!(
+            "Must override take_action with {} action",
+            n
+        )))
     }
 }
 
@@ -73,42 +83,17 @@ impl ModelProviderABC {
 #[derive(Clone)]
 struct PyModelProvider {
     obj: Arc<Py<ModelProviderABC>>,
-}
-
-impl PyModelProvider {
-    async fn call_python_async(
-        &self,
-        method: &str,
-        args: Vec<PyObject>,
-    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let obj = self.obj.clone();
-        let method = method.to_string();
-
-        // Execute the Python call in a blocking thread-safe way
-        let result = tokio::task::spawn_blocking(move || {
-            Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
-                let obj = obj.bind(py);
-                let method = obj.getattr(&method)?;
-
-                // Create tuple properly, unwrapping the Result
-                let args_tuple = PyTuple::new(py, args)?;
-                let output = method.call1((args_tuple,))?;
-
-                let array = output.extract::<Vec<f32>>()?;
-                Ok(Array::from_vec(array).into_dyn())
-            })
-        })
-        .await??;
-
-        Ok(result)
-    }
+    lock: Arc<Mutex<()>>, // Add mutex for synchronization
 }
 
 #[pymethods]
 impl PyModelProvider {
     #[new]
     fn new(obj: Py<ModelProviderABC>) -> Self {
-        Self { obj: Arc::new(obj) }
+        Self {
+            obj: Arc::new(obj),
+            lock: Arc::new(Mutex::new(())), // Initialize mutex
+        }
     }
 }
 
@@ -118,45 +103,90 @@ impl ModelProvider for PyModelProvider {
         &self,
         joint_names: &[String],
     ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let args = Python::with_gil(|py| -> PyResult<Vec<Py<PyAny>>> {
-            Ok(vec![joint_names.to_vec().into_pyobject(py)?.into()])
+        let _guard = self.lock.lock().await;
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = (joint_names,);
+            let result = obj.call_method(py, "get_joint_angles", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
         })?;
-        self.call_python_async("get_joint_angles", args).await
+        Ok(args)
     }
 
     async fn get_joint_angular_velocities(
         &self,
         joint_names: &[String],
     ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let args = Python::with_gil(|py| -> PyResult<Vec<Py<PyAny>>> {
-            Ok(vec![joint_names.to_vec().into_pyobject(py)?.into()])
+        let _guard = self.lock.lock().await;
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = (joint_names,);
+            let result = obj.call_method(py, "get_joint_angular_velocities", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
         })?;
-        self.call_python_async("get_joint_angular_velocities", args)
-            .await
+        Ok(args)
     }
 
     async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        self.call_python_async("get_projected_gravity", vec![])
-            .await
+        let _guard = self.lock.lock().await;
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_projected_gravity", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })?;
+        Ok(args)
     }
 
     async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        self.call_python_async("get_accelerometer", vec![]).await
+        let _guard = self.lock.lock().await;
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_accelerometer", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })?;
+        Ok(args)
     }
 
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        self.call_python_async("get_gyroscope", vec![]).await
+        let _guard = self.lock.lock().await;
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_gyroscope", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })?;
+        Ok(args)
+    }
+
+    async fn get_carry(
+        &self,
+        carry: Array<f32, IxDyn>,
+    ) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
+        let _guard = self.lock.lock().await;
+        Ok(carry)
     }
 
     async fn take_action(
         &self,
         action: Array<f32, IxDyn>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let args = Python::with_gil(|py| -> PyResult<Vec<Py<PyAny>>> {
-            let array = numpy::PyArray::from_array(py, &action);
-            Ok(vec![array.into()])
+        let _guard = self.lock.lock().await;
+        Python::with_gil(|py| -> PyResult<()> {
+            let obj = self.obj.clone();
+            let action_1d = action
+                .into_dimensionality::<Ix1>()
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+            let args = (PyArray1::from_array(py, &action_1d),);
+            obj.call_method(py, "take_action", args, None)?;
+            Ok(())
         })?;
-        self.call_python_async("take_action", args).await?;
         Ok(())
     }
 }
@@ -175,6 +205,7 @@ impl PyModelRunner {
     fn new(model_path: String, provider: Py<ModelProviderABC>) -> PyResult<Self> {
         let input_provider = Arc::new(PyModelProvider {
             obj: Arc::new(provider),
+            lock: Arc::new(Mutex::new(())),
         });
 
         let runner = tokio::runtime::Runtime::new().unwrap().block_on(async {

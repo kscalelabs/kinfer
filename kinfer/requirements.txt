@@ -2,4 +2,7 @@
 
 # Machine Learning
 onnx
-onnxruntime
+onnxruntime==1.20.0
+
+# Serialization
+pydantic

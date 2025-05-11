@@ -7,10 +7,10 @@ import typing
 
 class ModelProviderABC:
     def __new__(cls,): ...
-    def get_joint_angles(self, _joint_names:typing.Sequence[str]) -> numpy.typing.NDArray[numpy.float32]:
+    def get_joint_angles(self, joint_names:typing.Sequence[str]) -> numpy.typing.NDArray[numpy.float32]:
         ...
 
-    def get_joint_angular_velocities(self, _joint_names:typing.Sequence[str]) -> numpy.typing.NDArray[numpy.float32]:
+    def get_joint_angular_velocities(self, joint_names:typing.Sequence[str]) -> numpy.typing.NDArray[numpy.float32]:
         ...
 
     def get_projected_gravity(self) -> numpy.typing.NDArray[numpy.float32]:
@@ -22,7 +22,7 @@ class ModelProviderABC:
     def get_gyroscope(self) -> numpy.typing.NDArray[numpy.float32]:
         ...
 
-    def take_action(self, _action:numpy.typing.NDArray[numpy.float32]) -> None:
+    def take_action(self, action:numpy.typing.NDArray[numpy.float32]) -> None:
         ...
 
 

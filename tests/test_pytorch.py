@@ -6,9 +6,11 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import onnxruntime
 import torch
 from torch import Tensor
 
+from kinfer.common.types import Metadata
 from kinfer.export.pytorch import export_fn
 from kinfer.export.serialize import pack
 from kinfer.rust_bindings import ModelProviderABC, PyModelRunner
@@ -81,6 +83,7 @@ def test_export(tmpdir: Path) -> None:
         carry_shape=(10,),
     )
 
+    root_dir = Path(tmpdir)
     kinfer_model = pack(
         init_fn_onnx,
         step_fn_onnx,
@@ -88,25 +91,35 @@ def test_export(tmpdir: Path) -> None:
         carry_shape=(10,),
     )
 
-    # Saves the kinfer model to a file.
-    kinfer_model_path = Path(tmpdir) / "kinfer_model.tar"
-    with open(kinfer_model_path, "wb") as f:
-        f.write(kinfer_model)
+    # Saves the model to disk.
+    (kinfer_path := root_dir / "model.kinfer").write_bytes(kinfer_model)
 
     # Ensures that we can open the file like a regular tar file.
-    with tarfile.open(kinfer_model_path, "r") as f:
-        assert len(f.getmembers()) == 3
+    with tarfile.open(kinfer_path, "r:gz") as tar:
+        assert tar.getnames() == ["init_fn.onnx", "step_fn.onnx", "metadata.json"]
+
+        # Checks that joint_names.json is valid JSON.
+        with tar.extractfile("metadata.json") as f:
+            metadata = Metadata.model_validate_json(f.read().decode("utf-8"))
+        assert metadata.joint_names == joint_names
+
+        # Validates that we can construct a session in Python.
+        init_session = onnxruntime.InferenceSession(tar.extractfile("init_fn.onnx").read())
+        assert init_session.get_modelmeta().graph_name == "main_graph"
+        step_session = onnxruntime.InferenceSession(tar.extractfile("step_fn.onnx").read())
+        assert step_session.get_modelmeta().graph_name == "main_graph"
 
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
-    model_runner = PyModelRunner(str(kinfer_model_path), model_provider)
+    # model_provider = ModelProviderABC()
+    model_runner = PyModelRunner(str(kinfer_path), model_provider)
 
     carry = model_runner.init()
     assert carry.shape == (10,)
     for _ in range(3):
         output, carry = model_runner.step(carry)
-        assert output.shape == (10,)
-        assert carry.shape == (10,)
+        assert output.shape == (len(joint_names),), f"Output shape: {output.shape}"
+        assert carry.shape == (10,), f"Carry shape: {carry.shape}"
 
 
 if __name__ == "__main__":
