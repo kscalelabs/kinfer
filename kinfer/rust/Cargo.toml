@@ -1,8 +1,18 @@
 [package]
 
 name = "kinfer"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+
+[lib]
+
+name = "kinfer"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 
