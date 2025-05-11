@@ -69,6 +69,10 @@ impl ModelProviderABC {
         ))
     }
 
+    fn get_command<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
+        Err(PyNotImplementedError::new_err("Must override get_command"))
+    }
+
     fn take_action<'py>(
         &self,
         joint_names: Vec<String>,
@@ -159,6 +163,18 @@ impl ModelProvider for PyModelProvider {
             let obj = self.obj.clone();
             let args = ();
             let result = obj.call_method(py, "get_gyroscope", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })
+        .map_err(|e| ModelError::Provider(e.to_string()))?;
+        Ok(args)
+    }
+
+    async fn get_command(&self) -> Result<Array<f32, IxDyn>, ModelError> {
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_command", args, None)?;
             let array = result.extract::<Vec<f32>>(py)?;
             Ok(Array::from_vec(array).into_dyn())
         })

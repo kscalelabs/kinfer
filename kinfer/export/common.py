@@ -4,6 +4,7 @@
 def get_shape(
     name: str,
     num_joints: int | None = None,
+    num_commands: int | None = None,
     carry_shape: tuple[int, ...] | None = None,
 ) -> tuple[int, ...]:
     match name:
@@ -25,6 +26,11 @@ def get_shape(
 
         case "gyroscope":
             return (3,)
+
+        case "command":
+            if num_commands is None:
+                raise ValueError("`num_commands` must be provided when using `command`")
+            return (num_commands,)
 
         case "carry":
             if carry_shape is None:

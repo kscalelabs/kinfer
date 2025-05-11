@@ -19,6 +19,7 @@ def export_fn(
     model: Wrapped,
     *,
     num_joints: int | None = None,
+    num_commands: int | None = None,
     carry_shape: tuple[int, ...] | None = None,
     opset: int = 13,
 ) -> ModelProto:
@@ -35,6 +36,7 @@ def export_fn(
         shape = get_shape(
             name,
             num_joints=num_joints,
+            num_commands=num_commands,
             carry_shape=carry_shape,
         )
         tf_args.append(tf.TensorSpec(shape, tf.float32, name=name))
