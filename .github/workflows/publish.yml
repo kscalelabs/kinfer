@@ -105,7 +105,7 @@ jobs:
           cibuildwheel --output-dir dist
 
       - name: Upload wheel artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
           path: |
@@ -136,7 +136,7 @@ jobs:
           python -m build --sdist --outdir dist
 
       - name: Upload source distribution
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source-dist
           path: |
@@ -150,7 +150,7 @@ jobs:
 
     steps:
       - name: Download all wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: dist
 
