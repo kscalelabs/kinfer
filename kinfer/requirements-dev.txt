@@ -1,8 +1,0 @@
-# requirements-dev.txt
-
-black
-darglint
-mypy
-mypy-protobuf
-pytest
-ruff

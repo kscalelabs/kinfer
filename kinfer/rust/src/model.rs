@@ -1,153 +1,303 @@
-use crate::kinfer_proto::{ModelSchema, ProtoIO, ProtoIOSchema};
-use crate::onnx_serializer::OnnxMultiSerializer;
+use async_trait::async_trait;
+use flate2::read::GzDecoder;
+use futures_util::future;
+use ndarray::{Array, IxDyn};
+use ort::session::Session;
+use ort::value::Value;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::io::Read;
 use std::path::Path;
+use std::sync::Arc;
+use tar::Archive;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
-use ort::session::builder::GraphOptimizationLevel;
-use prost::Message;
-use ort::{session::Session, Error as OrtError};
-
-pub fn load_onnx_model<P: AsRef<Path>>(model_path: P) -> Result<Session, OrtError> {
-    let model = Session::builder()?
-        .with_optimization_level(GraphOptimizationLevel::Level3)?
-        .with_intra_threads(4)?
-        .commit_from_file(model_path)?;
-
-    Ok(model)
+#[derive(Debug, Deserialize)]
+struct ModelMetadata {
+    joint_names: Vec<String>,
 }
 
-const KINFER_METADATA_KEY: &str = "kinfer_metadata";
+impl ModelMetadata {
+    fn model_validate_json(json: String) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_str(&json)?)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ModelError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Provider error: {0}")]
+    Provider(String),
+}
+
+#[async_trait]
+pub trait ModelProvider: Send + Sync {
+    async fn get_joint_angles(
+        &self,
+        joint_names: &[String],
+    ) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_joint_angular_velocities(
+        &self,
+        joint_names: &[String],
+    ) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn take_action(
+        &self,
+        joint_names: Vec<String>,
+        action: Array<f32, IxDyn>,
+    ) -> Result<(), ModelError>;
+}
 
 pub struct ModelRunner {
-    session: Session,
-    attached_metadata: std::collections::HashMap<String, String>,
-    schema: ModelSchema,
-    input_serializer: OnnxMultiSerializer,
-    output_serializer: OnnxMultiSerializer,
+    init_session: Session,
+    step_session: Session,
+    metadata: ModelMetadata,
+    provider: Arc<dyn ModelProvider>,
 }
 
 impl ModelRunner {
-    pub fn new<P: AsRef<Path>>(model_path: P) -> Result<Self, Box<dyn std::error::Error>> {
-        let session = load_onnx_model(model_path)?;
-        let mut attached_metadata = std::collections::HashMap::new();
+    pub async fn new<P: AsRef<Path>>(
+        model_path: P,
+        input_provider: Arc<dyn ModelProvider>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut file = File::open(model_path).await?;
 
-        // Extract metadata and attempt to parse schema
-        let mut schema = None;
-        {
-            let metadata = session.metadata()?;
-            for prop in metadata.custom_keys()? {
-                if prop == KINFER_METADATA_KEY {
-                    let schema_bytes = metadata.custom(prop.as_str())?;
-                    if let Some(bytes) = schema_bytes {
-                        schema = Some(ModelSchema::decode(&mut bytes.as_bytes())?);
-                    }
-                } else {
-                    attached_metadata.insert(
-                        prop.to_string(),
-                        metadata
-                            .custom(prop.as_str())?
-                            .map_or_else(String::new, |s| s.to_string()),
-                    );
+        // Read entire file into memory
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).await?;
+
+        // Decompress and read the tar archive from memory
+        let gz = GzDecoder::new(&buffer[..]);
+        let mut archive = Archive::new(gz);
+
+        // Extract and validate joint names
+        let mut metadata: Option<String> = None;
+        let mut init_fn: Option<Vec<u8>> = None;
+        let mut step_fn: Option<Vec<u8>> = None;
+
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?;
+            let path_str = path.to_string_lossy();
+
+            match path_str.as_ref() {
+                "metadata.json" => {
+                    let mut contents = String::new();
+                    entry.read_to_string(&mut contents)?;
+                    metadata = Some(contents);
                 }
+                "init_fn.onnx" => {
+                    let size = entry.size() as usize;
+                    let mut contents = vec![0u8; size];
+                    entry.read_exact(&mut contents)?;
+                    assert_eq!(contents.len(), entry.size() as usize);
+                    init_fn = Some(contents);
+                }
+                "step_fn.onnx" => {
+                    let size = entry.size() as usize;
+                    let mut contents = vec![0u8; size];
+                    entry.read_exact(&mut contents)?;
+                    assert_eq!(contents.len(), entry.size() as usize);
+                    step_fn = Some(contents);
+                }
+                _ => return Err("Unknown entry".into()),
             }
         }
 
-        let schema: ModelSchema = schema.ok_or_else(|| "kinfer_metadata not found in model metadata")?;
+        // Reads the files.
+        let metadata = ModelMetadata::model_validate_json(
+            metadata.ok_or("metadata.json not found in archive")?,
+        )?;
+        let init_session = Session::builder()?
+            .commit_from_memory(&init_fn.ok_or("init_fn.onnx not found in archive")?)?;
+        let step_session = Session::builder()?
+            .commit_from_memory(&step_fn.ok_or("step_fn.onnx not found in archive")?)?;
 
-        // Use as_ref() to borrow the Option contents and clone after ok_or
-        let input_schema = schema
-            .input_schema
-            .as_ref()
-            .ok_or("Missing input schema")?
-            .clone();
-        let output_schema = schema
-            .output_schema
-            .as_ref()
-            .ok_or("Missing output schema")?
-            .clone();
+        // Validate init_fn has no inputs and one output
+        if !init_session.inputs.is_empty() {
+            return Err("init_fn should not have any inputs".into());
+        }
+        if init_session.outputs.len() != 1 {
+            return Err("init_fn should have exactly one output".into());
+        }
 
-        // Create serializers for input and output
-        let input_serializer = OnnxMultiSerializer::new(input_schema);
-        let output_serializer = OnnxMultiSerializer::new(output_schema);
+        // Get carry shape from init_fn output
+        let carry_shape = init_session.outputs[0]
+            .output_type
+            .tensor_dimensions()
+            .ok_or("Missing tensor type")?
+            .to_vec();
+
+        // Validate step_fn inputs and outputs
+        Self::validate_step_fn(&step_session, metadata.joint_names.len(), &carry_shape)?;
 
         Ok(Self {
-            session,
-            attached_metadata,
-            schema,
-            input_serializer,
-            output_serializer,
+            init_session,
+            step_session,
+            metadata,
+            provider: input_provider,
         })
     }
 
-    pub fn run(&self, inputs: ProtoIO) -> Result<ProtoIO, Box<dyn std::error::Error>> {
-        // Serialize inputs to ONNX format
-        let inputs = self.input_serializer.serialize_io(inputs)?;
+    fn validate_step_fn(
+        session: &Session,
+        num_joints: usize,
+        carry_shape: &[i64],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Validate inputs
+        for input in &session.inputs {
+            let dims = input.input_type.tensor_dimensions().ok_or(format!(
+                "Input {} is not a tensor with known dimensions",
+                input.name
+            ))?;
 
-        // Get input names from the session
-        let input_names = self
-            .session
-            .inputs
-            .iter()
-            .map(|input| input.name.as_str())
-            .collect::<Vec<_>>();
+            match input.name.as_str() {
+                "joint_angles" | "joint_angular_velocities" => {
+                    if *dims != vec![num_joints as i64] {
+                        return Err(format!(
+                            "Expected shape [{num_joints}] for input `{}`, got {:?}",
+                            input.name, dims
+                        )
+                        .into());
+                    }
+                }
+                "projected_gravity" | "accelerometer" | "gyroscope" => {
+                    if *dims != vec![3] {
+                        return Err(format!(
+                            "Expected shape [3] for input `{}`, got {:?}",
+                            input.name, dims
+                        )
+                        .into());
+                    }
+                }
+                "carry" => {
+                    if dims != carry_shape {
+                        return Err(format!(
+                            "Expected shape {:?} for input `carry`, got {:?}",
+                            carry_shape, dims
+                        )
+                        .into());
+                    }
+                }
+                _ => return Err(format!("Unknown input name: {}", input.name).into()),
+            }
+        }
 
-        // Create input name-value pairs
-        let input_values = vec![(input_names[0], inputs)];
+        // Validate outputs
+        if session.outputs.len() != 2 {
+            return Err("Step function must have exactly 2 outputs".into());
+        }
 
-        let outputs = self.session.run(input_values)?;
+        let output_shape = session.outputs[0]
+            .output_type
+            .tensor_dimensions()
+            .ok_or("Missing tensor type")?;
+        if *output_shape != vec![num_joints as i64] {
+            return Err(format!(
+                "Expected output shape [{num_joints}], got {:?}",
+                output_shape
+            )
+            .into());
+        }
 
-        let output_values = outputs
-            .values()
-            .map(|v: ort::value::ValueRef<'_>| {
-                v.try_upgrade().map_err(|e| {
-                    Box::new(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Failed to upgrade value"),
-                    )) as Box<dyn std::error::Error>
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        // Deserialize outputs from ONNX format
-        let outputs = self.output_serializer.deserialize_io(output_values)?;
+        let infered_carry_shape = session.outputs[1]
+            .output_type
+            .tensor_dimensions()
+            .ok_or("Missing tensor type")?;
+        if *infered_carry_shape != *carry_shape {
+            return Err(format!(
+                "Expected carry shape {:?}, got {:?}",
+                carry_shape, infered_carry_shape
+            )
+            .into());
+        }
 
-        Ok(outputs)
-    }
-
-    pub fn export_model<P: AsRef<Path>>(&self, model_path: P) -> Result<(), Box<dyn std::error::Error>> {
-        let model_bytes = self.session.model_as_bytes()?;
-        let mut model = ModelProto::decode(&mut model_bytes.as_slice())?;
-        model.set_metadata_props(self.schema.encode_to_vec())?;
-        std::fs::write(model_path, model.write_to_bytes()?)?;
         Ok(())
     }
 
-    pub fn input_schema(&self) -> Result<ProtoIOSchema, Box<dyn std::error::Error>> {
-        self.schema
-            .input_schema
-            .as_ref()
-            .ok_or_else(|| {
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Missing input schema",
-                )) as Box<dyn std::error::Error>
-            })
-            .map(|schema| schema.clone())
+    pub async fn init(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
+        let input_values: Vec<(&str, Value)> = Vec::new();
+        let outputs = self.init_session.run(input_values)?;
+        let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
+        Ok(output_tensor.view().to_owned())
     }
 
-    pub fn output_schema(&self) -> Result<ProtoIOSchema, Box<dyn std::error::Error>> {
-        self.schema
-            .output_schema
-            .as_ref()
-            .ok_or_else(|| {
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Missing output schema",
-                )) as Box<dyn std::error::Error>
-            })
-            .map(|schema| schema.clone())
-    }
-}
+    pub async fn step(
+        &self,
+        carry: Array<f32, IxDyn>,
+    ) -> Result<(Array<f32, IxDyn>, Array<f32, IxDyn>), Box<dyn std::error::Error>> {
+        // Gets the model input names.
+        let input_names: Vec<String> = self
+            .step_session
+            .inputs
+            .iter()
+            .map(|i| i.name.clone())
+            .collect();
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Hello, world!");
-    Ok(())
+        // Calls the relevant getter methods in parallel.
+        let mut futures = Vec::new();
+        for name in &input_names {
+            match name.as_str() {
+                "joint_angles" => {
+                    futures.push(self.provider.get_joint_angles(&self.metadata.joint_names))
+                }
+                "joint_angular_velocities" => futures.push(
+                    self.provider
+                        .get_joint_angular_velocities(&self.metadata.joint_names),
+                ),
+                "projected_gravity" => futures.push(self.provider.get_projected_gravity()),
+                "accelerometer" => futures.push(self.provider.get_accelerometer()),
+                "gyroscope" => futures.push(self.provider.get_gyroscope()),
+                "carry" => futures.push(self.provider.get_carry(carry.clone())),
+                _ => return Err(format!("Unknown input name: {}", name).into()),
+            }
+        }
+
+        let results = future::try_join_all(futures).await?;
+        let mut inputs = HashMap::new();
+        for (name, value) in input_names.iter().zip(results) {
+            inputs.insert(name.clone(), value);
+        }
+
+        // Convert inputs to ONNX values
+        let mut input_values: Vec<(&str, Value)> = Vec::new();
+        for input in &self.step_session.inputs {
+            let input_data = inputs
+                .get(&input.name)
+                .ok_or_else(|| format!("Missing input: {}", input.name))?;
+            let input_value = Value::from_array(input_data.view())?.into_dyn();
+            input_values.push((input.name.as_str(), input_value));
+        }
+
+        // Run the model
+        let outputs = self.step_session.run(input_values)?;
+        let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
+        let carry_tensor = outputs[1].try_extract_tensor::<f32>()?;
+
+        Ok((
+            output_tensor.view().to_owned(),
+            carry_tensor.view().to_owned(),
+        ))
+    }
+
+    pub async fn take_action(
+        &self,
+        action: Array<f32, IxDyn>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.provider
+            .take_action(self.metadata.joint_names.clone(), action)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_joint_angles(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
+        let joint_names = &self.metadata.joint_names;
+        let joint_angles = self.provider.get_joint_angles(joint_names).await?;
+        Ok(joint_angles)
+    }
 }

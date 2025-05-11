@@ -44,7 +44,16 @@ jobs:
 
       - name: Install package
         run: |
-          pip install --upgrade --upgrade-strategy eager --extra-index-url https://download.pytorch.org/whl/cpu -e '.[dev]'
+          pip install \
+            --upgrade \
+            --upgrade-strategy eager \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            -e \
+            '.[all]'
+
+      - name: Set ONNX Runtime path
+        run: |
+          echo "ORT_DYLIB_PATH=$(python -c 'import onnxruntime as ort; from pathlib import Path; print(next((Path(ort.__file__).parent / "capi").glob("libonnxruntime.*")))')" >> $GITHUB_ENV
 
       - name: Run static checks
         run: |
@@ -52,6 +61,8 @@ jobs:
           make static-checks
 
       - name: Run unit tests
+        env:
+          ORT_DYLIB_PATH: ${{ env.ORT_DYLIB_PATH }}
         run: |
           make test
 

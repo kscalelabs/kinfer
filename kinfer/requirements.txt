@@ -1,9 +1,8 @@
 # requirements.txt
 
 # Machine Learning
-torch
 onnx
-onnxruntime
+onnxruntime==1.20.0
 
-# Protocol Buffers
-protobuf
+# Serialization
+pydantic

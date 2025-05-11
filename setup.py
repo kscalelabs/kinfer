@@ -2,9 +2,7 @@
 #!/usr/bin/env python
 """Setup script for the project."""
 
-import os
 import re
-import shutil
 import subprocess
 from typing import List
 
@@ -21,31 +19,36 @@ with open("kinfer/requirements.txt", "r", encoding="utf-8") as f:
     requirements: List[str] = f.read().splitlines()
 
 
-with open("kinfer/requirements-dev.txt", "r", encoding="utf-8") as f:
-    requirements_dev: List[str] = f.read().splitlines()
-
-
 with open("Cargo.toml", "r", encoding="utf-8") as fh:
     version_re = re.search(r"^version = \"([^\"]*)\"", fh.read(), re.MULTILINE)
 assert version_re is not None, "Could not find version in Cargo.toml"
 version: str = version_re.group(1)
 
+requirements_dev = [
+    "black",
+    "darglint",
+    "mypy",
+    "pytest",
+    "ruff",
+    "types-tensorflow",
+]
+
+requirements_pytorch = [
+    "torch",
+]
+
+requirements_jax = [
+    "tensorflow",
+    "tf2onnx",
+    "jax",
+    "equinox",
+    "numpy<2",
+]
+
 
 class RustBuildExt(build_ext):
     def run(self) -> None:
-        # Generate the stub file
         subprocess.run(["cargo", "run", "--bin", "stub_gen"], check=True)
-
-        # Move the generated stub file to parent directory
-        src_file = "kinfer/rust_bindings/rust_bindings.pyi"
-        dst_file = "kinfer/rust_bindings.pyi"
-        if os.path.exists(src_file) and not os.path.exists(dst_file):
-            shutil.move(src_file, dst_file)
-        if not os.path.exists(dst_file):
-            raise RuntimeError(f"Failed to generate {dst_file}")
-        if os.path.exists(src_file):
-            os.remove(src_file)
-
         super().run()
 
 
@@ -74,7 +77,12 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=">=3.11",
     install_requires=requirements,
-    extras_require={"dev": requirements_dev},
+    extras_require={
+        "dev": requirements_dev,
+        "pytorch": requirements_pytorch,
+        "jax": requirements_jax,
+        "all": requirements_dev + requirements_pytorch + requirements_jax,
+    },
     include_package_data=True,
     packages=find_packages(),
     cmdclass={
