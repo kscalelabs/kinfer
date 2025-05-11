@@ -53,7 +53,7 @@ jobs:
 
       - name: Set ONNX Runtime path
         run: |
-          echo "ORT_DYLIB_PATH=$(python -c 'import onnxruntime as ort; from pathlib import Path; print(next((Path(ort.__file__).parent / "capi").glob("*.so")))')" >> $GITHUB_ENV
+          echo "ORT_DYLIB_PATH=$(python -c 'import onnxruntime as ort; from pathlib import Path; print(next((Path(ort.__file__).parent / "capi").glob("libonnxruntime.*")))')" >> $GITHUB_ENV
 
       - name: Run static checks
         run: |

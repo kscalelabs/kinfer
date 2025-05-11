@@ -36,7 +36,7 @@ pip install 'onnxruntime==1.20.0'
 After doing this, you need to set `ORT_DYLIB_PATH` to point to the dynamic library.
 
 ```bash
-python -c 'import onnxruntime as ort ; from pathlib import Path ; print(next((Path(ort.__file__).parent / "capi").glob("*.dylib")))'
+python -c 'import onnxruntime as ort ; from pathlib import Path ; print(next((Path(ort.__file__).parent / "capi").glob("libonnxruntime.*")))'
 ```
 
 Make sure this file actually exists!
