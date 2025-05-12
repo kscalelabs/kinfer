@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::model::{ModelError, ModelRunner};
+use crate::telemetry::Telemetry;
 use std::time::Duration;
 use tokio::time::interval;
 
@@ -16,15 +17,19 @@ pub struct ModelRuntime {
 }
 
 impl ModelRuntime {
-    pub fn new(model_runner: Arc<ModelRunner>, dt: u64) -> Self {
-        Self {
+    pub async fn new(model_runner: Arc<ModelRunner>, dt: u64) -> Result<Self, ModelError> {
+        Telemetry::initialize("kbot-01", "localhost", 1883)
+            .await
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+
+        Ok(Self {
             model_runner,
             dt: Duration::from_millis(dt),
             slowdown_factor: 1,
             magnitude_factor: 1.0,
             running: Arc::new(AtomicBool::new(false)),
             runtime: None,
-        }
+        })
     }
 
     pub fn set_slowdown_factor(&mut self, slowdown_factor: i32) {

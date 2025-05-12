@@ -13,6 +13,8 @@ use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
+use crate::Telemetry;
+
 #[derive(Debug, Deserialize)]
 struct ModelMetadata {
     joint_names: Vec<String>,
@@ -293,6 +295,17 @@ impl ModelRunner {
         let outputs = self.step_session.run(input_values)?;
         let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
         let carry_tensor = outputs[1].try_extract_tensor::<f32>()?;
+
+        if let Some(telemetry) = Telemetry::get().await {
+            telemetry
+                .publish("nn_input", &inputs)
+                .await
+                .map_err(|e| ModelError::Provider(e.to_string()))?;
+            telemetry
+                .publish("nn_output", &output_tensor.view().to_owned())
+                .await
+                .map_err(|e| ModelError::Provider(e.to_string()))?;
+        }
 
         Ok((
             output_tensor.view().to_owned(),
