@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::model::{ModelError, ModelRunner};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::time::interval;
 
 pub struct ModelRuntime {
