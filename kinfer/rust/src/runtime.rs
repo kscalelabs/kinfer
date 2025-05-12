@@ -4,7 +4,7 @@ use tokio::runtime::Runtime;
 
 use crate::model::{ModelError, ModelRunner};
 use std::time::{Duration, Instant};
-use tokio::time::sleep;
+use tokio::time::interval;
 
 pub struct ModelRuntime {
     model_runner: Arc<ModelRunner>,
@@ -61,7 +61,10 @@ impl ModelRuntime {
                 .get_joint_angles()
                 .await
                 .map_err(|e| ModelError::Provider(e.to_string()))?;
-            let mut last_time = Instant::now();
+
+            // Wait for the first tick, since it happens immediately.
+            let mut interval = interval(dt);
+            interval.tick().await;
 
             while running.load(Ordering::Relaxed) {
                 let (output, next_carry) = model_runner
@@ -80,10 +83,7 @@ impl ModelRuntime {
                         .take_action(interp_joint_positions * magnitude_factor)
                         .await
                         .map_err(|e| ModelError::Provider(e.to_string()))?;
-                    last_time = last_time + dt;
-                    if let Some(sleep_duration) = last_time.checked_duration_since(Instant::now()) {
-                        sleep(sleep_duration).await;
-                    }
+                    interval.tick().await;
                 }
 
                 joint_positions = output;
