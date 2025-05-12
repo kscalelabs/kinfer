@@ -302,8 +302,14 @@ struct PyModelRuntime {
 impl PyModelRuntime {
     #[new]
     fn new(model_runner: PyModelRunner, dt: u64) -> PyResult<Self> {
+        let runtime = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ModelRuntime::new(model_runner.runner, dt)
+                .await
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+        })?;
+
         Ok(Self {
-            runtime: Arc::new(Mutex::new(ModelRuntime::new(model_runner.runner, dt))),
+            runtime: Arc::new(Mutex::new(runtime)),
         })
     }
 
