@@ -182,6 +182,30 @@ impl ModelProvider for PyModelProvider {
         Ok(args)
     }
 
+    async fn get_time(&self) -> Result<Array<f32, IxDyn>, ModelError> {
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_time", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })
+        .map_err(|e| ModelError::Provider(e.to_string()))?;
+        Ok(args)
+    }
+
+    async fn get_gait(&self) -> Result<Array<f32, IxDyn>, ModelError> {
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_gait", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })
+        .map_err(|e| ModelError::Provider(e.to_string()))?;
+        Ok(args)
+    }
+
     async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError> {
         Ok(carry)
     }

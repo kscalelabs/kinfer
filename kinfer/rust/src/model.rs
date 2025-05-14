@@ -47,6 +47,8 @@ pub trait ModelProvider: Send + Sync {
     async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_command(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_time(&self) -> Result<Array<f32, IxDyn>, ModelError>;
+    async fn get_gait(&self) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError>;
     async fn take_action(
         &self,
@@ -188,6 +190,24 @@ impl ModelRunner {
                         .into());
                     }
                 }
+                "time" => {
+                    if *dims != vec![2] {
+                        return Err(format!(
+                            "Expected shape [2] for input `{}`, got {:?}",
+                            input.name, dims
+                        )
+                        .into());
+                    }
+                }
+                "gait" => {
+                    if *dims != vec![1] {
+                        return Err(format!(
+                            "Expected shape [1] for input `{}`, got {:?}",
+                            input.name, dims
+                        )
+                        .into());
+                    }
+                }
                 "carry" => {
                     if dims != carry_shape {
                         return Err(format!(
@@ -268,6 +288,8 @@ impl ModelRunner {
                 "accelerometer" => futures.push(self.provider.get_accelerometer()),
                 "gyroscope" => futures.push(self.provider.get_gyroscope()),
                 "command" => futures.push(self.provider.get_command()),
+                "time" => futures.push(self.provider.get_time()),
+                "gait" => futures.push(self.provider.get_gait()),
                 "carry" => futures.push(self.provider.get_carry(carry.clone())),
                 _ => return Err(format!("Unknown input name: {}", name).into()),
             }

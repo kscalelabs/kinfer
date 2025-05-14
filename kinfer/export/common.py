@@ -32,6 +32,12 @@ def get_shape(
                 raise ValueError("`num_commands` must be provided when using `command`")
             return (num_commands,)
 
+        case "time":
+            return (2,)
+
+        case "gait":
+            return (1,)
+
         case "carry":
             if carry_shape is None:
                 raise ValueError("`carry_shape` must be provided for `carry`")
