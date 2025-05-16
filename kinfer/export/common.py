@@ -37,5 +37,8 @@ def get_shape(
                 raise ValueError("`carry_shape` must be provided for `carry`")
             return carry_shape
 
+        case "time":
+            return (1,)
+
         case _:
             raise ValueError(f"Unknown tensor name: {name}")
