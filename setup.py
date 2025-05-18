@@ -39,7 +39,7 @@ requirements_pytorch = [
 
 requirements_jax = [
     "tensorflow",
-    "tf2onnx",
+    "tf2onnx>=1.16.0",
     "jax",
     "equinox",
     "numpy<2",
