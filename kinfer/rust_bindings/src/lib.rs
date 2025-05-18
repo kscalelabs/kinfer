@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use kinfer::model::{ModelError, ModelProvider, ModelRunner};
 use kinfer::runtime::ModelRuntime;
+use kinfer::types::{InputType, ModelMetadata};
 use ndarray::{Array, Ix1, IxDyn};
 use numpy::{PyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyNotImplementedError;
@@ -29,52 +30,12 @@ impl ModelProviderABC {
         ModelProviderABC
     }
 
-    fn get_joint_angles<'py>(
-        &self,
-        joint_names: Vec<String>,
-    ) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        let n = joint_names.len();
+    fn get_inputs<'py>(&self, input_types: Vec<String>) -> PyResult<Bound<'py, PyArrayDyn<f32>>> {
         Err(PyNotImplementedError::new_err(format!(
-            "Must override get_joint_angles with {} joint names",
-            n
+            "Must override get_inputs with {} input types: {:?}",
+            input_types.len(),
+            input_types
         )))
-    }
-
-    fn get_joint_angular_velocities<'py>(
-        &self,
-        joint_names: Vec<String>,
-    ) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        let n = joint_names.len();
-        Err(PyNotImplementedError::new_err(format!(
-            "Must override get_joint_angular_velocities with {} joint names",
-            n
-        )))
-    }
-
-    fn get_projected_gravity<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        Err(PyNotImplementedError::new_err(
-            "Must override get_projected_gravity",
-        ))
-    }
-
-    fn get_accelerometer<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        Err(PyNotImplementedError::new_err(
-            "Must override get_accelerometer",
-        ))
-    }
-
-    fn get_gyroscope<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        Err(PyNotImplementedError::new_err(
-            "Must override get_gyroscope",
-        ))
-    }
-
-    fn get_command<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        Err(PyNotImplementedError::new_err("Must override get_command"))
-    }
-
-    fn get_time<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
-        Err(PyNotImplementedError::new_err("Must override get_time"))
     }
 
     fn take_action<'py>(

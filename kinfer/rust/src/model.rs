@@ -4,7 +4,6 @@ use futures_util::future;
 use ndarray::{Array, IxDyn};
 use ort::session::Session;
 use ort::value::Value;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
@@ -13,17 +12,7 @@ use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
-#[derive(Debug, Deserialize)]
-struct ModelMetadata {
-    joint_names: Vec<String>,
-    num_commands: Option<usize>,
-}
-
-impl ModelMetadata {
-    fn model_validate_json(json: String) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(serde_json::from_str(&json)?)
-    }
-}
+use crate::types::{InputType, ModelMetadata};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -35,24 +24,16 @@ pub enum ModelError {
 
 #[async_trait]
 pub trait ModelProvider: Send + Sync {
-    async fn get_joint_angles(
+    async fn get_input(
         &self,
-        joint_names: &[String],
-    ) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_joint_angular_velocities(
-        &self,
-        joint_names: &[String],
-    ) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_projected_gravity(&self) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_accelerometer(&self) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_gyroscope(&self) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_command(&self) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_time(&self) -> Result<Array<f32, IxDyn>, ModelError>;
-    async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError>;
+        input_types: &[InputType],
+        metadata: &ModelMetadata,
+    ) -> Result<Vec<Array<f32, IxDyn>>, ModelError>;
+
     async fn take_action(
         &self,
-        joint_names: Vec<String>,
         action: Array<f32, IxDyn>,
+        metadata: &ModelMetadata,
     ) -> Result<(), ModelError>;
 }
 
@@ -159,55 +140,15 @@ impl ModelRunner {
                 input.name
             ))?;
 
-            match input.name.as_str() {
-                "joint_angles" | "joint_angular_velocities" => {
-                    let num_joints = metadata.joint_names.len();
-                    if *dims != vec![num_joints as i64] {
-                        return Err(format!(
-                            "Expected shape [{num_joints}] for input `{}`, got {:?}",
-                            input.name, dims
-                        )
-                        .into());
-                    }
-                }
-                "projected_gravity" | "accelerometer" | "gyroscope" => {
-                    if *dims != vec![3] {
-                        return Err(format!(
-                            "Expected shape [3] for input `{}`, got {:?}",
-                            input.name, dims
-                        )
-                        .into());
-                    }
-                }
-                "command" => {
-                    let num_commands = metadata.num_commands.ok_or("num_commands is not set")?;
-                    if *dims != vec![num_commands as i64] {
-                        return Err(format!(
-                            "Expected shape [{num_commands}] for input `{}`, got {:?}",
-                            input.name, dims
-                        )
-                        .into());
-                    }
-                }
-                "time" => {
-                    if *dims != vec![1] {
-                        return Err(format!(
-                            "Expected shape [1] for input `{}`, got {:?}",
-                            input.name, dims
-                        )
-                        .into());
-                    }
-                }
-                "carry" => {
-                    if dims != carry_shape {
-                        return Err(format!(
-                            "Expected shape {:?} for input `carry`, got {:?}",
-                            carry_shape, dims
-                        )
-                        .into());
-                    }
-                }
-                _ => return Err(format!("Unknown input name: {}", input.name).into()),
+            let input_type = InputType::from_name(&input.name)?;
+            let expected_shape = input_type.get_shape(metadata);
+            let expected_shape_i64: Vec<i64> = expected_shape.iter().map(|&x| x as i64).collect();
+            if *dims != expected_shape_i64 {
+                return Err(format!(
+                    "Expected input shape {:?}, got {:?}",
+                    expected_shape_i64, dims
+                )
+                .into());
             }
         }
 
@@ -244,6 +185,13 @@ impl ModelRunner {
         Ok(())
     }
 
+    pub async fn get_inputs(
+        &self,
+        input_types: &[InputType],
+    ) -> Result<Vec<Array<f32, IxDyn>>, ModelError> {
+        self.provider.get_input(input_types, &self.metadata).await
+    }
+
     pub async fn init(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
         let input_values: Vec<(&str, Value)> = Vec::new();
         let outputs = self.init_session.run(input_values)?;
@@ -264,37 +212,55 @@ impl ModelRunner {
             .collect();
 
         // Calls the relevant getter methods in parallel.
-        let mut futures = Vec::new();
+        let mut input_types = Vec::new();
+        let mut inputs = HashMap::new();
         for name in &input_names {
             match name.as_str() {
                 "joint_angles" => {
-                    futures.push(self.provider.get_joint_angles(&self.metadata.joint_names))
+                    input_types.push(InputType::JointAngles);
                 }
-                "joint_angular_velocities" => futures.push(
-                    self.provider
-                        .get_joint_angular_velocities(&self.metadata.joint_names),
-                ),
-                "projected_gravity" => futures.push(self.provider.get_projected_gravity()),
-                "accelerometer" => futures.push(self.provider.get_accelerometer()),
-                "gyroscope" => futures.push(self.provider.get_gyroscope()),
-                "command" => futures.push(self.provider.get_command()),
-                "carry" => futures.push(self.provider.get_carry(carry.clone())),
-                "time" => futures.push(self.provider.get_time()),
+                "joint_angular_velocities" => {
+                    input_types.push(InputType::JointAngularVelocities);
+                }
+                "projected_gravity" => {
+                    input_types.push(InputType::ProjectedGravity);
+                }
+                "accelerometer" => {
+                    input_types.push(InputType::Accelerometer);
+                }
+                "gyroscope" => {
+                    input_types.push(InputType::Gyroscope);
+                }
+                "command" => {
+                    input_types.push(InputType::Command);
+                }
+                "time" => {
+                    input_types.push(InputType::Time);
+                }
+                "carry" => {
+                    inputs.insert(InputType::Carry, carry.clone());
+                }
                 _ => return Err(format!("Unknown input name: {}", name).into()),
             }
         }
 
-        let results = future::try_join_all(futures).await?;
-        let mut inputs = HashMap::new();
-        for (name, value) in input_names.iter().zip(results) {
-            inputs.insert(name.clone(), value);
+        // Gets the input values.
+        let result = self
+            .provider
+            .get_input(&input_types, &self.metadata)
+            .await?;
+
+        // Adds the input values to the input map.
+        for (input_type, value) in input_types.iter().zip(result) {
+            inputs.insert(*input_type, value);
         }
 
         // Convert inputs to ONNX values
         let mut input_values: Vec<(&str, Value)> = Vec::new();
         for input in &self.step_session.inputs {
+            let input_type = InputType::from_name(&input.name)?;
             let input_data = inputs
-                .get(&input.name)
+                .get(&input_type)
                 .ok_or_else(|| format!("Missing input: {}", input.name))?;
             let input_value = Value::from_array(input_data.view())?.into_dyn();
             input_values.push((input.name.as_str(), input_value));
@@ -315,15 +281,7 @@ impl ModelRunner {
         &self,
         action: Array<f32, IxDyn>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        self.provider
-            .take_action(self.metadata.joint_names.clone(), action)
-            .await?;
+        self.provider.take_action(action, &self.metadata).await?;
         Ok(())
-    }
-
-    pub async fn get_joint_angles(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let joint_names = &self.metadata.joint_names;
-        let joint_angles = self.provider.get_joint_angles(joint_names).await?;
-        Ok(joint_angles)
     }
 }

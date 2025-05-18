@@ -19,7 +19,6 @@ def pack(
     step_fn: ModelProto,
     joint_names: list[str],
     num_commands: int | None = None,
-    carry_shape: tuple[int, ...] | None = None,
 ) -> bytes:
     """Packs the initialization function and step function into a directory.
 
@@ -40,9 +39,6 @@ def pack(
         raise ValueError(f"`init` function should have exactly 1 output! Got {len(init_fn.graph.output)}")
     init_carry = init_fn.graph.output[0]
     init_carry_shape = tuple(dim.dim_value for dim in init_carry.type.tensor_type.shape.dim)
-    if carry_shape is not None and init_carry_shape != carry_shape:
-        raise ValueError(f"Expected carry shape {carry_shape} for output `{init_carry.name}`, got {init_carry_shape}")
-
     # Checks the `step` function.
     for step_input in step_fn.graph.input:
         step_input_type = step_input.type.tensor_type
@@ -51,7 +47,7 @@ def pack(
             step_input.name,
             num_joints=num_joints,
             num_commands=num_commands,
-            carry_shape=carry_shape,
+            carry_shape=init_carry_shape,
         )
         if shape != expected_shape:
             raise ValueError(f"Expected shape {expected_shape} for input `{step_input.name}`, got {shape}")
@@ -73,6 +69,7 @@ def pack(
     metadata = Metadata(
         joint_names=joint_names,
         num_commands=num_commands,
+        carry_shape=init_carry_shape,
     )
 
     buffer = io.BytesIO()
