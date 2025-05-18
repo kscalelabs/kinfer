@@ -38,6 +38,7 @@ def step_fn(
     accelerometer: Tensor,
     gyroscope: Tensor,
     command: Tensor,
+    time: Tensor,
     carry: Tensor,
 ) -> tuple[Tensor, Tensor]:
     output = (
@@ -47,6 +48,8 @@ def step_fn(
         + accelerometer.mean()
         + gyroscope.mean()
         + command.mean()
+        + torch.cos(time).mean()
+        + torch.sin(time).mean()
         + carry.mean()
     ) * joint_angles
     next_carry = carry + 1
@@ -119,6 +122,9 @@ def test_export(tmpdir: Path) -> None:
 
         def get_command(self) -> np.ndarray:
             return np.random.randn(NUM_COMMANDS)
+
+        def get_time(self) -> np.ndarray:
+            return np.random.randn(1)
 
         def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
             assert joint_names == JOINT_NAMES
