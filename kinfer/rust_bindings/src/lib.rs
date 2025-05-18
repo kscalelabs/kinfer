@@ -73,6 +73,10 @@ impl ModelProviderABC {
         Err(PyNotImplementedError::new_err("Must override get_command"))
     }
 
+    fn get_time<'py>(&self) -> PyResult<Bound<'py, PyArray1<f32>>> {
+        Err(PyNotImplementedError::new_err("Must override get_time"))
+    }
+
     fn take_action<'py>(
         &self,
         joint_names: Vec<String>,
@@ -187,10 +191,15 @@ impl ModelProvider for PyModelProvider {
     }
 
     async fn get_time(&self) -> Result<Array<f32, IxDyn>, ModelError> {
-        // Just return the current time from Jax.
-        let time = self.start_time.elapsed();
-        let time_arr = Array::from_vec(vec![time.as_secs_f32()]).into_dyn();
-        Ok(time_arr)
+        let args = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
+            let obj = self.obj.clone();
+            let args = ();
+            let result = obj.call_method(py, "get_time", args, None)?;
+            let array = result.extract::<Vec<f32>>(py)?;
+            Ok(Array::from_vec(array).into_dyn())
+        })
+        .map_err(|e| ModelError::Provider(e.to_string()))?;
+        Ok(args)
     }
 
     async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError> {
