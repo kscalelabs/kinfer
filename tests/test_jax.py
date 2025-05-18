@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 JOINT_NAMES = ["left_arm", "right_arm", "left_leg", "right_leg"]
 NUM_JOINTS = len(JOINT_NAMES)
 CARRY_SIZE = 10
+NUM_COMMANDS = 4
 
 
 @jax.jit
@@ -32,17 +33,19 @@ def step_fn(
     projected_gravity: jnp.ndarray,
     accelerometer: jnp.ndarray,
     gyroscope: jnp.ndarray,
+    command: jnp.ndarray,
     time: jnp.ndarray,
     carry: jnp.ndarray,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
     output = (
         joint_angles.mean()
-        + jnp.cos(time).mean()
-        + jnp.sin(time).mean()
         + joint_angular_velocities.mean()
         + projected_gravity.mean()
         + accelerometer.mean()
         + gyroscope.mean()
+        + command.mean()
+        + jnp.cos(time).mean()
+        + jnp.sin(time).mean()
         + carry.mean()
     ) * joint_angles
     next_carry = carry + 1
@@ -57,6 +60,7 @@ def test_export(tmpdir: Path) -> None:
     step_fn_onnx = export_fn(
         model=step_fn,
         num_joints=NUM_JOINTS,
+        num_commands=NUM_COMMANDS,
         carry_shape=(CARRY_SIZE,),
     )
 
@@ -64,6 +68,7 @@ def test_export(tmpdir: Path) -> None:
         init_fn_onnx,
         step_fn_onnx,
         joint_names=JOINT_NAMES,
+        num_commands=NUM_COMMANDS,
         carry_shape=(CARRY_SIZE,),
     )
 
@@ -90,6 +95,9 @@ def test_export(tmpdir: Path) -> None:
 
         def get_gyroscope(self) -> np.ndarray:
             return np.random.randn(3)
+
+        def get_command(self) -> np.ndarray:
+            return np.random.randn(NUM_COMMANDS)
 
         def get_time(self) -> np.ndarray:
             return np.random.randn(1)
