@@ -32,10 +32,13 @@ def step_fn(
     projected_gravity: jnp.ndarray,
     accelerometer: jnp.ndarray,
     gyroscope: jnp.ndarray,
+    time: jnp.ndarray,
     carry: jnp.ndarray,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
     output = (
         joint_angles.mean()
+        + jnp.cos(time).mean()
+        + jnp.sin(time).mean()
         + joint_angular_velocities.mean()
         + projected_gravity.mean()
         + accelerometer.mean()
@@ -87,6 +90,9 @@ def test_export(tmpdir: Path) -> None:
 
         def get_gyroscope(self) -> np.ndarray:
             return np.random.randn(3)
+
+        def get_time(self) -> np.ndarray:
+            return np.random.randn(1)
 
         def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
             assert joint_names == JOINT_NAMES
