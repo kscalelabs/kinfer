@@ -10,7 +10,7 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyfunction, gen_stub_pymethods};
 use std::sync::Arc;
 use std::sync::Mutex;
-
+use std::time::Instant;
 #[pyfunction]
 #[gen_stub_pyfunction]
 fn get_version() -> String {
@@ -92,13 +92,17 @@ impl ModelProviderABC {
 #[derive(Clone)]
 struct PyModelProvider {
     obj: Arc<Py<ModelProviderABC>>,
+    start_time: Instant,
 }
 
 #[pymethods]
 impl PyModelProvider {
     #[new]
     fn new(obj: Py<ModelProviderABC>) -> Self {
-        Self { obj: Arc::new(obj) }
+        Self {
+            obj: Arc::new(obj),
+            start_time: Instant::now(),
+        }
     }
 }
 
@@ -182,6 +186,13 @@ impl ModelProvider for PyModelProvider {
         Ok(args)
     }
 
+    async fn get_time(&self) -> Result<Array<f32, IxDyn>, ModelError> {
+        // Just return the current time from Jax.
+        let time = self.start_time.elapsed();
+        let time_arr = Array::from_vec(vec![time.as_secs_f32()]).into_dyn();
+        Ok(time_arr)
+    }
+
     async fn get_carry(&self, carry: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, ModelError> {
         Ok(carry)
     }
@@ -217,9 +228,7 @@ struct PyModelRunner {
 impl PyModelRunner {
     #[new]
     fn new(model_path: String, provider: Py<ModelProviderABC>) -> PyResult<Self> {
-        let input_provider = Arc::new(PyModelProvider {
-            obj: Arc::new(provider),
-        });
+        let input_provider = Arc::new(PyModelProvider::new(provider));
 
         let runner = tokio::runtime::Runtime::new().unwrap().block_on(async {
             ModelRunner::new(model_path, input_provider)
