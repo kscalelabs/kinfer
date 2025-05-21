@@ -31,7 +31,7 @@ impl RerunLogger {
 
     /// Log one inference step.
     ///
-    /// * `inputs` – map from tensor-name ➜ ndarray observation
+    /// * `inputs`  – map from tensor-name -> ndarray observation  
     /// * `actions` – joint-action vector produced by the model
     pub fn log_step(
         &mut self,
@@ -42,10 +42,15 @@ impl RerunLogger {
         self.rec.set_time_sequence("frame", self.frame as i64);
 
         // ── observations ──────────────────────────────────────────────
+        // Skip the `carry` tensor – it contains the full model state and
+        // clutters the viewer.
         for (name, arr) in inputs {
+            if name == "carry" {
+                continue;
+            }
             for (i, v) in arr.iter().enumerate() {
                 let path = format!("inference/obs/{name}/{i}");
-                // failure to log must not crash the sim, so ignore the Result
+                // ignore failures: logging must never crash the sim
                 let _ = self.rec.log(path.as_str(), &Scalars::new([*v as f64]));
             }
         }
