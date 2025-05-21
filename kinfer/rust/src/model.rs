@@ -8,10 +8,12 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
+
+use crate::logger::RerunLogger;
 
 #[derive(Debug, Deserialize)]
 struct ModelMetadata {
@@ -61,6 +63,7 @@ pub struct ModelRunner {
     step_session: Session,
     metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
+    logger: Option<Mutex<RerunLogger>>,
 }
 
 impl ModelRunner {
@@ -121,6 +124,10 @@ impl ModelRunner {
         let step_session = Session::builder()?
             .commit_from_memory(&step_fn.ok_or("step_fn.onnx not found in archive")?)?;
 
+        let logger = std::env::var("KINFER_LOG_PATH")
+            .ok()
+            .map(|p| Mutex::new(RerunLogger::new(p)));
+
         // Validate init_fn has no inputs and one output
         if !init_session.inputs.is_empty() {
             return Err("init_fn should not have any inputs".into());
@@ -144,6 +151,7 @@ impl ModelRunner {
             step_session,
             metadata,
             provider: input_provider,
+            logger,
         })
     }
 
@@ -304,6 +312,13 @@ impl ModelRunner {
         let outputs = self.step_session.run(input_values)?;
         let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
         let carry_tensor = outputs[1].try_extract_tensor::<f32>()?;
+
+        // ─── inference done – optionally log it ────────────────────────
+        if let Some(l) = &self.logger {
+            if let Ok(mut lg) = l.lock() {
+                lg.log_step(&inputs, &output_tensor.view().to_owned());
+            }
+        }
 
         Ok((
             output_tensor.view().to_owned(),

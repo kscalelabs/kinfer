@@ -8,9 +8,9 @@ use pyo3::prelude::*;
 use pyo3::{pymodule, types::PyModule, Bound, PyResult, Python};
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyfunction, gen_stub_pymethods};
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
 #[pyfunction]
 #[gen_stub_pyfunction]
 fn get_version() -> String {
@@ -244,6 +244,8 @@ impl PyModelRunner {
                 .await
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
         })?;
+
+        println!("KINFER_LOG_PATH = {:?}", std::env::var("KINFER_LOG_PATH"));
 
         Ok(Self {
             runner: Arc::new(runner),
