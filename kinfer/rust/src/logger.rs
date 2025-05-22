@@ -9,13 +9,12 @@
 //! through the run inside the Rerun viewer.
 
 use rerun::{
-    archetypes::{Scalars, SeriesLines},
+    archetypes::Scalars,
     RecordingStream,
 };
 use std::{
-    collections::{HashMap, HashSet},
-    ffi::OsStr,
-    path::{Path, PathBuf},
+    collections::HashMap,
+    path::PathBuf,
     process::Command,    // spawn the CLI
 };
 
@@ -26,12 +25,12 @@ pub struct RerunLogger {
     rec: RecordingStream,
     path: PathBuf,          // ← keep the filename so Drop can compact
     frame: u64,
-    series_declared: HashSet<String>,
+    joint_names: Vec<String>,          // ← NEW
 }
 
 impl RerunLogger {
     /// Create a new logger that writes an `.rrd` file at `path`.
-    pub fn new(path: impl Into<PathBuf>) -> Self {
+    pub fn new(path: impl Into<PathBuf>, joint_names: Vec<String>) -> Self {
         let path = path.into();
         let rec = rerun::RecordingStreamBuilder::new("kinfer_inference_logger")
             .save(&path)          // must pass &Path
@@ -40,7 +39,7 @@ impl RerunLogger {
             rec,
             path,                 // store it
             frame: 0,
-            series_declared: HashSet::new(),
+            joint_names,                   // ← NEW
         }
     }
 
@@ -57,22 +56,40 @@ impl RerunLogger {
         self.rec.set_time_sequence("frame", self.frame as i64);
 
         // ── observations ──────────────────────────────────────────────
-        // Skip the `carry` tensor – it contains the full model state and
-        // clutters the viewer.
-        for (name, arr) in inputs {
-            if name == "carry" {
+        for (tensor_name, arr) in inputs {
+            if tensor_name == "carry" {
                 continue;
             }
             for (i, v) in arr.iter().enumerate() {
-                let path = format!("inference/obs/{name}/{i}");
-                // ignore failures: logging must never crash the sim
+                // decide label per tensor -----------------------------------
+                let label = match tensor_name.as_str() {
+                    "joint_angles" | "joint_angular_velocities" => {
+                        // index + "_" + joint name (if we have it)
+                        let jname = self
+                            .joint_names
+                            .get(i)
+                            .cloned()
+                            .unwrap_or_else(|| i.to_string());
+                        format!("{i}_{}", jname.replace('/', "_"))
+                    }
+                    _ => i.to_string(),   // plain index for IMU tensors
+                };
+
+                let path = format!("inference/obs/{tensor_name}/{label}");
                 let _ = self.rec.log(path.as_str(), &Scalars::new([*v as f64]));
             }
         }
 
-        // ── action vector ────────────────────────────────────────────
+        // ── action vector ─────────────────────────────────────────────
         for (i, v) in actions.iter().enumerate() {
-            let path = format!("inference/action/{i}");
+            let jname = self
+                .joint_names
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| i.to_string());
+            let label = format!("{i}_{}", jname.replace('/', "_"));
+
+            let path = format!("inference/action/{label}");
             let _ = self.rec.log(path.as_str(), &Scalars::new([*v as f64]));
         }
     }

@@ -126,7 +126,7 @@ impl ModelRunner {
 
         let logger = std::env::var("KINFER_LOG_PATH")
             .ok()
-            .map(|p| Mutex::new(RerunLogger::new(p)));
+            .map(|p| Mutex::new(RerunLogger::new(p, metadata.joint_names.clone())));
 
         // Validate init_fn has no inputs and one output
         if !init_session.inputs.is_empty() {
