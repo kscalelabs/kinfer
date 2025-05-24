@@ -13,13 +13,13 @@ use serde::Serialize;
 struct NdjsonStep<'a> {
     step_id: u64,
     t_us: u128,
-    joint_angles: &'a [f32],
-    joint_vels: &'a [f32],
-    projected_g: &'a [f32],
-    accel: &'a [f32],
-    gyro: &'a [f32],
+    joint_angles: Option<&'a [f32]>,
+    joint_vels: Option<&'a [f32]>,
+    projected_g: Option<&'a [f32]>,
+    accel: Option<&'a [f32]>,
+    gyro: Option<&'a [f32]>,
     command: Option<&'a [f32]>,
-    output: &'a [f32],
+    output: Option<&'a [f32]>,
 }
 
 const CHANNEL_CAP: usize = 1024;
@@ -78,13 +78,13 @@ impl StepLogger {
     /// Non-blocking; drops a line if the channel is full.
     pub fn log_step(
         &self,
-        joint_angles: &[f32],
-        joint_vels: &[f32],
-        projected_g: &[f32],
-        accel: &[f32],
-        gyro: &[f32],
+        joint_angles: Option<&[f32]>,
+        joint_vels: Option<&[f32]>,
+        projected_g: Option<&[f32]>,
+        accel: Option<&[f32]>,
+        gyro: Option<&[f32]>,
         command: Option<&[f32]>,
-        output: &[f32],
+        output: Option<&[f32]>,
     ) {
         let record = NdjsonStep {
             step_id: self

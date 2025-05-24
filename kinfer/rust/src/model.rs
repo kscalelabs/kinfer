@@ -313,15 +313,22 @@ impl ModelRunner {
 
         // Log the step if needed
         if let Some(lg) = &self.logger {
+            let joint_angles_opt = inputs.get("joint_angles").map(|a| a.as_slice().unwrap());
+            let joint_vels_opt = inputs.get("joint_angular_velocities").map(|a| a.as_slice().unwrap());
+            let projected_g_opt = inputs.get("projected_gravity").map(|a| a.as_slice().unwrap());
+            let accel_opt = inputs.get("accelerometer").map(|a| a.as_slice().unwrap());
+            let gyro_opt = inputs.get("gyroscope").map(|a| a.as_slice().unwrap());
             let command_opt = inputs.get("command").map(|a| a.as_slice().unwrap());
+            let output_opt = Some(output_tensor.as_slice().unwrap());
+            
             lg.log_step(
-                inputs["joint_angles"].as_slice().unwrap(),
-                inputs["joint_angular_velocities"].as_slice().unwrap(),
-                inputs["projected_gravity"].as_slice().unwrap(),
-                inputs["accelerometer"].as_slice().unwrap(),
-                inputs["gyroscope"].as_slice().unwrap(),
+                joint_angles_opt,
+                joint_vels_opt,
+                projected_g_opt,
+                accel_opt,
+                gyro_opt,
                 command_opt,
-                output_tensor.as_slice().unwrap(),
+                output_opt,
             );
         }
 
