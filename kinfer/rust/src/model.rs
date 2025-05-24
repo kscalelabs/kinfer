@@ -61,6 +61,7 @@ pub struct ModelRunner {
     step_session: Session,
     metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
+    logger: Option<Arc<crate::logger::StepLogger>>,
 }
 
 impl ModelRunner {
@@ -139,11 +140,16 @@ impl ModelRunner {
         // Validate step_fn inputs and outputs
         Self::validate_step_fn(&step_session, &metadata, &carry_shape)?;
 
+        let logger = std::env::var_os("KINFER_LOG_PATH")
+            .map(|p| crate::logger::StepLogger::new(p).map(Arc::new))
+            .transpose()?; // -> Option<Arc<StepLogger>>
+
         Ok(Self {
             init_session,
             step_session,
             metadata,
             provider: input_provider,
+            logger,
         })
     }
 
@@ -304,6 +310,20 @@ impl ModelRunner {
         let outputs = self.step_session.run(input_values)?;
         let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
         let carry_tensor = outputs[1].try_extract_tensor::<f32>()?;
+
+        // Log the step if needed
+        if let Some(lg) = &self.logger {
+            let command_opt = inputs.get("command").map(|a| a.as_slice().unwrap());
+            lg.log_step(
+                inputs["joint_angles"].as_slice().unwrap(),
+                inputs["joint_angular_velocities"].as_slice().unwrap(),
+                inputs["projected_gravity"].as_slice().unwrap(),
+                inputs["accelerometer"].as_slice().unwrap(),
+                inputs["gyroscope"].as_slice().unwrap(),
+                command_opt,
+                output_tensor.as_slice().unwrap(),
+            );
+        }
 
         Ok((
             output_tensor.view().to_owned(),
