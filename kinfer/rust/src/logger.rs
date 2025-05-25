@@ -12,7 +12,7 @@ use serde::Serialize;
 #[derive(Serialize)]
 struct NdjsonStep<'a> {
     step_id: u64,
-    t_us: u128,
+    t_us: u64,
     joint_angles: Option<&'a [f32]>,
     joint_vels: Option<&'a [f32]>,
     projected_g: Option<&'a [f32]>,
