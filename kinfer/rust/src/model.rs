@@ -14,6 +14,8 @@ use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
+use crate::logger::StepLogger;
+
 #[derive(Debug, Deserialize)]
 struct ModelMetadata {
     joint_names: Vec<String>,
@@ -62,7 +64,7 @@ pub struct ModelRunner {
     step_session: Session,
     metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
-    logger: Option<Arc<crate::logger::StepLogger>>,
+    logger: Option<Arc<StepLogger>>,
 }
 
 impl ModelRunner {
@@ -153,7 +155,7 @@ impl ModelRunner {
             let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();
             let log_file_path = log_dir_path.join(format!("{}.ndjson", timestamp));
 
-            Some(crate::logger::StepLogger::new(log_file_path).map(Arc::new)?)
+            Some(StepLogger::new(log_file_path).map(Arc::new)?)
         } else {
             None
         };

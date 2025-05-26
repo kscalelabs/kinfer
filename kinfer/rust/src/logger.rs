@@ -2,11 +2,12 @@ use std::{
     fs::OpenOptions,
     io::{BufWriter, Write},
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
     thread,
 };
 
 use crossbeam_channel::{bounded, Sender};
-use log::info;
+use log::{info, warn};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -22,13 +23,19 @@ struct NdjsonStep<'a> {
     output: Option<&'a [f32]>,
 }
 
+// Channel capacity for non-blocking logging.
+// ~1000 entires at 50Hz is 20 seconds of buffering.
+// Warns if messages are dropped due to full buffer.
 const CHANNEL_CAP: usize = 1024;
+
+// Flush buffered writes every 100 log entries.
+// At 50Hz control frequency, this flushes every 2 seconds.
 const FLUSH_EVERY: u64 = 100;
 
 pub struct StepLogger {
     tx: Option<Sender<Vec<u8>>>,
     worker: Option<thread::JoinHandle<()>>,
-    next_id: std::sync::atomic::AtomicU64,
+    next_id: AtomicU64,
 }
 
 impl StepLogger {
@@ -63,7 +70,7 @@ impl StepLogger {
         Ok(Self {
             tx: Some(tx),
             worker: Some(worker),
-            next_id: std::sync::atomic::AtomicU64::new(0),
+            next_id: AtomicU64::new(0),
         })
     }
 
@@ -87,9 +94,7 @@ impl StepLogger {
         output: Option<&[f32]>,
     ) {
         let record = NdjsonStep {
-            step_id: self
-                .next_id
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            step_id: self.next_id.fetch_add(1, Ordering::Relaxed),
             t_us: Self::now_us() as u64,
             joint_angles,
             joint_vels,
@@ -104,7 +109,12 @@ impl StepLogger {
         if let Ok(mut line) = serde_json::to_vec(&record) {
             line.push(b'\n');
             if let Some(tx) = &self.tx {
-                let _ = tx.try_send(line); // drop if the queue is full
+                if let Err(_) = tx.try_send(line) {
+                    warn!(
+                        "kinfer: logging buffer full, dropped message (step_id: {})",
+                        record.step_id
+                    );
+                }
             }
         }
     }
