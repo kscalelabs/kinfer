@@ -90,7 +90,7 @@ impl StepLogger {
             step_id: self
                 .next_id
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
-            t_us: Self::now_us(),
+            t_us: Self::now_us() as u64,
             joint_angles,
             joint_vels,
             projected_g,
