@@ -26,7 +26,7 @@ const CHANNEL_CAP: usize = 1024;
 const FLUSH_EVERY: u64 = 100;
 
 pub struct StepLogger {
-    tx: Sender<Vec<u8>>,
+    tx: Option<Sender<Vec<u8>>>,
     worker: Option<thread::JoinHandle<()>>,
     next_id: std::sync::atomic::AtomicU64,
 }
@@ -61,7 +61,7 @@ impl StepLogger {
         });
 
         Ok(Self {
-            tx,
+            tx: Some(tx),
             worker: Some(worker),
             next_id: std::sync::atomic::AtomicU64::new(0),
         })
@@ -103,7 +103,9 @@ impl StepLogger {
         // Serialise directly into a Vec<u8>; then push newline and send.
         if let Ok(mut line) = serde_json::to_vec(&record) {
             line.push(b'\n');
-            let _ = self.tx.try_send(line); // drop if the queue is full
+            if let Some(tx) = &self.tx {
+                let _ = tx.try_send(line); // drop if the queue is full
+            }
         }
     }
 }
@@ -111,7 +113,10 @@ impl StepLogger {
 /// Ensure the worker drains and flushes before program exit.
 impl Drop for StepLogger {
     fn drop(&mut self) {
-        // drop Sender -> channel closes
+        if let Some(tx) = self.tx.take() {
+            drop(tx); // Drop sender to close channel
+        }
+        // Wait for worker to finish
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }

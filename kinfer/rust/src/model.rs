@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono;
 use flate2::read::GzDecoder;
 use futures_util::future;
 use ndarray::{Array, IxDyn};
@@ -140,9 +141,22 @@ impl ModelRunner {
         // Validate step_fn inputs and outputs
         Self::validate_step_fn(&step_session, &metadata, &carry_shape)?;
 
-        let logger = std::env::var_os("KINFER_LOG_PATH")
-            .map(|p| crate::logger::StepLogger::new(p).map(Arc::new))
-            .transpose()?; // -> Option<Arc<StepLogger>>
+        let logger = if let Ok(log_dir) = std::env::var("KINFER_LOG_PATH") {
+            let log_dir_path = std::path::Path::new(&log_dir);
+
+            // Create the directory if it doesn't exist
+            if !log_dir_path.exists() {
+                std::fs::create_dir_all(log_dir_path)?;
+            }
+
+            // Generate a timestamped filename
+            let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+            let log_file_path = log_dir_path.join(format!("{}.ndjson", timestamp));
+
+            Some(crate::logger::StepLogger::new(log_file_path).map(Arc::new)?)
+        } else {
+            None
+        };
 
         Ok(Self {
             init_session,
@@ -314,13 +328,17 @@ impl ModelRunner {
         // Log the step if needed
         if let Some(lg) = &self.logger {
             let joint_angles_opt = inputs.get("joint_angles").map(|a| a.as_slice().unwrap());
-            let joint_vels_opt = inputs.get("joint_angular_velocities").map(|a| a.as_slice().unwrap());
-            let projected_g_opt = inputs.get("projected_gravity").map(|a| a.as_slice().unwrap());
+            let joint_vels_opt = inputs
+                .get("joint_angular_velocities")
+                .map(|a| a.as_slice().unwrap());
+            let projected_g_opt = inputs
+                .get("projected_gravity")
+                .map(|a| a.as_slice().unwrap());
             let accel_opt = inputs.get("accelerometer").map(|a| a.as_slice().unwrap());
             let gyro_opt = inputs.get("gyroscope").map(|a| a.as_slice().unwrap());
             let command_opt = inputs.get("command").map(|a| a.as_slice().unwrap());
             let output_opt = Some(output_tensor.as_slice().unwrap());
-            
+
             lg.log_step(
                 joint_angles_opt,
                 joint_vels_opt,

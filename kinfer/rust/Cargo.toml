@@ -17,6 +17,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 
 async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
 crossbeam-channel = "0.5.15"
 flate2 = "1.0"
 futures-util = "0.3.30"
