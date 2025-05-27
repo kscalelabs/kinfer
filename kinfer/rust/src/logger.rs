@@ -83,6 +83,7 @@ impl StepLogger {
     }
 
     /// Non-blocking; drops a line if the channel is full.
+    #[allow(clippy::too_many_arguments)]
     pub fn log_step(
         &self,
         joint_angles: Option<&[f32]>,
@@ -109,7 +110,7 @@ impl StepLogger {
         if let Ok(mut line) = serde_json::to_vec(&record) {
             line.push(b'\n');
             if let Some(tx) = &self.tx {
-                if let Err(_) = tx.try_send(line) {
+                if tx.try_send(line).is_err() {
                     warn!(
                         "kinfer: logging buffer full, dropped message (step_id: {})",
                         record.step_id
