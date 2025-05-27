@@ -1,15 +1,9 @@
-"""Plot NDJSON logs saved by kinfer."""
-
+#!/usr/bin/env python3
 import argparse
 import json
-import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
-
-# Set up logger
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def read_ndjson(filepath):
     """Read NDJSON file and return list of parsed objects"""
@@ -21,10 +15,32 @@ def read_ndjson(filepath):
                 data.append(json.loads(line))
     return data
 
-def plot_data(data):
+def filter_data_by_time(data, skip_seconds=0.1):
+    """Filter out the first skip_seconds of data"""
+    if not data or skip_seconds <= 0:
+        return data
+    
+    # Get the first timestamp
+    t_start = data[0]['t_us']
+    skip_us = skip_seconds * 1e6  # Convert to microseconds
+    
+    # Filter data to skip the first skip_seconds
+    filtered_data = [d for d in data if (d['t_us'] - t_start) >= skip_us]
+    
+    print(f"Skipped first {skip_seconds}s of data ({len(data) - len(filtered_data)} points)")
+    return filtered_data
+
+def plot_data(data, output_path=None, skip_seconds=0.1):
     """Plot all data fields from the NDJSON"""
     if not data:
-        logger.info("No data to plot")
+        print("No data to plot")
+        return
+    
+    # Filter out the first skip_seconds of data
+    data = filter_data_by_time(data, skip_seconds)
+    
+    if not data:
+        print("No data remaining after filtering")
         return
     
     # Extract timestamps and convert to seconds relative to first timestamp
@@ -42,8 +58,9 @@ def plot_data(data):
     
     # Create subplots
     fig, axes = plt.subplots(3, 2, figsize=(15, 12))
-    fig.suptitle('Robot Data Over Time', fontsize=16)
+    fig.suptitle(f'Robot Data Over Time (skipped first {skip_seconds}s)', fontsize=16)
     
+    # Plot joint angles
     if len(joint_angles) > 0:
         ax = axes[0, 0]
         for i in range(joint_angles.shape[1]):
@@ -53,6 +70,7 @@ def plot_data(data):
         ax.set_ylabel('Angle (rad)')
         ax.grid(True, alpha=0.3)
     
+    # Plot joint velocities
     if len(joint_vels) > 0:
         ax = axes[0, 1]
         for i in range(joint_vels.shape[1]):
@@ -62,6 +80,7 @@ def plot_data(data):
         ax.set_ylabel('Velocity (rad/s)')
         ax.grid(True, alpha=0.3)
     
+    # Plot projected gravity
     if len(projected_g) > 0:
         ax = axes[1, 0]
         labels = ['X', 'Y', 'Z']
@@ -73,6 +92,7 @@ def plot_data(data):
         ax.legend()
         ax.grid(True, alpha=0.3)
     
+    # Plot acceleration
     if len(accel) > 0:
         ax = axes[1, 1]
         labels = ['X', 'Y', 'Z']
@@ -84,6 +104,7 @@ def plot_data(data):
         ax.legend()
         ax.grid(True, alpha=0.3)
     
+    # Plot command
     if len(command) > 0:
         ax = axes[2, 0]
         for i in range(command.shape[1]):
@@ -94,6 +115,7 @@ def plot_data(data):
         ax.legend()
         ax.grid(True, alpha=0.3)
     
+    # Plot output
     if len(output) > 0:
         ax = axes[2, 1]
         for i in range(output.shape[1]):
@@ -104,23 +126,40 @@ def plot_data(data):
         ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
+    
+    # Save plot if output path is provided
+    if output_path:
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"Plot saved to: {output_path}")
+    
     plt.show()
 
 def main():
-    parser = argparse.ArgumentParser(description="Plot NDJSON logs saved by kinfer")
-    parser.add_argument("filepath", help="Path to the NDJSON file to plot")
+    parser = argparse.ArgumentParser(description='Plot robot data from NDJSON file')
+    parser.add_argument('filepath', help='Path to the NDJSON file to plot')
+    parser.add_argument('--save', action='store_true', help='Save plot to disk')
+    parser.add_argument('--skip', type=float, default=0.1, 
+                       help='Skip first N seconds of data (default: 0.1)')
+    
     args = parser.parse_args()
     
-    filepath = args.filepath
-    if not Path(filepath).exists():
-        logger.info(f"File not found: {filepath}")
-        return
+    filepath = Path(args.filepath)
+    if not filepath.exists():
+        print(f"File not found: {filepath}")
+        return 1
     
-    logger.info(f"Reading data from {filepath}...")
+    print(f"Reading data from {filepath}...")
     data = read_ndjson(filepath)
-    logger.info(f"Loaded {len(data)} data points")
+    print(f"Loaded {len(data)} data points")
     
-    plot_data(data)
+    # Generate output path if saving is requested
+    output_path = None
+    if args.save:
+        # Create output filename: original_name_plot.png
+        output_path = filepath.parent / f"{filepath.stem}_plot.png"
+    
+    plot_data(data, output_path, skip_seconds=args.skip)
+    return 0
 
 if __name__ == "__main__":
-    main() 
+    exit(main())
