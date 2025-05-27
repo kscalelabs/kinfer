@@ -1,5 +1,6 @@
 """Plot NDJSON logs saved by kinfer."""
 
+import argparse
 import json
 import logging
 import matplotlib.pyplot as plt
@@ -106,8 +107,11 @@ def plot_data(data):
     plt.show()
 
 def main():
-
-    filepath = input("Enter the path to your NDJSON file: ").strip()
+    parser = argparse.ArgumentParser(description="Plot NDJSON logs saved by kinfer")
+    parser.add_argument("filepath", help="Path to the NDJSON file to plot")
+    args = parser.parse_args()
+    
+    filepath = args.filepath
     if not Path(filepath).exists():
         logger.info(f"File not found: {filepath}")
         return
