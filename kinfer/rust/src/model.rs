@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use flate2::read::GzDecoder;
-use futures_util::future;
 use ndarray::{Array, IxDyn};
 use ort::session::Session;
 use ort::value::Value;

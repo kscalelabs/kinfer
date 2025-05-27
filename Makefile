@@ -20,6 +20,7 @@ PYTHON_FILES := $(shell find . -name "*.py" ! -path "./ref/*" ! -path "*/proto/*
 format:
 	@black $(PYTHON_FILES)
 	@ruff format $(PYTHON_FILES)
+	@cargo fmt --all
 .PHONY: format
 
 static-checks:
@@ -27,7 +28,8 @@ static-checks:
 	@ruff check $(PYTHON_FILES)
 	@mkdir -p .mypy_cache
 	@mypy --install-types --non-interactive $(PYTHON_FILES)
-.PHONY: lint
+	@cargo clippy --all-targets --all-features -- -D warnings
+.PHONY: static-checks
 
 # Unit tests
 

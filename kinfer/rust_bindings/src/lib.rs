@@ -14,6 +14,8 @@ use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+type StepResult = (Py<PyArrayDyn<f32>>, Py<PyArrayDyn<f32>>);
+
 #[pyfunction]
 #[gen_stub_pyfunction]
 fn get_version() -> String {
@@ -52,7 +54,7 @@ impl PyInputType {
                     InputType::get_names().join(", "),
                 )))
             },
-            |t| Ok(t),
+            Ok,
         )?;
         Ok(Self { input_type })
     }
@@ -70,7 +72,7 @@ impl PyInputType {
     }
 
     fn __eq__(&self, other: &Self) -> bool {
-        return other == self;
+        other == self
     }
 }
 
@@ -119,7 +121,7 @@ impl PyModelMetadata {
     }
 
     fn __eq__(&self, other: &Self) -> bool {
-        return other == self;
+        other == self
     }
 }
 
@@ -187,9 +189,9 @@ impl ModelProviderABC {
         )))
     }
 
-    fn take_action<'py>(
+    fn take_action(
         &self,
-        action: Bound<'py, PyArray1<f32>>,
+        action: Bound<'_, PyArray1<f32>>,
         metadata: PyModelMetadata,
     ) -> PyResult<()> {
         let n = action.len()?;
@@ -310,10 +312,7 @@ impl PyModelRunner {
         })
     }
 
-    fn step(
-        &self,
-        carry: Py<PyArrayDyn<f32>>,
-    ) -> PyResult<(Py<PyArrayDyn<f32>>, Py<PyArrayDyn<f32>>)> {
+    fn step(&self, carry: Py<PyArrayDyn<f32>>) -> PyResult<StepResult> {
         let runner = self.runner.clone();
         let carry_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let carry_array = carry.bind(py);
