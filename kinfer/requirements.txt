@@ -11,4 +11,3 @@ pydantic
 matplotlib
 numpy
 pathlib
-json
