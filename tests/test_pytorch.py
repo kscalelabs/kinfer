@@ -12,10 +12,9 @@ import onnxruntime
 import torch
 from torch import Tensor
 
-from kinfer.common.types import Metadata
 from kinfer.export.pytorch import export_fn
 from kinfer.export.serialize import pack
-from kinfer.rust_bindings import ModelProviderABC, PyModelRunner, PyModelRuntime
+from kinfer.rust_bindings import ModelProviderABC, PyModelMetadata, PyModelRunner, PyModelRuntime, metadata_from_json
 
 logger = logging.getLogger(__name__)
 
@@ -57,24 +56,15 @@ def step_fn(
 
 
 def test_export(tmpdir: Path) -> None:
-    init_fn_onnx = export_fn(
-        model=init_fn,
-    )
-
-    step_fn_onnx = export_fn(
-        model=step_fn,
-        num_joints=NUM_JOINTS,
-        num_commands=NUM_COMMANDS,
-        carry_shape=(CARRY_SIZE,),
-    )
-
-    kinfer_model = pack(
-        init_fn_onnx,
-        step_fn_onnx,
+    metadata = PyModelMetadata(
         joint_names=JOINT_NAMES,
         num_commands=NUM_COMMANDS,
-        carry_shape=(CARRY_SIZE,),
+        carry_size=[CARRY_SIZE],
     )
+
+    init_fn_onnx = export_fn(init_fn, metadata)
+    step_fn_onnx = export_fn(step_fn, metadata)
+    kinfer_model = pack(init_fn_onnx, step_fn_onnx, metadata)
 
     # Saves the model to disk.
     root_dir = Path(tmpdir)
@@ -87,8 +77,8 @@ def test_export(tmpdir: Path) -> None:
         # Checks that joint_names.json is valid JSON.
         if (fpath := tar.extractfile("metadata.json")) is None:
             raise ValueError("metadata.json not found")
-        metadata = Metadata.model_validate_json(fpath.read().decode("utf-8"))
-        assert metadata.joint_names == JOINT_NAMES
+        metadata = metadata_from_json(fpath.read().decode("utf-8"))
+        assert metadata.joint_names == JOINT_NAMES  # type: ignore[attr-defined]
 
         # Validates that we can construct a session in Python.
         if (fpath := tar.extractfile("init_fn.onnx")) is None:
@@ -103,31 +93,30 @@ def test_export(tmpdir: Path) -> None:
     num_actions = 0
 
     class DummyModelProvider(ModelProviderABC):
-        def get_joint_angles(self, joint_names: Sequence[str]) -> np.ndarray:
-            assert len(joint_names) == NUM_JOINTS
-            return np.random.randn(NUM_JOINTS)
+        def get_inputs(self, input_types: Sequence[str], metadata: PyModelMetadata) -> dict[str, np.ndarray]:
+            return_values: dict[str, np.ndarray] = {}
+            for input_type in input_types:
+                match input_type:
+                    case "joint_angles":
+                        return_values["joint_angles"] = np.random.randn(NUM_JOINTS)
+                    case "joint_angular_velocities":
+                        return_values["joint_angular_velocities"] = np.random.randn(NUM_JOINTS)
+                    case "projected_gravity":
+                        return_values["projected_gravity"] = np.random.randn(3)
+                    case "accelerometer":
+                        return_values["accelerometer"] = np.random.randn(3)
+                    case "gyroscope":
+                        return_values["gyroscope"] = np.random.randn(3)
+                    case "command":
+                        return_values["command"] = np.random.randn(NUM_COMMANDS)
+                    case "time":
+                        return_values["time"] = np.random.randn(1)
+                    case _:
+                        raise ValueError(f"Unknown input type: {input_type}")
+            return return_values
 
-        def get_joint_angular_velocities(self, joint_names: Sequence[str]) -> np.ndarray:
-            assert len(joint_names) == NUM_JOINTS
-            return np.random.randn(NUM_JOINTS)
-
-        def get_projected_gravity(self) -> np.ndarray:
-            return np.random.randn(3)
-
-        def get_accelerometer(self) -> np.ndarray:
-            return np.random.randn(3)
-
-        def get_gyroscope(self) -> np.ndarray:
-            return np.random.randn(3)
-
-        def get_command(self) -> np.ndarray:
-            return np.random.randn(NUM_COMMANDS)
-
-        def get_time(self) -> np.ndarray:
-            return np.random.randn(1)
-
-        def take_action(self, joint_names: Sequence[str], action: np.ndarray) -> None:
-            assert joint_names == JOINT_NAMES
+        def take_action(self, action: np.ndarray, metadata: PyModelMetadata) -> None:
+            assert metadata.joint_names == JOINT_NAMES  # type: ignore[attr-defined]
             assert action.shape == (NUM_JOINTS,)
             nonlocal num_actions
             num_actions += 1
