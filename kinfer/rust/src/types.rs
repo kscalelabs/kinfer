@@ -1,15 +1,20 @@
 use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ModelMetadata {
     pub joint_names: Vec<String>,
     pub num_commands: Option<usize>,
-    pub carry_size: usize,
+    pub carry_size: Vec<usize>,
 }
 
 impl ModelMetadata {
     pub fn model_validate_json(json: String) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(serde_json::from_str(&json)?)
+    }
+
+    pub fn to_json(&self) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(serde_json::to_string(self)?)
     }
 }
 
@@ -46,9 +51,9 @@ impl InputType {
             InputType::ProjectedGravity => vec![3],
             InputType::Accelerometer => vec![3],
             InputType::Gyroscope => vec![3],
-            InputType::Command => vec![metadata.num_commands.unwrap()],
+            InputType::Command => vec![metadata.num_commands.unwrap_or(0)],
             InputType::Time => vec![1],
-            InputType::Carry => vec![metadata.carry_size],
+            InputType::Carry => metadata.carry_size.clone(),
         }
     }
 
@@ -64,5 +69,18 @@ impl InputType {
             "carry" => Ok(InputType::Carry),
             _ => Err(format!("Unknown input type: {}", name).into()),
         }
+    }
+
+    pub fn get_names() -> Vec<&'static str> {
+        vec![
+            "joint_angles",
+            "joint_angular_velocities",
+            "projected_gravity",
+            "accelerometer",
+            "gyroscope",
+            "command",
+            "time",
+            "carry",
+        ]
     }
 }

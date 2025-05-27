@@ -10,20 +10,27 @@ from jax._src.stages import Wrapped
 from jax.experimental import jax2tf
 from onnx.onnx_pb import ModelProto
 
-from kinfer.export.common import get_shape
+from kinfer.rust_bindings import PyInputType, PyModelMetadata
 
 logger = logging.getLogger(__name__)
 
 
 def export_fn(
     model: Wrapped,
+    metadata: PyModelMetadata,
     *,
-    num_joints: int | None = None,
-    num_commands: int | None = None,
-    carry_shape: tuple[int, ...] | None = None,
     opset: int = 13,
 ) -> ModelProto:
-    """Export a JAX function to ONNX."""
+    """Export a JAX function to ONNX.
+
+    Args:
+        model: The model to export.
+        metadata: The metadata for the model.
+        opset: The ONNX opset to use.
+
+    Returns:
+        The ONNX model as a `ModelProto`.
+    """
     if not isinstance(model, Wrapped):
         raise ValueError("Model must be a Wrapped function")
 
@@ -33,12 +40,7 @@ def export_fn(
     # Gets the dummy input tensors for exporting the model.
     tf_args = []
     for name in input_names:
-        shape = get_shape(
-            name,
-            num_joints=num_joints,
-            num_commands=num_commands,
-            carry_shape=carry_shape,
-        )
+        shape = PyInputType(name).get_shape(metadata)
         tf_args.append(tf.TensorSpec(shape, tf.float32, name=name))
 
     finalised_fn = finalise_fn(model)

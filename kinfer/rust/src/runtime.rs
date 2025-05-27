@@ -63,7 +63,7 @@ impl ModelRuntime {
                 .get_inputs(&[InputType::JointAngles])
                 .await
                 .map_err(|e| ModelError::Provider(e.to_string()))?;
-            let mut joint_positions = model_inputs[0].clone();
+            let mut joint_positions = model_inputs[&InputType::JointAngles].clone();
 
             // Wait for the first tick, since it happens immediately.
             let mut interval = interval(dt);

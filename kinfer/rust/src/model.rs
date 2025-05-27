@@ -24,11 +24,11 @@ pub enum ModelError {
 
 #[async_trait]
 pub trait ModelProvider: Send + Sync {
-    async fn get_input(
+    async fn get_inputs(
         &self,
         input_types: &[InputType],
         metadata: &ModelMetadata,
-    ) -> Result<Vec<Array<f32, IxDyn>>, ModelError>;
+    ) -> Result<HashMap<InputType, Array<f32, IxDyn>>, ModelError>;
 
     async fn take_action(
         &self,
@@ -188,8 +188,8 @@ impl ModelRunner {
     pub async fn get_inputs(
         &self,
         input_types: &[InputType],
-    ) -> Result<Vec<Array<f32, IxDyn>>, ModelError> {
-        self.provider.get_input(input_types, &self.metadata).await
+    ) -> Result<HashMap<InputType, Array<f32, IxDyn>>, ModelError> {
+        self.provider.get_inputs(input_types, &self.metadata).await
     }
 
     pub async fn init(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
@@ -247,13 +247,11 @@ impl ModelRunner {
         // Gets the input values.
         let result = self
             .provider
-            .get_input(&input_types, &self.metadata)
+            .get_inputs(&input_types, &self.metadata)
             .await?;
 
         // Adds the input values to the input map.
-        for (input_type, value) in input_types.iter().zip(result) {
-            inputs.insert(*input_type, value);
-        }
+        inputs.extend(result);
 
         // Convert inputs to ONNX values
         let mut input_values: Vec<(&str, Value)> = Vec::new();
