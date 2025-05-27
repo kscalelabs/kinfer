@@ -4,34 +4,30 @@ __all__ = [
     "pack",
 ]
 
-
 import io
+import logging
 import tarfile
 
 from onnx.onnx_pb import ModelProto
 
-from kinfer.common.types import Metadata
-from kinfer.export.common import get_shape
+from kinfer.rust_bindings import PyInputType, PyModelMetadata
+
+logger = logging.getLogger(__name__)
 
 
 def pack(
     init_fn: ModelProto,
     step_fn: ModelProto,
-    joint_names: list[str],
-    num_commands: int | None = None,
-    carry_shape: tuple[int, ...] | None = None,
+    metadata: PyModelMetadata,
 ) -> bytes:
     """Packs the initialization function and step function into a directory.
 
     Args:
         init_fn: The initialization function.
         step_fn: The step function.
-        joint_names: The list of joint names, in the order that the model
-            expects them to be provided.
-        num_commands: The number of commands in the model.
-        carry_shape: The shape of the carry tensor.
+        metadata: The metadata for the model.
     """
-    num_joints = len(joint_names)
+    num_joints = len(metadata.joint_names)  # type: ignore[attr-defined]
 
     # Checks the `init` function.
     if len(init_fn.graph.input) > 0:
@@ -40,20 +36,21 @@ def pack(
         raise ValueError(f"`init` function should have exactly 1 output! Got {len(init_fn.graph.output)}")
     init_carry = init_fn.graph.output[0]
     init_carry_shape = tuple(dim.dim_value for dim in init_carry.type.tensor_type.shape.dim)
-    if carry_shape is not None and init_carry_shape != carry_shape:
-        raise ValueError(f"Expected carry shape {carry_shape} for output `{init_carry.name}`, got {init_carry_shape}")
+
+    if metadata.carry_size != init_carry_shape:  # type: ignore[attr-defined]
+        logger.warning(
+            "Updating carry size from %s to %s to match the `init` function",
+            metadata.carry_size,  # type: ignore[attr-defined]
+            init_carry_shape,
+        )
+        metadata.carry_size = init_carry_shape  # type: ignore[attr-defined]
 
     # Checks the `step` function.
     for step_input in step_fn.graph.input:
         step_input_type = step_input.type.tensor_type
         shape = tuple(dim.dim_value for dim in step_input_type.shape.dim)
-        expected_shape = get_shape(
-            step_input.name,
-            num_joints=num_joints,
-            num_commands=num_commands,
-            carry_shape=carry_shape,
-        )
-        if shape != expected_shape:
+        expected_shape = PyInputType(step_input.name).get_shape(metadata)
+        if shape != tuple(expected_shape):
             raise ValueError(f"Expected shape {expected_shape} for input `{step_input.name}`, got {shape}")
 
     if len(step_fn.graph.output) != 2:
@@ -69,12 +66,6 @@ def pack(
     if output_carry_shape != init_carry_shape:
         raise ValueError(f"Expected carry shape {init_carry_shape} for output carry, got {output_carry_shape}")
 
-    # Builds the metadata object.
-    metadata = Metadata(
-        joint_names=joint_names,
-        num_commands=num_commands,
-    )
-
     buffer = io.BytesIO()
 
     with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
@@ -86,7 +77,7 @@ def pack(
 
         add_file_bytes("init_fn.onnx", init_fn.SerializeToString())
         add_file_bytes("step_fn.onnx", step_fn.SerializeToString())
-        add_file_bytes("metadata.json", metadata.model_dump_json().encode("utf-8"))
+        add_file_bytes("metadata.json", metadata.to_json().encode("utf-8"))
 
     buffer.seek(0)
 
