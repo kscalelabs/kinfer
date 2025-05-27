@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +25,31 @@ def read_ndjson(filepath: str) -> list[dict]:
     return data
 
 
-def plot_data(data: list[dict]) -> None:
+def skip_initial_data(data: list[dict], skip_seconds: float) -> list[dict]:
+    """Skip the first n seconds of data based on timestamps."""
+    if not data or skip_seconds <= 0.0:
+        return data
+
+    # Extract timestamps and convert to seconds relative to first timestamp
+    timestamps = [d["t_us"] for d in data]
+    t_start = timestamps[0]
+    times = [(t - t_start) / 1e6 for t in timestamps]  # Convert to seconds
+
+    # Find indices where time >= skip_seconds
+    skip_indices = [i for i, t in enumerate(times) if t >= skip_seconds]
+    if not skip_indices:
+        logger.info("All data points are within the skip period (%.2f seconds). No data to plot.", skip_seconds)
+        return []
+
+    # Filter data
+    start_idx = skip_indices[0]
+    filtered_data = data[start_idx:]
+    logger.info("Skipped first %.2f seconds (%d data points)", skip_seconds, start_idx)
+
+    return filtered_data
+
+
+def plot_data(data: list[dict], save_path: Optional[Union[str, Path]] = None) -> None:
     """Plot all data fields from the NDJSON."""
     if not data:
         logger.info("No data to plot")
@@ -107,12 +132,20 @@ def plot_data(data: list[dict]) -> None:
         ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.show()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        logger.info("Plot saved to: %s", save_path)
+        plt.close()
+    else:
+        plt.show()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot NDJSON logs saved by kinfer")
     parser.add_argument("filepath", help="Path to the NDJSON file to plot")
+    parser.add_argument("--skip", type=float, default=0.0, help="Skip the first n seconds of data")
+    parser.add_argument("--save", action="store_true", help="Save the plot to a PNG file in a plots folder")
     args = parser.parse_args()
 
     filepath = args.filepath
@@ -124,7 +157,20 @@ def main() -> None:
     data = read_ndjson(filepath)
     logger.info("Loaded %d data points", len(data))
 
-    plot_data(data)
+    filtered_data = skip_initial_data(data, args.skip)
+
+    save_path = None
+    if args.save:
+        # Create save path in plots folder with same name but .png extension
+        input_path = Path(filepath)
+        plots_dir = input_path.parent / "plots"
+        plots_dir.mkdir(exist_ok=True)
+
+        # Change extension from .ndjson to .png
+        filename = input_path.stem + ".png"
+        save_path = str(plots_dir / filename)
+
+    plot_data(filtered_data, save_path)
 
 
 if __name__ == "__main__":
