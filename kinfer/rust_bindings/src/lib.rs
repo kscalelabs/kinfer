@@ -6,6 +6,7 @@ use ndarray::{Array, Ix1, IxDyn};
 use numpy::{PyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
+use pyo3::types::{PyAny, PyAnyMethods};
 use pyo3::{pymodule, types::PyModule, Bound, PyResult, Python};
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyfunction, gen_stub_pymethods};
@@ -71,8 +72,12 @@ impl PyInputType {
         format!("InputType({})", self.get_name())
     }
 
-    fn __eq__(&self, other: &Self) -> bool {
-        other == self
+    fn __eq__(&self, other: Bound<'_, PyAny>) -> PyResult<bool> {
+        if let Ok(other) = other.extract::<PyInputType>() {
+            Ok(self == &other)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -120,8 +125,12 @@ impl PyModelMetadata {
         Ok(format!("ModelMetadata({:?})", json))
     }
 
-    fn __eq__(&self, other: &Self) -> bool {
-        other == self
+    fn __eq__(&self, other: Bound<'_, PyAny>) -> PyResult<bool> {
+        if let Ok(other) = other.extract::<PyModelMetadata>() {
+            Ok(self == &other)
+        } else {
+            Ok(false)
+        }
     }
 }
 

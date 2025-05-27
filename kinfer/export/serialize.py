@@ -5,11 +5,14 @@ __all__ = [
 ]
 
 import io
+import logging
 import tarfile
 
 from onnx.onnx_pb import ModelProto
 
 from kinfer.rust_bindings import PyInputType, PyModelMetadata
+
+logger = logging.getLogger(__name__)
 
 
 def pack(
@@ -33,6 +36,14 @@ def pack(
         raise ValueError(f"`init` function should have exactly 1 output! Got {len(init_fn.graph.output)}")
     init_carry = init_fn.graph.output[0]
     init_carry_shape = tuple(dim.dim_value for dim in init_carry.type.tensor_type.shape.dim)
+
+    if metadata.carry_size != init_carry_shape:  # type: ignore[attr-defined]
+        logger.warning(
+            "Updating carry size from %s to %s to match the `init` function",
+            metadata.carry_size,  # type: ignore[attr-defined]
+            init_carry_shape,
+        )
+        metadata.carry_size = init_carry_shape  # type: ignore[attr-defined]
 
     # Checks the `step` function.
     for step_input in step_fn.graph.input:
