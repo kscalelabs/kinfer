@@ -6,3 +6,8 @@ onnxruntime==1.20.0
 
 # Serialization
 pydantic
+
+# Plotting
+matplotlib
+numpy
+pathlib

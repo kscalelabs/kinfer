@@ -1,4 +1,7 @@
+use crate::logger::StepLogger;
+use crate::types::{InputType, ModelMetadata};
 use async_trait::async_trait;
+use chrono;
 use flate2::read::GzDecoder;
 use ndarray::{Array, IxDyn};
 use ort::session::Session;
@@ -10,8 +13,6 @@ use std::sync::Arc;
 use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-
-use crate::types::{InputType, ModelMetadata};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -41,6 +42,7 @@ pub struct ModelRunner {
     step_session: Session,
     metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
+    logger: Option<Arc<StepLogger>>,
 }
 
 impl ModelRunner {
@@ -119,11 +121,29 @@ impl ModelRunner {
         // Validate step_fn inputs and outputs
         Self::validate_step_fn(&step_session, &metadata, &carry_shape)?;
 
+        let logger = if let Ok(log_dir) = std::env::var("KINFER_LOG_PATH") {
+            let log_dir_path = std::path::Path::new(&log_dir);
+
+            // Create the directory if it doesn't exist
+            if !log_dir_path.exists() {
+                std::fs::create_dir_all(log_dir_path)?;
+            }
+
+            // Generate a timestamped filename
+            let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+            let log_file_path = log_dir_path.join(format!("{}.ndjson", timestamp));
+
+            Some(StepLogger::new(log_file_path).map(Arc::new)?)
+        } else {
+            None
+        };
+
         Ok(Self {
             init_session,
             step_session,
             metadata,
             provider: input_provider,
+            logger,
         })
     }
 
@@ -267,6 +287,39 @@ impl ModelRunner {
         let outputs = self.step_session.run(input_values)?;
         let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
         let carry_tensor = outputs[1].try_extract_tensor::<f32>()?;
+
+        // Log the step if needed
+        if let Some(lg) = &self.logger {
+            let joint_angles_opt = inputs
+                .get(&InputType::JointAngles)
+                .map(|a| a.as_slice().unwrap());
+            let joint_vels_opt = inputs
+                .get(&InputType::JointAngularVelocities)
+                .map(|a| a.as_slice().unwrap());
+            let projected_g_opt = inputs
+                .get(&InputType::ProjectedGravity)
+                .map(|a| a.as_slice().unwrap());
+            let accel_opt = inputs
+                .get(&InputType::Accelerometer)
+                .map(|a| a.as_slice().unwrap());
+            let gyro_opt = inputs
+                .get(&InputType::Gyroscope)
+                .map(|a| a.as_slice().unwrap());
+            let command_opt = inputs
+                .get(&InputType::Command)
+                .map(|a| a.as_slice().unwrap());
+            let output_opt = Some(output_tensor.as_slice().unwrap());
+
+            lg.log_step(
+                joint_angles_opt,
+                joint_vels_opt,
+                projected_g_opt,
+                accel_opt,
+                gyro_opt,
+                command_opt,
+                output_opt,
+            );
+        }
 
         Ok((
             output_tensor.view().to_owned(),
