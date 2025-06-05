@@ -22,6 +22,8 @@ impl ModelMetadata {
 pub enum InputType {
     JointAngles,
     JointAngularVelocities,
+    InitialHeading,
+    Quaternion,
     ProjectedGravity,
     Accelerometer,
     Gyroscope,
@@ -35,6 +37,8 @@ impl InputType {
         match self {
             InputType::JointAngles => "joint_angles",
             InputType::JointAngularVelocities => "joint_angular_velocities",
+            InputType::InitialHeading => "initial_heading",
+            InputType::Quaternion => "quaternion",
             InputType::ProjectedGravity => "projected_gravity",
             InputType::Accelerometer => "accelerometer",
             InputType::Gyroscope => "gyroscope",
@@ -48,6 +52,8 @@ impl InputType {
         match self {
             InputType::JointAngles => vec![metadata.joint_names.len()],
             InputType::JointAngularVelocities => vec![metadata.joint_names.len()],
+            InputType::InitialHeading => vec![1],
+            InputType::Quaternion => vec![4],
             InputType::ProjectedGravity => vec![3],
             InputType::Accelerometer => vec![3],
             InputType::Gyroscope => vec![3],
@@ -61,6 +67,8 @@ impl InputType {
         match name {
             "joint_angles" => Ok(InputType::JointAngles),
             "joint_angular_velocities" => Ok(InputType::JointAngularVelocities),
+            "initial_heading" => Ok(InputType::InitialHeading),
+            "quaternion" => Ok(InputType::Quaternion),
             "projected_gravity" => Ok(InputType::ProjectedGravity),
             "accelerometer" => Ok(InputType::Accelerometer),
             "gyroscope" => Ok(InputType::Gyroscope),
@@ -75,6 +83,8 @@ impl InputType {
         vec![
             "joint_angles",
             "joint_angular_velocities",
+            "initial_heading",
+            "quaternion",
             "projected_gravity",
             "accelerometer",
             "gyroscope",
