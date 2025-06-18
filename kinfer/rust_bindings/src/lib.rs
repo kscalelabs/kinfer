@@ -331,13 +331,13 @@ impl PyModelRunner {
         })
     }
 
-    // OPTIMIZED: Reuse runtime and release GIL
+    // Reuse runtime and release GIL
     fn init(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
         let runner = self.runner.clone();
         let runtime = self.runtime.clone();
 
         let result = Python::with_gil(|py| {
-            // OPTIMIZED: Release GIL during async operation
+            // Release GIL during async operation
             py.allow_threads(|| {
                 runtime.block_on(async {
                     runner
@@ -355,7 +355,7 @@ impl PyModelRunner {
         })
     }
 
-    // OPTIMIZED: Reuse runtime and release GIL
+    // Reuse runtime and release GIL
     fn step(&self, carry: Py<PyArrayDyn<f32>>) -> PyResult<StepResult> {
         let runner = self.runner.clone();
         let runtime = self.runtime.clone();
