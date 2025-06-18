@@ -17,6 +17,19 @@ use std::sync::Mutex;
 
 type StepResult = (Py<PyArrayDyn<f32>>, Py<PyArrayDyn<f32>>);
 
+// Custom error type for Send/Sync compatibility
+#[derive(Debug)]
+struct SendError(String);
+
+unsafe impl Send for SendError {}
+unsafe impl Sync for SendError {}
+
+impl std::fmt::Display for SendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[pyfunction]
 #[gen_stub_pyfunction]
 fn get_version() -> String {
@@ -204,9 +217,15 @@ impl ModelProviderABC {
         metadata: PyModelMetadata,
     ) -> PyResult<()> {
         let n = action.len()?;
-        assert_eq!(metadata.joint_names.len(), n); // TODO: this is wrong
+        if metadata.joint_names.len() != n {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Expected {} joints, got {} action elements",
+                metadata.joint_names.len(),
+                n
+            )));
+        }
         Err(PyNotImplementedError::new_err(format!(
-            "Must override take_action with {} action",
+            "Must override take_action with {} action elements",
             n
         )))
     }
@@ -286,6 +305,7 @@ impl ModelProvider for PyModelProvider {
 #[derive(Clone)]
 struct PyModelRunner {
     runner: Arc<ModelRunner>,
+    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 #[gen_stub_pymethods]
@@ -295,7 +315,11 @@ impl PyModelRunner {
     fn __new__(model_path: String, provider: Py<ModelProviderABC>) -> PyResult<Self> {
         let input_provider = Arc::new(PyModelProvider::__new__(provider));
 
-        let runner = tokio::runtime::Runtime::new()?.block_on(async {
+        // Create a single runtime to be reused for all operations
+        let runtime = Arc::new(tokio::runtime::Runtime::new()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?);
+
+        let runner = runtime.block_on(async {
             ModelRunner::new(model_path, input_provider)
                 .await
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
@@ -303,17 +327,27 @@ impl PyModelRunner {
 
         Ok(Self {
             runner: Arc::new(runner),
+            runtime,
         })
     }
 
+    // OPTIMIZED: Reuse runtime and release GIL
     fn init(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
         let runner = self.runner.clone();
-        let result = tokio::runtime::Runtime::new()?.block_on(async {
-            runner
-                .init()
-                .await
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-        })?;
+        let runtime = self.runtime.clone();
+
+        let result = Python::with_gil(|py| {
+            // OPTIMIZED: Release GIL during async operation
+            py.allow_threads(|| {
+                runtime.block_on(async {
+                    runner
+                        .init()
+                        .await
+                        .map_err(|e| SendError(e.to_string()))
+                })
+            })
+        })
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
 
         Python::with_gil(|py| {
             let array = numpy::PyArray::from_array(py, &result);
@@ -321,20 +355,31 @@ impl PyModelRunner {
         })
     }
 
+    // OPTIMIZED: Reuse runtime and release GIL
     fn step(&self, carry: Py<PyArrayDyn<f32>>) -> PyResult<StepResult> {
         let runner = self.runner.clone();
+        let runtime = self.runtime.clone();
+        
+        // Extract the carry array from Python with GIL
         let carry_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let carry_array = carry.bind(py);
             Ok(carry_array.to_owned_array())
         })?;
 
-        let result = tokio::runtime::Runtime::new()?.block_on(async {
-            runner
-                .step(carry_array)
-                .await
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-        })?;
+        // Release GIL during computation
+        let result = Python::with_gil(|py| {
+            py.allow_threads(|| {
+                runtime.block_on(async {
+                    runner
+                        .step(carry_array)
+                        .await
+                        .map_err(|e| SendError(e.to_string()))
+                })
+            })
+        })
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
 
+        // Reacquire the GIL to convert results back to Python objects
         Python::with_gil(|py| {
             let (output, carry) = result;
             let output_array = numpy::PyArray::from_array(py, &output);
@@ -343,19 +388,29 @@ impl PyModelRunner {
         })
     }
 
+    // Reuse runtime and release GIL
     fn take_action(&self, action: Py<PyArrayDyn<f32>>) -> PyResult<()> {
         let runner = self.runner.clone();
+        let runtime = self.runtime.clone();
+
+        // Extract action data with GIL
         let action_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let action_array = action.bind(py);
             Ok(action_array.to_owned_array())
         })?;
-
-        tokio::runtime::Runtime::new()?.block_on(async {
-            runner
-                .take_action(action_array)
-                .await
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-        })?;
+        
+        // Release GIL during computation
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                runtime.block_on(async {
+                    runner
+                        .take_action(action_array)
+                        .await
+                        .map_err(|e| SendError(e.to_string()))
+                })
+            })
+        })
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
 
         Ok(())
     }
