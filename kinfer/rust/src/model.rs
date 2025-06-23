@@ -129,9 +129,12 @@ impl ModelRunner {
                 std::fs::create_dir_all(log_dir_path)?;
             }
 
-            // Generate a timestamped filename
-            let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();
-            let log_file_path = log_dir_path.join(format!("{}.ndjson", timestamp));
+            // Use uuid if found, otherwise timestamp
+            let log_name = std::env::var("KINFER_LOG_UUID").unwrap_or_else(|_| {
+                chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string()
+            });
+
+            let log_file_path = log_dir_path.join(format!("{}.ndjson", log_name));
 
             Some(StepLogger::new(log_file_path).map(Arc::new)?)
         } else {
