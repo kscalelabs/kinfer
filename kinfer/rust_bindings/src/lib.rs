@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use kinfer::model::{ModelError, ModelProvider, ModelRunner};
 use kinfer::runtime::ModelRuntime;
-use kinfer::types::{InputType, ModelMetadata};
+use kinfer::types::{InputType, ModelMetadata, JointBias, CommandTypeInfo, CommandField};
 use ndarray::{Array, Ix1, IxDyn};
 use numpy::{PyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyNotImplementedError;
@@ -94,9 +94,218 @@ impl PyInputType {
     }
 }
 
+
+
+#[pyfunction]
+#[gen_stub_pyfunction]
+fn metadata_from_json(json: &str) -> PyResult<PyModelMetadata> {
+    let metadata = ModelMetadata::model_validate_json(json.to_string()).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid model metadata: {}", e))
+    })?;
+    Ok(PyModelMetadata::from(metadata))
+}
+
+impl From<&ModelMetadata> for PyModelMetadata {
+    fn from(metadata: &ModelMetadata) -> Self {
+        let joint_biases = metadata.joint_biases.as_ref().map(|biases| {
+            biases.iter().map(|bias| PyJointBias {
+                joint_name: bias.joint_name.clone(),
+                reference_angle: bias.reference_angle,
+                weight: bias.weight,
+            }).collect()
+        });
+
+        let command_type_info = metadata.command_type_info.as_ref().map(|info| {
+            PyCommandTypeInfo {
+                command_type: info.command_type.clone(),
+                description: info.description.clone(),
+                fields: info.fields.iter().map(|field| PyCommandField {
+                    name: field.name.clone(),
+                    description: field.description.clone(),
+                    units: field.units.clone(),
+                    range: field.range,
+                }).collect(),
+            }
+        });
+
+        Self {
+            joint_names: metadata.joint_names.clone(),
+            num_commands: metadata.num_commands,
+            carry_size: metadata.carry_size.clone(),
+            joint_biases,
+            command_type_info,
+            kinfer_version: metadata.kinfer_version.clone(),
+            training_metadata: None, // Cannot convert easily
+        }
+    }
+}
+
+impl From<PyModelMetadata> for ModelMetadata {
+    fn from(metadata: PyModelMetadata) -> Self {
+        let joint_biases = metadata.joint_biases.map(|biases| {
+            biases.into_iter().map(|bias| JointBias {
+                joint_name: bias.joint_name,
+                reference_angle: bias.reference_angle,
+                weight: bias.weight,
+            }).collect()
+        });
+
+        let command_type_info = metadata.command_type_info.map(|info| {
+            CommandTypeInfo {
+                command_type: info.command_type,
+                description: info.description,
+                fields: info.fields.into_iter().map(|field| CommandField {
+                    name: field.name,
+                    description: field.description,
+                    units: field.units,
+                    range: field.range,
+                }).collect(),
+            }
+        });
+
+        Self {
+            joint_names: metadata.joint_names,
+            num_commands: metadata.num_commands,
+            carry_size: metadata.carry_size,
+            joint_biases,
+            command_type_info,
+            kinfer_version: metadata.kinfer_version,
+            training_metadata: None, // Cannot convert PyAny easily
+        }
+    }
+}
+
+impl From<kinfer::types::ModelMetadata> for PyModelMetadata {
+    fn from(metadata: kinfer::types::ModelMetadata) -> Self {
+        let joint_biases = metadata.joint_biases.map(|biases| {
+            biases.into_iter().map(|bias| PyJointBias {
+                joint_name: bias.joint_name,
+                reference_angle: bias.reference_angle,
+                weight: bias.weight,
+            }).collect()
+        });
+
+        let command_type_info = metadata.command_type_info.map(|info| {
+            PyCommandTypeInfo {
+                command_type: info.command_type,
+                description: info.description,
+                fields: info.fields.into_iter().map(|field| PyCommandField {
+                    name: field.name,
+                    description: field.description,
+                    units: field.units,
+                    range: field.range,
+                }).collect(),
+            }
+        });
+
+        Self {
+            joint_names: metadata.joint_names,
+            num_commands: metadata.num_commands,
+            carry_size: metadata.carry_size,
+            joint_biases,
+            command_type_info,
+            kinfer_version: metadata.kinfer_version,
+            training_metadata: None, // TODO: Implement proper conversion
+        }
+    }
+}
+
 #[pyclass]
 #[gen_stub_pyclass]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
+struct PyJointBias {
+    #[pyo3(get, set)]
+    pub joint_name: String,
+    #[pyo3(get, set)]
+    pub reference_angle: f64,
+    #[pyo3(get, set)]
+    pub weight: f64,
+}
+
+#[pymethods]
+#[gen_stub_pymethods]
+impl PyJointBias {
+    #[new]
+    fn __new__(joint_name: String, reference_angle: f64, weight: f64) -> Self {
+        Self {
+            joint_name,
+            reference_angle,
+            weight,
+        }
+    }
+    
+    fn __repr__(&self) -> String {
+        format!("JointBias(joint_name='{}', reference_angle={}, weight={})", 
+                self.joint_name, self.reference_angle, self.weight)
+    }
+}
+
+#[pyclass]
+#[gen_stub_pyclass]
+#[derive(Debug, Clone, PartialEq)]
+struct PyCommandField {
+    #[pyo3(get, set)]
+    pub name: String,
+    #[pyo3(get, set)]
+    pub description: String,
+    #[pyo3(get, set)]
+    pub units: Option<String>,
+    #[pyo3(get, set)]
+    pub range: Option<(f64, f64)>,
+}
+
+#[pymethods]
+#[gen_stub_pymethods]
+impl PyCommandField {
+    #[new]
+    fn __new__(name: String, description: String, units: Option<String>, range: Option<(f64, f64)>) -> Self {
+        Self {
+            name,
+            description,
+            units,
+            range,
+        }
+    }
+    
+    fn __repr__(&self) -> String {
+        format!("CommandField(name='{}', description='{}', units={:?}, range={:?})", 
+                self.name, self.description, self.units, self.range)
+    }
+}
+
+#[pyclass]
+#[gen_stub_pyclass]
+#[derive(Debug, Clone, PartialEq)]
+struct PyCommandTypeInfo {
+    #[pyo3(get, set)]
+    pub command_type: String,
+    #[pyo3(get, set)]
+    pub description: String,
+    #[pyo3(get, set)]
+    pub fields: Vec<PyCommandField>,
+}
+
+#[pymethods]
+#[gen_stub_pymethods]
+impl PyCommandTypeInfo {
+    #[new]
+    fn __new__(command_type: String, description: String, fields: Vec<PyCommandField>) -> Self {
+        Self {
+            command_type,
+            description,
+            fields,
+        }
+    }
+    
+    fn __repr__(&self) -> String {
+        format!("CommandTypeInfo(command_type='{}', description='{}', fields={:?})", 
+                self.command_type, self.description, self.fields)
+    }
+}
+
+#[pyclass]
+#[gen_stub_pyclass]
+#[derive(Debug)]
 struct PyModelMetadata {
     #[pyo3(get, set)]
     pub joint_names: Vec<String>,
@@ -104,6 +313,82 @@ struct PyModelMetadata {
     pub num_commands: Option<usize>,
     #[pyo3(get, set)]
     pub carry_size: Vec<usize>,
+    #[pyo3(get, set)]
+    pub joint_biases: Option<Vec<PyJointBias>>,
+    #[pyo3(get, set)]
+    pub command_type_info: Option<PyCommandTypeInfo>,
+    #[pyo3(get, set)]
+    pub kinfer_version: Option<String>,
+    #[pyo3(get, set)]
+    pub training_metadata: Option<HashMap<String, Py<PyAny>>>,
+}
+
+impl Clone for PyModelMetadata {
+    fn clone(&self) -> Self {
+        Self {
+            joint_names: self.joint_names.clone(),
+            num_commands: self.num_commands,
+            carry_size: self.carry_size.clone(),
+            joint_biases: self.joint_biases.clone(),
+            command_type_info: self.command_type_info.clone(),
+            kinfer_version: self.kinfer_version.clone(),
+            training_metadata: None, // Skip cloning PyAny
+        }
+    }
+}
+
+impl PartialEq for PyModelMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.joint_names == other.joint_names
+            && self.num_commands == other.num_commands
+            && self.carry_size == other.carry_size
+            && self.joint_biases == other.joint_biases
+            && self.command_type_info == other.command_type_info
+            && self.kinfer_version == other.kinfer_version
+            // Skip comparing training_metadata
+    }
+}
+impl Eq for PyModelMetadata {}
+
+impl PyModelMetadata {
+    //fn to_rust_metadata(&self) -> PyResult<kinfer::types::ModelMetadata> {
+    fn to_rust_metadata(&self) -> PyResult<ModelMetadata> {
+        // Convert joint biases
+        let joint_biases = self.joint_biases.as_ref().map(|biases| {
+            biases.iter().map(|bias| kinfer::types::JointBias {
+                joint_name: bias.joint_name.clone(),
+                reference_angle: bias.reference_angle,
+                weight: bias.weight,
+            }).collect()
+        });
+
+        // Convert command type info
+        let command_type_info = self.command_type_info.as_ref().map(|info| {
+            kinfer::types::CommandTypeInfo {
+                command_type: info.command_type.clone(),
+                description: info.description.clone(),
+                fields: info.fields.iter().map(|field| kinfer::types::CommandField {
+                    name: field.name.clone(),
+                    description: field.description.clone(),
+                    units: field.units.clone(),
+                    range: field.range,
+                }).collect(),
+            }
+        });
+
+        // Convert training metadata (simplified - would need more complex handling for PyAny)
+        let training_metadata = None; // TODO: Implement proper PyAny to serde_json::Value conversion
+
+        Ok(kinfer::types::ModelMetadata {
+            joint_names: self.joint_names.clone(),
+            num_commands: self.num_commands,
+            carry_size: self.carry_size.clone(),
+            joint_biases,
+            command_type_info,
+            kinfer_version: self.kinfer_version.clone(),
+            training_metadata,
+        })
+    }
 }
 
 #[pymethods]
@@ -114,25 +399,49 @@ impl PyModelMetadata {
         joint_names: Vec<String>,
         num_commands: Option<usize>,
         carry_size: Vec<usize>,
+        joint_biases: Option<Vec<PyJointBias>>,
+        command_type_info: Option<PyCommandTypeInfo>,
+        kinfer_version: Option<String>,
+        training_metadata: Option<HashMap<String, Py<PyAny>>>,
     ) -> Self {
         Self {
             joint_names,
             num_commands,
             carry_size,
+            joint_biases,
+            command_type_info,
+            kinfer_version,
+            training_metadata,
         }
     }
 
     fn to_json(&self) -> PyResult<String> {
-        let metadata = ModelMetadata {
-            joint_names: self.joint_names.clone(),
-            num_commands: self.num_commands,
-            carry_size: self.carry_size.clone(),
-        }
-        .to_json()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        Ok(metadata)
+        // Convert to Rust types for serialization
+        let rust_metadata = self.to_rust_metadata()?;
+        rust_metadata.to_json()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 
+    fn get_joint_bias_by_name(&self, joint_name: &str) -> Option<PyJointBias> {
+        self.joint_biases.as_ref()?.iter().find(|bias| bias.joint_name == joint_name).cloned()
+    }
+
+    fn get_command_type(&self) -> Option<String> {
+        self.command_type_info.as_ref().map(|info| info.command_type.clone())
+    }
+
+    fn get_command_description(&self) -> Option<String> {
+        self.command_type_info.as_ref().map(|info| info.description.clone())
+    }
+
+    fn validate_command_compatibility(&self, expected_command_type: &str) -> PyResult<()> {
+        let rust_metadata = self.to_rust_metadata()?;
+        rust_metadata.validate_command_compatibility(expected_command_type)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))
+    }
+    
+    
+    
     fn __repr__(&self) -> PyResult<String> {
         let json = self.to_json()?;
         Ok(format!("ModelMetadata({:?})", json))
@@ -145,45 +454,7 @@ impl PyModelMetadata {
             Ok(false)
         }
     }
-}
 
-#[pyfunction]
-#[gen_stub_pyfunction]
-fn metadata_from_json(json: &str) -> PyResult<PyModelMetadata> {
-    let metadata = ModelMetadata::model_validate_json(json.to_string()).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid model metadata: {}", e))
-    })?;
-    Ok(PyModelMetadata::from(metadata))
-}
-
-impl From<ModelMetadata> for PyModelMetadata {
-    fn from(metadata: ModelMetadata) -> Self {
-        Self {
-            joint_names: metadata.joint_names,
-            num_commands: metadata.num_commands,
-            carry_size: metadata.carry_size,
-        }
-    }
-}
-
-impl From<&ModelMetadata> for PyModelMetadata {
-    fn from(metadata: &ModelMetadata) -> Self {
-        Self {
-            joint_names: metadata.joint_names.clone(),
-            num_commands: metadata.num_commands,
-            carry_size: metadata.carry_size.clone(),
-        }
-    }
-}
-
-impl From<PyModelMetadata> for ModelMetadata {
-    fn from(metadata: PyModelMetadata) -> Self {
-        Self {
-            joint_names: metadata.joint_names,
-            num_commands: metadata.num_commands,
-            carry_size: metadata.carry_size,
-        }
-    }
 }
 
 #[pyclass(subclass)]
@@ -476,6 +747,9 @@ fn rust_bindings(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_version, m)?)?;
     m.add_class::<PyInputType>()?;
     m.add_class::<PyModelMetadata>()?;
+    m.add_class::<PyJointBias>()?;
+    m.add_class::<PyCommandField>()?;
+    m.add_class::<PyCommandTypeInfo>()?;
     m.add_function(wrap_pyfunction!(metadata_from_json, m)?)?;
     m.add_class::<ModelProviderABC>()?;
     m.add_class::<PyModelRunner>()?;

@@ -11,3 +11,6 @@ pydantic
 matplotlib
 numpy
 pathlib
+
+# CLI
+click

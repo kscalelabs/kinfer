@@ -85,6 +85,11 @@ setup(
     },
     include_package_data=True,
     packages=find_packages(),
+    entry_points={
+        "console_scripts": [
+            "kinfer=kinfer.cli:cli",
+        ],
+    },
     cmdclass={
         "build_ext": RustBuildExt,
         "build_py": CustomBuild,
