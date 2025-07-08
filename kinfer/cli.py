@@ -1,4 +1,4 @@
-"""Command-line interface for kinfer model inspection and packaging utility."""
+"""Command-line interface for kinfer runtime package inspection and packaging utility."""
 
 import tarfile
 from pathlib import Path
@@ -6,14 +6,14 @@ from pathlib import Path
 import click
 
 from kinfer.commands import CommandTypeRegistry
-from kinfer.commands_registry import DeploymentCommandRegistry
+from kinfer.commands_registry import CommandRegistry
 from kinfer.rust_bindings import metadata_from_json
 
 
 @click.group()
 @click.version_option()
 def cli():
-    """Kinfer model inspection and packaging utility."""
+    """Kinfer runtime package inspection and packaging utility."""
     pass
 
 
@@ -25,10 +25,10 @@ def commands(command_name, details):
     
     if command_name:
         # Show specific command info (existing behavior)
-        cmd_def = DeploymentCommandRegistry.get_command_definition(command_name)
+        cmd_def = CommandRegistry.get_command_definition(command_name)
         if not cmd_def:
             click.echo(f"Error: Unknown command type '{command_name}'", err=True)
-            click.echo(f"Available commands: {', '.join(DeploymentCommandRegistry.list_command_types())}")
+            click.echo(f"Available commands: {', '.join(CommandRegistry.list_command_types())}")
             raise click.Abort()
         
         if details:
@@ -64,7 +64,7 @@ def commands(command_name, details):
                         click.echo(f"  {key}: {value}")
             
             # Show decoder info
-            decoder_info = DeploymentCommandRegistry.get_decoder_info(command_name)
+            decoder_info = CommandRegistry.get_decoder_info(command_name)
             if decoder_info:
                 click.echo(f"\nDecoder Instructions:")
                 click.echo(f"  {decoder_info['decoder_instructions']}")
@@ -92,20 +92,20 @@ def commands(command_name, details):
             
             # Add yellow note about details flag
             click.echo()
-            click.echo(click.style("💡 Use --details for full implementation details:", fg='yellow'))
+            click.echo(click.style("    Use --details for full implementation details:", fg='yellow'))
             click.echo(click.style(f"   kinfer commands {command_name} --details", fg='yellow'))
     else:
         # Show simplified summary of all commands
         click.echo("Available Command Types:")
         click.echo("=" * 50)
         
-        command_types = DeploymentCommandRegistry.get_all_command_types()
+        command_types = CommandRegistry.get_all_command_types()
         
         # Find the longest command name for consistent formatting
         max_name_len = max(len(name) for name in command_types.keys())
         
         for command_type in sorted(command_types.keys()):
-            cmd_def = DeploymentCommandRegistry.get_command_definition(command_type)
+            cmd_def = CommandRegistry.get_command_definition(command_type)
             if cmd_def:
                 # Get first sentence of description
                 first_sentence = cmd_def.payload_schema.description.split('.')[0] + '.'
@@ -118,7 +118,7 @@ def commands(command_name, details):
         
         # Add yellow note about specific command info
         click.echo()
-        click.echo(click.style("💡 Show info for a specific command:", fg='yellow'))
+        click.echo(click.style("   Show info for a specific command:", fg='yellow'))
         click.echo(click.style("   kinfer commands <command_name>", fg='yellow'))
         click.echo(click.style("   kinfer commands <command_name> --details", fg='yellow'))
         
@@ -126,13 +126,13 @@ def commands(command_name, details):
 @cli.command()
 @click.argument('model_path', type=click.Path(exists=True, path_type=Path))
 def inspect(model_path: Path):
-    """Inspect a kinfer model file and display metadata."""
+    """Inspect a kinfer runtime package and display metadata."""
     
     if not model_path.suffix == '.kinfer':
         click.echo(f"Warning: File '{model_path}' doesn't have .kinfer extension", err=True)
     
     try:
-        # Extract metadata from the kinfer file
+        # Extract metadata from the kinfer runtime package
         with tarfile.open(model_path, 'r:gz') as tar:
             metadata_file = tar.extractfile('metadata.json')
             if metadata_file is None:
@@ -143,7 +143,7 @@ def inspect(model_path: Path):
             metadata = metadata_from_json(metadata_json)
         
         # Print comprehensive model information
-        click.echo(f"Kinfer Model Inspection: {model_path.name}")
+        click.echo(f"Kinfer Runtime Package Inspection: {model_path.name}")
         click.echo("=" * 60)
         
         click.echo(f"\nGeneral Information:")
@@ -186,7 +186,7 @@ def inspect(model_path: Path):
         # Validate command compatibility
         if metadata.command_type_info:
             command_type = metadata.command_type_info.command_type
-            if DeploymentCommandRegistry.validate_command_type(command_type):
+            if CommandRegistry.validate_command_type(command_type):
                 click.echo(f"\n✓ Command type '{command_type}' is registered in the registry")
             else:
                 click.echo(f"\n⚠ Command type '{command_type}' is NOT registered in the registry")
@@ -201,7 +201,7 @@ def inspect(model_path: Path):
 @cli.command()
 @click.argument('model_path', type=click.Path(exists=True, path_type=Path))
 def envelope(model_path: Path):
-    """Inspect transport envelope of a kinfer model."""
+    """Inspect transport envelope of a kinfer runtime package."""
     try:
         with tarfile.open(model_path, 'r:gz') as tar:
             metadata_file = tar.extractfile('metadata.json')
@@ -217,7 +217,7 @@ def envelope(model_path: Path):
         
         if metadata.command_type_info:
             command_type = metadata.command_type_info.command_type
-            envelope = DeploymentCommandRegistry.get_transport_envelope(command_type)
+            envelope = CommandRegistry.get_transport_envelope(command_type)
             
             if envelope:
                 click.echo(f"Command Type: {command_type}")
@@ -226,13 +226,13 @@ def envelope(model_path: Path):
                 click.echo(f"Codec Info: {envelope.codec_info}")
                 
                 # Show decoder info for deployment
-                decoder_info = DeploymentCommandRegistry.get_decoder_info(command_type)
+                decoder_info = CommandRegistry.get_decoder_info(command_type)
                 if decoder_info:
                     click.echo(f"\nDecoder Instructions:")
                     click.echo(f"  {decoder_info['decoder_instructions']}")
             else:
                 click.echo(f"⚠ Unknown command type '{command_type}' - not in registry")
-                click.echo(f"Available command types: {DeploymentCommandRegistry.list_command_types()}")
+                click.echo(f"Available command types: {CommandRegistry.list_command_types()}")
         else:
             click.echo("No transport envelope information available")
             

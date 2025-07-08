@@ -7,26 +7,20 @@ from kinfer.commands import (
 )
 
 
-class DeploymentCommandRegistry(CommandTypeRegistry):
+class CommandRegistry(CommandTypeRegistry):
     """Production registry with all supported command types."""
     
     @classmethod
     def get_all_commands(cls) -> Dict[str, CommandDefinition]:
         """Get all registered command definitions."""
         return {
+            "no_command": cls.get_no_command(),
             # Float vector commands
             "unified_command_v1": cls.get_unified_command_v1(),
             "joystick_walk_v1": cls.get_joystick_walk_v1(),
             "classical_tilt_v1": cls.get_classical_tilt_v1(),
             
-            # Simple commands
-            "pose": cls.get_pose(),
             
-            # Multi-modal commands
-            "voice_command_v1": cls.get_voice_command_v1(),
-            "text_command_v1": cls.get_text_command_v1(),
-            "vision_navigation_v1": cls.get_vision_navigation_v1(),
-            "multimodal_conversation_v1": cls.get_multimodal_conversation_v1(),
         }
     
     # === FLOAT VECTOR COMMANDS ===
@@ -209,38 +203,48 @@ class DeploymentCommandRegistry(CommandTypeRegistry):
                 total_length=6,
                 description="""Six continuous parameters in the range [-1, 1] that modulate the gains and joint-specific scale factors used by the IMU tilt-compensation model.
 
-Internally they map linearly onto:
-  • pitch_gain          (2.0 → 3.5)  
-  • roll_gain           (1.5 → 2.5)  
-  • hip_pitch_scale     (0.5 → 0.8)  
-  • ankle_roll_scale    (0.5 → 0.8)  
-  • ankle_pitch_scale   (0.5 → 0.8)  
-  • knee_pitch_scale    (0.8 → 1.1)
-where −1.0 reproduces the baseline values shown above and +1.0 applies the maximum adjustment."""
-            )
+                Internally they map linearly onto:
+                • pitch_gain          (2.0 → 3.5)  
+                • roll_gain           (1.5 → 2.5)  
+                • hip_pitch_scale     (0.5 → 0.8)  
+                • ankle_roll_scale    (0.5 → 0.8)  
+                • ankle_pitch_scale   (0.5 → 0.8)  
+                • knee_pitch_scale    (0.8 → 1.1)
+                where −1.0 reproduces the baseline values shown above and +1.0 applies the maximum adjustment."""
+                            )
         )
     
-    # === SIMPLE COMMANDS ===
-    
+    # === NO COMMAND MODELS ===
+
     @staticmethod
-    def get_pose() -> CommandDefinition:
-        """Simple pose command - no dynamic input."""
+    def get_no_command() -> CommandDefinition:
+        """Model that operates without any external commands."""
         return CommandDefinition(
-            command_type="pose",
+            command_type="no_command",
             transport_envelope=TransportEnvelope(
                 payload_type=PayloadType.CUSTOM,
                 payload_length=0,
-                codec_info={"custom_type": "pose"}
+                codec_info={"custom_type": "no_command"}
             ),
             payload_schema=PayloadSchema(
                 fields=[],
                 total_length=0,
-                description="Simple pose command - no dynamic commands, just joint positions. Used for classical control policies that output static poses.",
-                custom_properties={"type": "static_pose"}
+                description="Model operates without external commands. Policy generates actions based solely on sensor inputs and internal state.",
+                custom_properties={
+                    "type": "no_command_policy",
+                    "requires_commands": False,
+                    "input_source": "sensors_only",
+                    "examples": [
+                        "Classical walking gaits",
+                        "IMU-based balance controllers", 
+                        "Predefined movement sequences",
+                        "Reactive obstacle avoidance"
+                    ]
+                }
             )
         )
     
-    # === MULTI-MODAL COMMANDS ===
+    # === EXAMPLE COMMANDS BEYOND FLOAT VECTORS (Stake in the ground, needs to be reasoned about and refined) ===
     
     @staticmethod
     def get_voice_command_v1() -> CommandDefinition:

@@ -1,47 +1,8 @@
-"""Core command infrastructure with transport envelope and payload schema separation."""
+"""Command infrastructure and base registry."""
 
 from typing import Dict, List, Optional, Any
-from enum import Enum
-from dataclasses import dataclass
+from kinfer.transport import CommandDefinition, TransportEnvelope, PayloadSchema, PayloadType
 from kinfer.rust_bindings import PyCommandTypeInfo, PyCommandField, PyJointBias
-
-
-class PayloadType(Enum):
-    """Supported payload types for command data."""
-    FLOAT_VECTOR = "float_vector"
-    TEXT = "text"
-    AUDIO = "audio"
-    IMAGE = "image"
-    PROTO = "proto"
-    BINARY = "binary"
-    JSON = "json"
-    CUSTOM = "custom"
-
-
-@dataclass
-class TransportEnvelope:
-    """Transport envelope - HOW to decode the data."""
-    payload_type: PayloadType
-    payload_length: Optional[int] = None
-    codec_info: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class PayloadSchema:
-    """Payload schema - WHAT the decoded data means."""
-    fields: List[PyCommandField]
-    total_length: int
-    description: str
-    custom_properties: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class CommandDefinition:
-    """Complete command definition with transport and payload info."""
-    command_type: str
-    transport_envelope: TransportEnvelope
-    payload_schema: PayloadSchema
-    kinfer_version: str = "1.0"
 
 
 class CommandTypeRegistry:
@@ -125,7 +86,7 @@ class CommandTypeRegistry:
         }
         return instructions.get(payload_type, "Unknown payload type")
     
-    # Backward compatibility methods
+    # Backward compatibility methods for existing code
     @classmethod
     def get_all_command_types(cls) -> Dict[str, PyCommandTypeInfo]:
         """Backward compatibility: get old-style command type info."""
@@ -149,7 +110,7 @@ class CommandTypeRegistry:
         return cls.list_command_types()
 
 
-# Utility function for joint biases
+# Utility functions for creating metadata
 def create_joint_biases_from_training_data(
     joint_biases_input,
     training_data: Optional[Dict[str, Any]] = None
@@ -196,3 +157,85 @@ def create_joint_biases_from_training_data(
     # Invalid input
     else:
         raise ValueError(f"Invalid input format. Expected list of (name, angle, weight) tuples or list of joint names, got: {type(joint_biases_input)}")
+
+
+def create_command_field(name: str, description: str, units: Optional[str] = None, 
+                        range_tuple: Optional[tuple] = None) -> PyCommandField:
+    """Utility function to create command fields with consistent formatting."""
+    return PyCommandField(
+        name=name,
+        description=description,
+        units=units,
+        range=range_tuple
+    )
+
+
+def validate_payload_data(payload_data: Any, command_definition: CommandDefinition) -> bool:
+    """Validate payload data against command definition."""
+    envelope = command_definition.transport_envelope
+    schema = command_definition.payload_schema
+    
+    if envelope.payload_type == PayloadType.FLOAT_VECTOR:
+        if not isinstance(payload_data, (list, tuple)):
+            return False
+        if envelope.payload_length and len(payload_data) != envelope.payload_length:
+            return False
+        return all(isinstance(x, (int, float)) for x in payload_data)
+    
+    elif envelope.payload_type == PayloadType.TEXT:
+        if not isinstance(payload_data, str):
+            return False
+        if envelope.codec_info and 'max_length' in envelope.codec_info:
+            return len(payload_data) <= envelope.codec_info['max_length']
+        return True
+    
+    elif envelope.payload_type == PayloadType.JSON:
+        try:
+            import json
+            if isinstance(payload_data, str):
+                json.loads(payload_data)
+            return True
+        except (json.JSONDecodeError, TypeError):
+            return False
+    
+    # For other types (AUDIO, IMAGE, etc.), basic existence check
+    return payload_data is not None
+
+
+def get_example_payload(command_type: str, registry_class=None) -> Optional[Any]:
+    """Generate example payload for a command type."""
+    if registry_class is None:
+        # Import here to avoid circular imports
+        from kinfer.command_registry import CommandRegistry
+        registry_class = CommandRegistry
+    
+    cmd_def = registry_class.get_command_definition(command_type)
+    if not cmd_def:
+        return None
+    
+    envelope = cmd_def.transport_envelope
+    schema = cmd_def.payload_schema
+    
+    if envelope.payload_type == PayloadType.FLOAT_VECTOR:
+        # Generate example values from field ranges
+        example = []
+        for field in schema.fields:
+            if field.range:
+                # Use midpoint of range
+                min_val, max_val = field.range
+                example.append((min_val + max_val) / 2)
+            else:
+                example.append(0.0)
+        return example
+    
+    elif envelope.payload_type == PayloadType.TEXT:
+        return "walk forward"
+    
+    elif envelope.payload_type == PayloadType.JSON:
+        return '{"command": "example"}'
+    
+    elif envelope.payload_type == PayloadType.CUSTOM:
+        if cmd_def.command_type == "pose":
+            return None  # No input needed for pose
+    
+    return None
