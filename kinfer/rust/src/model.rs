@@ -133,7 +133,7 @@ impl ModelRunner {
             let log_name = std::env::var("KINFER_LOG_UUID")
                 .unwrap_or_else(|_| chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string());
 
-            let log_file_path = log_dir_path.join(format!("{}.ndjson", log_name));
+            let log_file_path = log_dir_path.join(format!("{log_name}.ndjson"));
 
             Some(StepLogger::new(log_file_path).map(Arc::new)?)
         } else {
@@ -165,11 +165,9 @@ impl ModelRunner {
             let expected_shape = input_type.get_shape(metadata);
             let expected_shape_i64: Vec<i64> = expected_shape.iter().map(|&x| x as i64).collect();
             if *dims != expected_shape_i64 {
-                return Err(format!(
-                    "Expected input shape {:?}, got {:?}",
-                    expected_shape_i64, dims
-                )
-                .into());
+                return Err(
+                    format!("Expected input shape {expected_shape_i64:?}, got {dims:?}").into(),
+                );
             }
         }
 
@@ -184,11 +182,9 @@ impl ModelRunner {
             .ok_or("Missing tensor type")?;
         let num_joints = metadata.joint_names.len();
         if *output_shape != vec![num_joints as i64] {
-            return Err(format!(
-                "Expected output shape [{num_joints}], got {:?}",
-                output_shape
-            )
-            .into());
+            return Err(
+                format!("Expected output shape [{num_joints}], got {output_shape:?}").into(),
+            );
         }
 
         let infered_carry_shape = session.outputs[1]
@@ -197,8 +193,7 @@ impl ModelRunner {
             .ok_or("Missing tensor type")?;
         if *infered_carry_shape != *carry_shape {
             return Err(format!(
-                "Expected carry shape {:?}, got {:?}",
-                carry_shape, infered_carry_shape
+                "Expected carry shape {carry_shape:?}, got {infered_carry_shape:?}"
             )
             .into());
         }
@@ -261,7 +256,7 @@ impl ModelRunner {
                 "carry" => {
                     inputs.insert(InputType::Carry, carry.clone());
                 }
-                _ => return Err(format!("Unknown input name: {}", name).into()),
+                _ => return Err(format!("Unknown input name: {name}").into()),
             }
         }
 

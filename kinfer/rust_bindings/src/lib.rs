@@ -135,7 +135,7 @@ impl PyModelMetadata {
 
     fn __repr__(&self) -> PyResult<String> {
         let json = self.to_json()?;
-        Ok(format!("ModelMetadata({:?})", json))
+        Ok(format!("ModelMetadata({json:?})"))
     }
 
     fn __eq__(&self, other: Bound<'_, PyAny>) -> PyResult<bool> {
@@ -151,7 +151,7 @@ impl PyModelMetadata {
 #[gen_stub_pyfunction]
 fn metadata_from_json(json: &str) -> PyResult<PyModelMetadata> {
     let metadata = ModelMetadata::model_validate_json(json.to_string()).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid model metadata: {}", e))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid model metadata: {e}"))
     })?;
     Ok(PyModelMetadata::from(metadata))
 }
@@ -225,8 +225,7 @@ impl ModelProviderABC {
             )));
         }
         Err(PyNotImplementedError::new_err(format!(
-            "Must override take_action with {} action elements",
-            n
+            "Must override take_action with {n} action elements"
         )))
     }
 }
@@ -265,10 +264,7 @@ impl ModelProvider for PyModelProvider {
             let mut arrays = HashMap::new();
             for (i, name) in input_names.iter().enumerate() {
                 let array = dict.get(name).ok_or_else(|| {
-                    PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
-                        "Missing input: {}",
-                        name
-                    ))
+                    PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Missing input: {name}"))
                 })?;
                 arrays.insert(input_types[i], Array::from_vec(array.clone()).into_dyn());
             }

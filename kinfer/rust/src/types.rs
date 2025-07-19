@@ -67,7 +67,7 @@ impl InputType {
             "command" => Ok(InputType::Command),
             "time" => Ok(InputType::Time),
             "carry" => Ok(InputType::Carry),
-            _ => Err(format!("Unknown input type: {}", name).into()),
+            _ => Err(format!("Unknown input type: {name}").into()),
         }
     }
 
