@@ -130,9 +130,8 @@ impl ModelRunner {
             }
 
             // Use uuid if found, otherwise timestamp
-            let log_name = std::env::var("KINFER_LOG_UUID").unwrap_or_else(|_| {
-                chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string()
-            });
+            let log_name = std::env::var("KINFER_LOG_UUID")
+                .unwrap_or_else(|_| chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string());
 
             let log_file_path = log_dir_path.join(format!("{}.ndjson", log_name));
 
@@ -244,12 +243,6 @@ impl ModelRunner {
                 "joint_angular_velocities" => {
                     input_types.push(InputType::JointAngularVelocities);
                 }
-                "initial_heading" => {
-                    input_types.push(InputType::InitialHeading);
-                }
-                "quaternion" => {
-                    input_types.push(InputType::Quaternion);
-                }
                 "projected_gravity" => {
                     input_types.push(InputType::ProjectedGravity);
                 }
@@ -305,12 +298,6 @@ impl ModelRunner {
             let joint_vels_opt = inputs
                 .get(&InputType::JointAngularVelocities)
                 .map(|a| a.as_slice().unwrap());
-            let initial_heading_opt = inputs
-                .get(&InputType::InitialHeading)
-                .map(|a| a.as_slice().unwrap());
-            let quaternion_opt = inputs
-                .get(&InputType::Quaternion)
-                .map(|a| a.as_slice().unwrap());
             let projected_g_opt = inputs
                 .get(&InputType::ProjectedGravity)
                 .map(|a| a.as_slice().unwrap());
@@ -328,8 +315,6 @@ impl ModelRunner {
             lg.log_step(
                 joint_angles_opt,
                 joint_vels_opt,
-                initial_heading_opt,
-                quaternion_opt,
                 projected_g_opt,
                 accel_opt,
                 gyro_opt,
