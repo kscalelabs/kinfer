@@ -316,8 +316,10 @@ impl PyModelRunner {
         let input_provider = Arc::new(PyModelProvider::__new__(provider));
 
         // Create a single runtime to be reused for all operations
-        let runtime = Arc::new(tokio::runtime::Runtime::new()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?);
+        let runtime = Arc::new(
+            tokio::runtime::Runtime::new()
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?,
+        );
 
         let runner = runtime.block_on(async {
             ModelRunner::new(model_path, input_provider)
@@ -339,12 +341,8 @@ impl PyModelRunner {
         let result = Python::with_gil(|py| {
             // Release GIL during async operation
             py.allow_threads(|| {
-                runtime.block_on(async {
-                    runner
-                        .init()
-                        .await
-                        .map_err(|e| SendError(e.to_string()))
-                })
+                runtime
+                    .block_on(async { runner.init().await.map_err(|e| SendError(e.to_string())) })
             })
         })
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
@@ -359,7 +357,7 @@ impl PyModelRunner {
     fn step(&self, carry: Py<PyArrayDyn<f32>>) -> PyResult<StepResult> {
         let runner = self.runner.clone();
         let runtime = self.runtime.clone();
-        
+
         // Extract the carry array from Python with GIL
         let carry_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
             let carry_array = carry.bind(py);
@@ -398,7 +396,7 @@ impl PyModelRunner {
             let action_array = action.bind(py);
             Ok(action_array.to_owned_array())
         })?;
-        
+
         // Release GIL during computation
         Python::with_gil(|py| {
             py.allow_threads(|| {
