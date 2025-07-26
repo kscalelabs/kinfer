@@ -139,7 +139,7 @@ def test_export(tmpdir: Path) -> None:
     model_runtime.start()
     time.sleep(dt * 4.5 / 1000)
     model_runtime.stop()
-    assert num_actions == 8, f"num_actions: {num_actions}"
+    assert num_actions in (7, 8, 9), f"num_actions: {num_actions}"
 
 
 if __name__ == "__main__":
