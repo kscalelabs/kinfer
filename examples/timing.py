@@ -114,7 +114,7 @@ class DummyModelProvider(ModelProviderABC):
         self.event_times[event_name].append(current_time)
 
 
-def create_timing_plot(provider: DummyModelProvider, dt: timedelta, runtime: timedelta) -> plt.Figure:
+def create_timing_plot(provider: DummyModelProvider, dt: timedelta, runtime: timedelta | None) -> plt.Figure:
     """Create a matplotlib plot showing event timing relative to expected tick times."""
     dt_ms = dt.total_seconds() * 1000
 
@@ -163,7 +163,7 @@ def create_timing_plot(provider: DummyModelProvider, dt: timedelta, runtime: tim
     # Customize the plot
     ax.set_xlabel("Tick Number")
     ax.set_ylabel("Time Relative to Expected Tick Start (ms)")
-    ax.set_title(f"K-Infer Event Timing (Runtime={runtime.total_seconds()}s)")
+    ax.set_title(f"K-Infer Event Timing (Runtime={runtime.total_seconds() if runtime else 'None'}s)")
     ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
     # Set reasonable y-axis limits
