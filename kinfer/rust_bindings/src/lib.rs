@@ -199,7 +199,7 @@ impl ModelProviderABC {
         ModelProviderABC
     }
 
-    fn pre_fetch_inputs<'py>(
+    fn pre_fetch_inputs(
         &self,
         input_types: Vec<String>,
         metadata: PyModelMetadata,
@@ -212,11 +212,11 @@ impl ModelProviderABC {
         )))
     }
 
-    fn get_inputs<'py>(
+    fn get_inputs(
         &self,
         input_types: Vec<String>,
         metadata: PyModelMetadata,
-    ) -> PyResult<HashMap<String, Bound<'py, PyArrayDyn<f32>>>> {
+    ) -> PyResult<HashMap<String, Py<PyArrayDyn<f32>>>> {
         Err(PyNotImplementedError::new_err(format!(
             "Must override get_inputs with {} input types {:?} and metadata {:?}",
             input_types.len(),
@@ -270,7 +270,7 @@ impl ModelProvider for PyModelProvider {
             .iter()
             .map(|t| t.get_name().to_string())
             .collect();
-        Python::with_gil(|py| -> PyResult<()> {
+        Python::attach(|py| -> PyResult<()> {
             let obj = self.obj.clone();
             let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
             obj.call_method(py, "pre_fetch_inputs", args, None)?;
@@ -289,7 +289,7 @@ impl ModelProvider for PyModelProvider {
             .iter()
             .map(|t| t.get_name().to_string())
             .collect();
-        let result = Python::with_gil(|py| -> PyResult<HashMap<InputType, Array<f32, IxDyn>>> {
+        let result = Python::attach(|py| -> PyResult<HashMap<InputType, Array<f32, IxDyn>>> {
             let obj = self.obj.clone();
             let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
             let result = obj.call_method(py, "get_inputs", args, None)?;
@@ -312,7 +312,7 @@ impl ModelProvider for PyModelProvider {
         action: Array<f32, IxDyn>,
         metadata: &ModelMetadata,
     ) -> Result<(), ModelError> {
-        Python::with_gil(|py| -> PyResult<()> {
+        Python::attach(|py| -> PyResult<()> {
             let obj = self.obj.clone();
             let action_1d = action
                 .into_dimensionality::<Ix1>()
@@ -375,16 +375,11 @@ impl PyModelRunner {
         let runner = self.runner.clone();
         let runtime = self.runtime.clone();
 
-        let result = Python::with_gil(|py| {
-            // Release GIL during async operation
-            py.allow_threads(|| {
-                runtime
-                    .block_on(async { runner.init().await.map_err(|e| SendError(e.to_string())) })
-            })
-        })
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
+        let result = runtime
+            .block_on(async { runner.init().await.map_err(|e| SendError(e.to_string())) })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array = numpy::PyArray::from_array(py, &result);
             Ok(array.into())
         })
@@ -395,31 +390,25 @@ impl PyModelRunner {
         let runner = self.runner.clone();
         let runtime = self.runtime.clone();
 
-        // Extract the carry array from Python with GIL
-        let carry_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
-            let carry_array = carry.bind(py);
-            Ok(carry_array.to_owned_array())
-        })?;
+        // Extract the carry array from Python with GIL.
+        let carry_input = Python::attach(|py| carry.bind(py).to_owned_array());
 
-        // Release GIL during computation
-        let result = Python::with_gil(|py| {
-            py.allow_threads(|| {
-                runtime.block_on(async {
-                    runner
-                        .step(carry_array)
-                        .await
-                        .map_err(|e| SendError(e.to_string()))
-                })
+        // Release GIL during computation.
+        let result = runtime
+            .block_on(async {
+                runner
+                    .step(carry_input)
+                    .await
+                    .map_err(|e| SendError(e.to_string()))
             })
-        })
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
 
-        // Reacquire the GIL to convert results back to Python objects
-        Python::with_gil(|py| {
+        // Extract the carry array from Python with GIL.
+        Python::attach(|py| {
             let (output, carry) = result;
             let output_array = numpy::PyArray::from_array(py, &output);
-            let carry_array = numpy::PyArray::from_array(py, &carry);
-            Ok((output_array.into(), carry_array.into()))
+            let next_carry_array = numpy::PyArray::from_array(py, &carry);
+            Ok((output_array.into(), next_carry_array.into()))
         })
     }
 
@@ -429,23 +418,16 @@ impl PyModelRunner {
         let runtime = self.runtime.clone();
 
         // Extract action data with GIL
-        let action_array = Python::with_gil(|py| -> PyResult<Array<f32, IxDyn>> {
-            let action_array = action.bind(py);
-            Ok(action_array.to_owned_array())
-        })?;
+        let action_input = Python::attach(|py| action.bind(py).to_owned_array());
 
-        // Release GIL during computation
-        Python::with_gil(|py| {
-            py.allow_threads(|| {
-                runtime.block_on(async {
-                    runner
-                        .take_action(action_array)
-                        .await
-                        .map_err(|e| SendError(e.to_string()))
-                })
+        runtime
+            .block_on(async {
+                runner
+                    .take_action(action_input)
+                    .await
+                    .map_err(|e| SendError(e.to_string()))
             })
-        })
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
 
         Ok(())
     }
