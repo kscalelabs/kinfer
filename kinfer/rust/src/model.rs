@@ -8,13 +8,40 @@ use ort::{
     session::Session,
     value::{Tensor, TensorValueType, Value, ValueRef},
 };
-use quanta::Clock;
 use std::fs::File;
+use std::hint::spin_loop;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tar::Archive;
+
+#[inline]
+fn wait_until(deadline: Instant, spin: Duration) {
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            break;
+        }
+        let remain = deadline - now;
+
+        // Sleep away the bulk…
+        if remain > spin + Duration::from_micros(150) {
+            std::thread::sleep(remain - spin);
+            continue;
+        }
+        // Short yield if we're close
+        if remain > spin {
+            std::thread::yield_now();
+            continue;
+        }
+        // Final busy wait for sub-millisecond precision
+        while Instant::now() < deadline {
+            spin_loop();
+        }
+        break;
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -444,35 +471,40 @@ impl ModelRunner {
         self.init()
             .map_err(|e| ModelError::Provider(e.to_string()))?;
 
-        let clock = Clock::new();
-        let start_time = clock.now();
-        let mut next = start_time;
-        let mut step_count: u64 = 0;
+        let start = Instant::now();
+        let mut deadline = start + dt;
+        let mut steps = 0u64;
+
+        const SPIN: Duration = Duration::from_micros(300); // tune 100–500µs
 
         loop {
-            // Calculate when the next tick should occur
-            next = next + dt;
-            let now = clock.now();
-            if next > now {
-                let sleep_time = next - now;
-                std::thread::sleep(sleep_time);
-            }
+            wait_until(deadline, SPIN);
+            let tick_start = Instant::now();
 
             // Execute the step
             self.step_and_take_action()?;
 
-            // Check termination conditions
-            if let Some(total_runtime) = total_runtime {
-                if start_time + total_runtime < now {
+            // Termination checks with fresh time
+            if let Some(rt) = total_runtime {
+                if tick_start.duration_since(start) >= rt {
+                    break;
+                }
+            }
+            if let Some(max_steps) = total_steps {
+                steps += 1;
+                if steps >= max_steps {
                     break;
                 }
             }
 
-            if let Some(total_steps) = total_steps {
-                step_count += 1;
-                if step_count >= total_steps {
-                    break;
-                }
+            // Advance absolute schedule; catch up if we overran
+            deadline += dt;
+            let now = Instant::now();
+            if deadline + dt < now {
+                // If we fell far behind, skip ahead to avoid spiral-of-death
+                let behind = now.duration_since(deadline);
+                let skip = (behind.as_nanos() / dt.as_nanos()) as u32;
+                deadline += dt * (skip + 1);
             }
         }
 

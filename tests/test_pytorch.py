@@ -119,8 +119,6 @@ def test_export(tmpdir: Path) -> None:
                         return_values["command"] = np.random.randn(NUM_COMMANDS)
                     case "time":
                         return_values["time"] = np.random.randn(1)
-                    case "carry":
-                        return_values["carry"] = np.random.randn(CARRY_SIZE)
                     case _:
                         raise ValueError(f"Unknown input type: {input_type}")
             return return_values

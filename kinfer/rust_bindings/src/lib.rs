@@ -264,6 +264,7 @@ impl ModelProvider for PyModelProvider {
     ) -> Result<(), ModelError> {
         let input_names: Vec<String> = input_buffers
             .iter()
+            .filter(|t| t.0 != InputType::Carry)
             .map(|t| t.0.get_name().to_string())
             .collect();
 
@@ -285,6 +286,7 @@ impl ModelProvider for PyModelProvider {
     ) -> Result<(), ModelError> {
         let input_names: Vec<String> = input_buffers
             .iter()
+            .filter(|t| t.0 != InputType::Carry)
             .map(|t| t.0.get_name().to_string())
             .collect();
 
@@ -294,7 +296,7 @@ impl ModelProvider for PyModelProvider {
             let result = obj.call_method(py, "get_inputs", args, None)?;
             let dict: HashMap<String, Vec<f32>> = result.extract(py)?;
 
-            for (name, array) in input_buffers.iter_mut() {
+            for (name, array) in input_buffers.iter_mut().filter(|t| t.0 != InputType::Carry) {
                 let name_str = name.get_name();
                 let src = dict.get(name_str).ok_or_else(|| {
                     PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
