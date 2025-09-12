@@ -111,7 +111,7 @@ class DummyModelProvider(ModelProviderABC):
 
     def record_step_event(self, event_name: str) -> None:
         """Record a step-related event."""
-        current_time = time.time()
+        current_time = time.monotonic()
         logger.info("Running %s at time %s", event_name, current_time)
         self.event_times[event_name].append(current_time)
 
