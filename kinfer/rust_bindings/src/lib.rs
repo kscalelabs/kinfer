@@ -409,22 +409,6 @@ impl PyModelRunner {
     }
 }
 
-impl Drop for PyModelRunner {
-    fn drop(&mut self) {
-        // Ensure the runtime is properly shut down before dropping
-        // This prevents segfaults during cleanup
-        if let Ok(runner) = self.runner.lock() {
-            // Drop the runner first to clean up ONNX sessions and allocators
-            drop(runner);
-        }
-
-        // Shutdown the tokio runtime gracefully
-        // This ensures all async tasks are completed before cleanup
-        // Note: We can't move out of Arc, so we just let it drop naturally
-        // The Arc will handle the cleanup when the last reference is dropped
-    }
-}
-
 #[pymodule]
 fn rust_bindings(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_version, m)?)?;

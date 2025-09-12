@@ -462,8 +462,8 @@ impl ModelRunner {
         let mut step_count: u64 = 0;
 
         loop {
-            self.step_and_take_action().await?;
             interval.tick().await;
+            self.step_and_take_action().await?;
 
             // If the total runtime is specified, stop after the specified time.
             if let Some(total_runtime) = total_runtime {
