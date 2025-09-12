@@ -26,7 +26,7 @@ NUM_COMMANDS = 4
 
 @torch.jit.script
 def init_fn() -> Tensor:
-    return torch.zeros((10,))
+    return torch.zeros((10,))  # NOTE: Can't use the CARRY_SIZE constant here.
 
 
 @torch.jit.script
