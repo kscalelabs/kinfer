@@ -11,16 +11,16 @@ use log::{info, warn};
 use serde::Serialize;
 
 #[derive(Serialize)]
-struct NdjsonStep<'a> {
+struct NdjsonStep {
     step_id: u64,
     t_us: u64,
-    joint_angles: Option<&'a [f32]>,
-    joint_vels: Option<&'a [f32]>,
-    projected_g: Option<&'a [f32]>,
-    accel: Option<&'a [f32]>,
-    gyro: Option<&'a [f32]>,
-    command: Option<&'a [f32]>,
-    output: Option<&'a [f32]>,
+    joint_angles: Option<Vec<f32>>,
+    joint_vels: Option<Vec<f32>>,
+    projected_g: Option<Vec<f32>>,
+    accel: Option<Vec<f32>>,
+    gyro: Option<Vec<f32>>,
+    command: Option<Vec<f32>>,
+    output: Option<Vec<f32>>,
 }
 
 // Channel capacity for non-blocking logging.
@@ -86,13 +86,13 @@ impl StepLogger {
     #[allow(clippy::too_many_arguments)]
     pub fn log_step(
         &self,
-        joint_angles: Option<&[f32]>,
-        joint_vels: Option<&[f32]>,
-        projected_g: Option<&[f32]>,
-        accel: Option<&[f32]>,
-        gyro: Option<&[f32]>,
-        command: Option<&[f32]>,
-        output: Option<&[f32]>,
+        joint_angles: Option<Vec<f32>>,
+        joint_vels: Option<Vec<f32>>,
+        projected_g: Option<Vec<f32>>,
+        accel: Option<Vec<f32>>,
+        gyro: Option<Vec<f32>>,
+        command: Option<Vec<f32>>,
+        output: Option<Vec<f32>>,
     ) {
         let record = NdjsonStep {
             step_id: self.next_id.fetch_add(1, Ordering::Relaxed),

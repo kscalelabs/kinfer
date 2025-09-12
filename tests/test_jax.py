@@ -2,6 +2,7 @@
 
 import logging
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from typing import Sequence
 
@@ -88,6 +89,8 @@ def test_export(tmpdir: Path) -> None:
                         return_values["command"] = np.random.randn(NUM_COMMANDS)
                     case "time":
                         return_values["time"] = np.random.randn(1)
+                    case "carry":
+                        return_values["carry"] = np.random.randn(CARRY_SIZE)
                     case _:
                         raise ValueError(f"Unknown input type: {input_type}")
             return return_values
@@ -101,15 +104,8 @@ def test_export(tmpdir: Path) -> None:
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
     model_runner = PyModelRunner(str(kinfer_path), model_provider, None)
-
-    carry = model_runner.init()
-    assert carry.shape == (CARRY_SIZE,)
-    for _ in range(3):
-        output, carry = model_runner.step(carry)
-        model_runner.take_action(output)
-        assert carry.shape == (CARRY_SIZE,), f"Carry shape: {carry.shape}"
-
-    assert num_actions == 3
+    model_runner.run(timedelta(milliseconds=10), total_steps=3)
+    assert num_actions == 3, num_actions
 
 
 if __name__ == "__main__":

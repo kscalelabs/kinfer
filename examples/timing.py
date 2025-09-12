@@ -5,7 +5,7 @@ import logging
 import tarfile
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Sequence
@@ -18,7 +18,12 @@ from torch import Tensor
 
 from kinfer.export.pytorch import export_fn
 from kinfer.export.serialize import pack
-from kinfer.rust_bindings import ModelProviderABC, PyModelMetadata, PyModelRunner, PyModelRuntime, metadata_from_json
+from kinfer.rust_bindings import (
+    ModelProviderABC,
+    PyModelMetadata,
+    PyModelRunner,
+    metadata_from_json,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +77,10 @@ class DummyModelProvider(ModelProviderABC):
         self.event_times: defaultdict[str, list[float]] = defaultdict(list)
 
     def pre_fetch_inputs(self, input_types: Sequence[str], metadata: PyModelMetadata) -> None:
-        current_time = time.time()
-        self.event_times["pre_fetch_inputs"].append(current_time)
+        self.record_step_event("pre_fetch_inputs")
 
     def get_inputs(self, input_types: Sequence[str], metadata: PyModelMetadata) -> dict[str, np.ndarray]:
-        current_time = time.time()
-        self.event_times["get_inputs"].append(current_time)
+        self.record_step_event("get_inputs")
         return_values: dict[str, np.ndarray] = {}
         for input_type in input_types:
             match input_type:
@@ -95,24 +98,28 @@ class DummyModelProvider(ModelProviderABC):
                     return_values["command"] = np.random.randn(NUM_COMMANDS)
                 case "time":
                     return_values["time"] = np.random.randn(1)
+                case "carry":
+                    return_values["carry"] = np.random.randn(CARRY_SIZE)
                 case _:
                     raise ValueError(f"Unknown input type: {input_type}")
         return return_values
 
     def take_action(self, action: np.ndarray, metadata: PyModelMetadata) -> None:
-        current_time = time.time()
-        self.event_times["take_action"].append(current_time)
+        self.record_step_event("take_action")
         assert metadata.joint_names == JOINT_NAMES  # type: ignore[attr-defined]
         assert action.shape == (NUM_JOINTS,)
 
     def record_step_event(self, event_name: str) -> None:
         """Record a step-related event."""
         current_time = time.time()
+        logger.info("Running %s at time %s", event_name, current_time)
         self.event_times[event_name].append(current_time)
 
 
-def create_timing_plot(provider: DummyModelProvider, dt_ms: int, runtime_seconds: float) -> plt.Figure:
+def create_timing_plot(provider: DummyModelProvider, dt: timedelta, runtime: timedelta) -> plt.Figure:
     """Create a matplotlib plot showing event timing relative to expected tick times."""
+    dt_ms = dt.total_seconds() * 1000
+
     # Calculate expected tick times
     start_time: float = min(min(times) for times in provider.event_times.values()) if provider.event_times else 0
 
@@ -158,7 +165,7 @@ def create_timing_plot(provider: DummyModelProvider, dt_ms: int, runtime_seconds
     # Customize the plot
     ax.set_xlabel("Tick Number")
     ax.set_ylabel("Time Relative to Expected Tick Start (ms)")
-    ax.set_title(f"K-Infer Event Timing (Runtime={runtime_seconds}s)")
+    ax.set_title(f"K-Infer Event Timing (Runtime={runtime.total_seconds()}s)")
     ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
     # Set reasonable y-axis limits
@@ -188,7 +195,8 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    dt: int = args.dt
+    dt = timedelta(milliseconds=args.dt)
+    runtime = None if args.runtime is None else timedelta(seconds=args.runtime)
     pre_fetch_time: int | None = args.pre_fetch_time
 
     for handler in logging.getLogger().handlers:
@@ -233,14 +241,7 @@ def main() -> None:
         model_provider = DummyModelProvider()
         model_runner = PyModelRunner(str(kinfer_path), model_provider, pre_fetch_time)
 
-    model_runtime = PyModelRuntime(model_runner, args.dt)
-    model_runtime.start()
-
-    runtime = args.runtime
-    logger.info("Running for %s seconds", runtime)
-    time.sleep(runtime)
-    logger.info("Stopping")
-    model_runtime.stop()
+    model_runner.run(dt, total_runtime=runtime)
 
     # Generate timing plot if requested
     if args.plot or args.save_plot:

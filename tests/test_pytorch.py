@@ -3,7 +3,7 @@
 import logging
 import tarfile
 import tempfile
-import time
+from datetime import timedelta
 from pathlib import Path
 from typing import Sequence
 
@@ -14,7 +14,12 @@ from torch import Tensor
 
 from kinfer.export.pytorch import export_fn
 from kinfer.export.serialize import pack
-from kinfer.rust_bindings import ModelProviderABC, PyModelMetadata, PyModelRunner, PyModelRuntime, metadata_from_json
+from kinfer.rust_bindings import (
+    ModelProviderABC,
+    PyModelMetadata,
+    PyModelRunner,
+    metadata_from_json,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +119,8 @@ def test_export(tmpdir: Path) -> None:
                         return_values["command"] = np.random.randn(NUM_COMMANDS)
                     case "time":
                         return_values["time"] = np.random.randn(1)
+                    case "carry":
+                        return_values["carry"] = np.random.randn(CARRY_SIZE)
                     case _:
                         raise ValueError(f"Unknown input type: {input_type}")
             return return_values
@@ -128,21 +135,8 @@ def test_export(tmpdir: Path) -> None:
     model_provider = DummyModelProvider()
     model_runner = PyModelRunner(str(kinfer_path), model_provider, 2)
 
-    carry = model_runner.init()
-    assert carry.shape == (CARRY_SIZE,)
-    for _ in range(3):
-        output, carry = model_runner.step(carry)
-        model_runner.take_action(output)
-        assert carry.shape == (CARRY_SIZE,), f"Carry shape: {carry.shape}"
-    assert num_actions == 3
-
-    # Tests the runtime, which runs in a separate Rust thread.
-    dt = 10
-    model_runtime = PyModelRuntime(model_runner, dt)
-    model_runtime.start()
-    time.sleep(dt * 4.5 / 1000)
-    model_runtime.stop()
-    assert num_actions in (7, 8, 9), f"num_actions: {num_actions}"
+    model_runner.run(timedelta(milliseconds=10), total_steps=3)
+    assert num_actions == 3, num_actions
 
 
 if __name__ == "__main__":
