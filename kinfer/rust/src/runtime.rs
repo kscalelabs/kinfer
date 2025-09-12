@@ -5,7 +5,7 @@ use tokio::runtime::Runtime;
 use crate::model::{ModelError, ModelRunner};
 use crate::types::InputType;
 use std::time::Duration;
-use tokio::time::interval;
+use tokio::time::{interval_at, Instant, MissedTickBehavior};
 
 pub struct ModelRuntime {
     model_runner: Arc<ModelRunner>,
@@ -66,8 +66,9 @@ impl ModelRuntime {
             let mut joint_positions = model_inputs[&InputType::JointAngles].clone();
 
             // Wait for the first tick, since it happens immediately.
-            let mut interval = interval(dt);
-            interval.tick().await;
+            let start = Instant::now() + dt;
+            let mut interval = interval_at(start, dt);
+            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
             while running.load(Ordering::Relaxed) {
                 let (output, next_carry) = model_runner
