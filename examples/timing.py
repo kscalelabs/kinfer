@@ -185,7 +185,7 @@ def main() -> None:
     parser.add_argument("--runtime", type=float, help="Runtime in seconds")
     parser.add_argument("--plot", action="store_true", help="Generate and display timing plot")
     parser.add_argument("--save-plot", type=str, help="Save plot to file (e.g., timing_plot.png)")
-    parser.add_argument("--dt", type=int, default=10, help="Time step in milliseconds (default: 10)")
+    parser.add_argument("--dt", type=int, default=20, help="Time step in milliseconds (default: 10)")
     parser.add_argument("--pre-fetch-time", type=int, help="Pre-fetch time in milliseconds (default: 2)")
     args = parser.parse_args()
 
