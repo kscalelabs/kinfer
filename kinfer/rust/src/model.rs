@@ -1,6 +1,5 @@
 use crate::logger::StepLogger;
 use crate::types::{InputType, ModelMetadata};
-use async_trait::async_trait;
 use chrono;
 use flate2::read::GzDecoder;
 use ndarray::{Array, IxDyn};
@@ -9,14 +8,13 @@ use ort::{
     session::Session,
     value::{Tensor, TensorValueType, Value, ValueRef},
 };
+use quanta::Clock;
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tar::Archive;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
-use tokio::time::{interval_at, Instant, MissedTickBehavior};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -26,21 +24,20 @@ pub enum ModelError {
     Provider(String),
 }
 
-#[async_trait]
 pub trait ModelProvider: Send + Sync {
-    async fn pre_fetch_inputs(
+    fn pre_fetch_inputs(
         &self,
         input_buffers: &[(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
     ) -> Result<(), ModelError>;
 
-    async fn get_inputs(
+    fn get_inputs(
         &self,
         input_buffers: &mut [(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
     ) -> Result<(), ModelError>;
 
-    async fn take_action(
+    fn take_action(
         &self,
         action: Array<f32, IxDyn>,
         metadata: &ModelMetadata,
@@ -60,16 +57,16 @@ pub struct ModelRunner {
 }
 
 impl ModelRunner {
-    pub async fn new<P: AsRef<Path>>(
+    pub fn new<P: AsRef<Path>>(
         model_path: P,
         input_provider: Arc<dyn ModelProvider>,
         pre_fetch_time: Option<Duration>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut file = File::open(model_path).await?;
+        let mut file = File::open(model_path)?;
 
         // Read entire file into memory
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).await?;
+        file.read_to_end(&mut buffer)?;
 
         // Decompress and read the tar archive from memory
         let gz = GzDecoder::new(&buffer[..]);
@@ -298,16 +295,14 @@ impl ModelRunner {
         Ok(())
     }
 
-    pub async fn pre_fetch_inputs(&self) -> Result<(), ModelError> {
+    pub fn pre_fetch_inputs(&self) -> Result<(), ModelError> {
         self.provider
             .pre_fetch_inputs(&self.inputs_buffer, &self.metadata)
-            .await
     }
 
-    async fn get_inputs(&mut self) -> Result<(), ModelError> {
+    fn get_inputs(&mut self) -> Result<(), ModelError> {
         self.provider
             .get_inputs(&mut self.inputs_buffer, &self.metadata)
-            .await
     }
 
     fn get_input_buffer_mut(&mut self, input_type: InputType) -> Option<&mut Tensor<f32>> {
@@ -357,19 +352,19 @@ impl ModelRunner {
         Ok(())
     }
 
-    pub async fn step(&mut self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
+    pub fn step(&mut self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
         // Pre-fetches the inputs if requested, then sleep for a short amount of time.
         if let Some(pre_fetch_time) = self.pre_fetch_time {
             let start_time = std::time::Instant::now();
-            self.pre_fetch_inputs().await?;
+            self.pre_fetch_inputs()?;
             let elapsed = start_time.elapsed();
             if elapsed < pre_fetch_time {
-                tokio::time::sleep(pre_fetch_time - elapsed).await;
+                std::thread::sleep(pre_fetch_time - elapsed);
             }
         }
 
         // Gets the input values.
-        self.get_inputs().await?;
+        self.get_inputs()?;
 
         // Run the model
         let (output, carry) = {
@@ -420,11 +415,8 @@ impl ModelRunner {
         Ok(output)
     }
 
-    pub async fn take_action(
-        &self,
-        action: Array<f32, IxDyn>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        self.provider.take_action(action, &self.metadata).await?;
+    pub fn take_action(&self, action: Array<f32, IxDyn>) -> Result<(), Box<dyn std::error::Error>> {
+        self.provider.take_action(action, &self.metadata)?;
         Ok(())
     }
 
@@ -432,20 +424,18 @@ impl ModelRunner {
         self.metadata.joint_names.len()
     }
 
-    pub async fn step_and_take_action(&mut self) -> Result<(), ModelError> {
+    pub fn step_and_take_action(&mut self) -> Result<(), ModelError> {
         let output = self
             .step()
-            .await
             .map_err(|e| ModelError::Provider(e.to_string()))?;
 
         self.take_action(output)
-            .await
             .map_err(|e| ModelError::Provider(e.to_string()))?;
 
         Ok(())
     }
 
-    pub async fn run(
+    pub fn run(
         &mut self,
         dt: Duration,
         total_runtime: Option<Duration>,
@@ -454,25 +444,30 @@ impl ModelRunner {
         self.init()
             .map_err(|e| ModelError::Provider(e.to_string()))?;
 
-        // Wait for the first tick, since it happens immediately.
-        let start = Instant::now() + dt;
-        let mut interval = interval_at(start, dt);
-        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-
+        let clock = Clock::new();
+        let start_time = clock.now();
+        let mut next = start_time;
         let mut step_count: u64 = 0;
 
         loop {
-            interval.tick().await;
-            self.step_and_take_action().await?;
+            // Calculate when the next tick should occur
+            next = next + dt;
+            let now = clock.now();
+            if next > now {
+                let sleep_time = next - now;
+                std::thread::sleep(sleep_time);
+            }
 
-            // If the total runtime is specified, stop after the specified time.
+            // Execute the step
+            self.step_and_take_action()?;
+
+            // Check termination conditions
             if let Some(total_runtime) = total_runtime {
-                if start + total_runtime < Instant::now() {
+                if start_time + total_runtime < now {
                     break;
                 }
             }
 
-            // If the total steps is specified, stop after the specified number of steps.
             if let Some(total_steps) = total_steps {
                 step_count += 1;
                 if step_count >= total_steps {

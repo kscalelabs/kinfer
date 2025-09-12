@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use kinfer::model::{ModelError, ModelProvider, ModelRunner};
 use kinfer::types::{InputType, ModelMetadata};
 use ndarray::{Array, Ix1, IxDyn};
@@ -257,9 +256,8 @@ impl PyModelProvider {
     }
 }
 
-#[async_trait]
 impl ModelProvider for PyModelProvider {
-    async fn pre_fetch_inputs(
+    fn pre_fetch_inputs(
         &self,
         input_buffers: &[(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
@@ -280,7 +278,7 @@ impl ModelProvider for PyModelProvider {
         Ok(())
     }
 
-    async fn get_inputs(
+    fn get_inputs(
         &self,
         input_buffers: &mut [(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
@@ -326,7 +324,7 @@ impl ModelProvider for PyModelProvider {
         Ok(())
     }
 
-    async fn take_action(
+    fn take_action(
         &self,
         action: Array<f32, IxDyn>,
         metadata: &ModelMetadata,
@@ -352,7 +350,6 @@ impl ModelProvider for PyModelProvider {
 #[pyclass]
 struct PyModelRunner {
     runner: Arc<Mutex<ModelRunner>>,
-    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 #[gen_stub_pymethods]
@@ -366,25 +363,15 @@ impl PyModelRunner {
     ) -> PyResult<Self> {
         let input_provider = Arc::new(PyModelProvider::__new__(provider));
 
-        // Create a single runtime to be reused for all operations
-        let runtime = Arc::new(
-            tokio::runtime::Runtime::new()
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?,
-        );
-
-        let runner = runtime.block_on(async {
-            ModelRunner::new(
-                model_path,
-                input_provider,
-                pre_fetch_time_ms.map(Duration::from_millis),
-            )
-            .await
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-        })?;
+        let runner = ModelRunner::new(
+            model_path,
+            input_provider,
+            pre_fetch_time_ms.map(Duration::from_millis),
+        )
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(Self {
             runner: Arc::new(Mutex::new(runner)),
-            runtime,
         })
     }
 
@@ -399,10 +386,9 @@ impl PyModelRunner {
             .runner
             .lock()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        let runtime = self.runtime.clone();
 
-        runtime
-            .block_on(async { runner.run(dt, total_runtime, total_steps).await })
+        runner
+            .run(dt, total_runtime, total_steps)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(())

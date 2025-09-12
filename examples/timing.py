@@ -182,7 +182,7 @@ def create_timing_plot(provider: DummyModelProvider, dt: timedelta, runtime: tim
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--runtime", type=float, default=5.0, help="Runtime in seconds (default: 5.0)")
+    parser.add_argument("--runtime", type=float, help="Runtime in seconds")
     parser.add_argument("--plot", action="store_true", help="Generate and display timing plot")
     parser.add_argument("--save-plot", type=str, help="Save plot to file (e.g., timing_plot.png)")
     parser.add_argument("--dt", type=int, default=10, help="Time step in milliseconds (default: 10)")
