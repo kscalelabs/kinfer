@@ -18,7 +18,7 @@ impl ModelMetadata {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub enum InputType {
     JointAngles,
     JointAngularVelocities,
