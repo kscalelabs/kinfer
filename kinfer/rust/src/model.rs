@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tar::Archive;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
@@ -24,6 +25,12 @@ pub enum ModelError {
 
 #[async_trait]
 pub trait ModelProvider: Send + Sync {
+    async fn pre_fetch_inputs(
+        &self,
+        input_types: &[InputType],
+        metadata: &ModelMetadata,
+    ) -> Result<(), ModelError>;
+
     async fn get_inputs(
         &self,
         input_types: &[InputType],
@@ -43,12 +50,14 @@ pub struct ModelRunner {
     metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
     logger: Option<Arc<StepLogger>>,
+    pre_fetch_time: Option<Duration>,
 }
 
 impl ModelRunner {
     pub async fn new<P: AsRef<Path>>(
         model_path: P,
         input_provider: Arc<dyn ModelProvider>,
+        pre_fetch_time: Option<Duration>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut file = File::open(model_path).await?;
 
@@ -146,6 +155,7 @@ impl ModelRunner {
             metadata,
             provider: input_provider,
             logger,
+            pre_fetch_time,
         })
     }
 
@@ -199,6 +209,12 @@ impl ModelRunner {
         }
 
         Ok(())
+    }
+
+    pub async fn pre_fetch_inputs(&self, input_types: &[InputType]) -> Result<(), ModelError> {
+        self.provider
+            .pre_fetch_inputs(input_types, &self.metadata)
+            .await
     }
 
     pub async fn get_inputs(
@@ -257,6 +273,16 @@ impl ModelRunner {
                     inputs.insert(InputType::Carry, carry.clone());
                 }
                 _ => return Err(format!("Unknown input name: {name}").into()),
+            }
+        }
+
+        // Pre-fetches the inputs if requested, then sleep for a short amount of time.
+        if let Some(pre_fetch_time) = self.pre_fetch_time {
+            let start_time = std::time::Instant::now();
+            self.pre_fetch_inputs(&input_types).await?;
+            let elapsed = start_time.elapsed();
+            if elapsed < pre_fetch_time {
+                tokio::time::sleep(pre_fetch_time - elapsed).await;
             }
         }
 

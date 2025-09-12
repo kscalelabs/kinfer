@@ -100,7 +100,7 @@ def test_export(tmpdir: Path) -> None:
 
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
-    model_runner = PyModelRunner(str(kinfer_path), model_provider)
+    model_runner = PyModelRunner(str(kinfer_path), model_provider, None)
 
     carry = model_runner.init()
     assert carry.shape == (CARRY_SIZE,)
