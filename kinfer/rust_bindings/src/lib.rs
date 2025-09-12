@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Duration;
 
 type StepResult = (Py<PyArrayDyn<f32>>, Py<PyArrayDyn<f32>>);
 
@@ -198,6 +199,19 @@ impl ModelProviderABC {
         ModelProviderABC
     }
 
+    fn pre_fetch_inputs<'py>(
+        &self,
+        input_types: Vec<String>,
+        metadata: PyModelMetadata,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err(format!(
+            "Must override pre_fetch_inputs with {} input types {:?} and metadata {:?}",
+            input_types.len(),
+            input_types,
+            metadata
+        )))
+    }
+
     fn get_inputs<'py>(
         &self,
         input_types: Vec<String>,
@@ -247,6 +261,25 @@ impl PyModelProvider {
 
 #[async_trait]
 impl ModelProvider for PyModelProvider {
+    async fn pre_fetch_inputs(
+        &self,
+        input_types: &[InputType],
+        metadata: &ModelMetadata,
+    ) -> Result<(), ModelError> {
+        let input_names: Vec<String> = input_types
+            .iter()
+            .map(|t| t.get_name().to_string())
+            .collect();
+        Python::with_gil(|py| -> PyResult<()> {
+            let obj = self.obj.clone();
+            let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
+            obj.call_method(py, "pre_fetch_inputs", args, None)?;
+            Ok(())
+        })
+        .map_err(|e| ModelError::Provider(e.to_string()))?;
+        Ok(())
+    }
+
     async fn get_inputs(
         &self,
         input_types: &[InputType],
@@ -308,7 +341,11 @@ struct PyModelRunner {
 #[pymethods]
 impl PyModelRunner {
     #[new]
-    fn __new__(model_path: String, provider: Py<ModelProviderABC>) -> PyResult<Self> {
+    fn __new__(
+        model_path: String,
+        provider: Py<ModelProviderABC>,
+        pre_fetch_time_ms: Option<u64>,
+    ) -> PyResult<Self> {
         let input_provider = Arc::new(PyModelProvider::__new__(provider));
 
         // Create a single runtime to be reused for all operations
@@ -318,9 +355,13 @@ impl PyModelRunner {
         );
 
         let runner = runtime.block_on(async {
-            ModelRunner::new(model_path, input_provider)
-                .await
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+            ModelRunner::new(
+                model_path,
+                input_provider,
+                pre_fetch_time_ms.map(Duration::from_millis),
+            )
+            .await
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
         })?;
 
         Ok(Self {

@@ -93,6 +93,9 @@ def test_export(tmpdir: Path) -> None:
     num_actions = 0
 
     class DummyModelProvider(ModelProviderABC):
+        def pre_fetch_inputs(self, input_types: Sequence[str], metadata: PyModelMetadata) -> None:
+            pass
+
         def get_inputs(self, input_types: Sequence[str], metadata: PyModelMetadata) -> dict[str, np.ndarray]:
             return_values: dict[str, np.ndarray] = {}
             for input_type in input_types:
@@ -123,7 +126,7 @@ def test_export(tmpdir: Path) -> None:
 
     # Creates a model runner from the kinfer model.
     model_provider = DummyModelProvider()
-    model_runner = PyModelRunner(str(kinfer_path), model_provider)
+    model_runner = PyModelRunner(str(kinfer_path), model_provider, 2)
 
     carry = model_runner.init()
     assert carry.shape == (CARRY_SIZE,)
