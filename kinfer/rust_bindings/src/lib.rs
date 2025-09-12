@@ -1,9 +1,8 @@
-use async_trait::async_trait;
 use kinfer::model::{ModelError, ModelProvider, ModelRunner};
-use kinfer::runtime::ModelRuntime;
 use kinfer::types::{InputType, ModelMetadata};
 use ndarray::{Array, Ix1, IxDyn};
-use numpy::{PyArray1, PyArrayDyn, PyArrayMethods};
+use numpy::{PyArray1, PyArrayDyn};
+use ort::value::Tensor;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyAnyMethods};
@@ -12,13 +11,11 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyfunction, gen_stub_pymethods};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-type StepResult = (Py<PyArrayDyn<f32>>, Py<PyArrayDyn<f32>>);
-
 // Custom error type for Send/Sync compatibility
+#[allow(dead_code)]
 #[derive(Debug)]
 struct SendError(String);
 
@@ -259,17 +256,18 @@ impl PyModelProvider {
     }
 }
 
-#[async_trait]
 impl ModelProvider for PyModelProvider {
-    async fn pre_fetch_inputs(
+    fn pre_fetch_inputs(
         &self,
-        input_types: &[InputType],
+        input_buffers: &[(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
     ) -> Result<(), ModelError> {
-        let input_names: Vec<String> = input_types
+        let input_names: Vec<String> = input_buffers
             .iter()
-            .map(|t| t.get_name().to_string())
+            .filter(|t| t.0 != InputType::Carry)
+            .map(|t| t.0.get_name().to_string())
             .collect();
+
         Python::attach(|py| -> PyResult<()> {
             let obj = self.obj.clone();
             let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
@@ -277,37 +275,58 @@ impl ModelProvider for PyModelProvider {
             Ok(())
         })
         .map_err(|e| ModelError::Provider(e.to_string()))?;
+
         Ok(())
     }
 
-    async fn get_inputs(
+    fn get_inputs(
         &self,
-        input_types: &[InputType],
+        input_buffers: &mut [(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
-    ) -> Result<HashMap<InputType, Array<f32, IxDyn>>, ModelError> {
-        let input_names: Vec<String> = input_types
+    ) -> Result<(), ModelError> {
+        let input_names: Vec<String> = input_buffers
             .iter()
-            .map(|t| t.get_name().to_string())
+            .filter(|t| t.0 != InputType::Carry)
+            .map(|t| t.0.get_name().to_string())
             .collect();
-        let result = Python::attach(|py| -> PyResult<HashMap<InputType, Array<f32, IxDyn>>> {
+
+        Python::attach(|py| -> Result<(), Box<dyn std::error::Error>> {
             let obj = self.obj.clone();
             let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
             let result = obj.call_method(py, "get_inputs", args, None)?;
             let dict: HashMap<String, Vec<f32>> = result.extract(py)?;
-            let mut arrays = HashMap::new();
-            for (i, name) in input_names.iter().enumerate() {
-                let array = dict.get(name).ok_or_else(|| {
-                    PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Missing input: {name}"))
+
+            for (name, array) in input_buffers.iter_mut().filter(|t| t.0 != InputType::Carry) {
+                let name_str = name.get_name();
+                let src = dict.get(name_str).ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                        "Missing input: {name_str}"
+                    ))
                 })?;
-                arrays.insert(input_types[i], Array::from_vec(array.clone()).into_dyn());
+
+                // Check that the shape is correct, then copy the contents.
+                let (shape, dst) = array.extract_raw_tensor_mut();
+                let expected = shape.iter().try_fold(1usize, |acc, &d| {
+                    usize::try_from(d).map(|dd| acc.checked_mul(dd).unwrap())
+                })?;
+
+                if expected != src.len() {
+                    return Err(Box::<dyn std::error::Error>::from(format!(
+                        "Shape mismatch for {name_str}: expected {expected} f32s, got {}",
+                        src.len()
+                    )));
+                }
+
+                dst.copy_from_slice(src);
             }
-            Ok(arrays)
+            Ok(())
         })
         .map_err(|e| ModelError::Provider(e.to_string()))?;
-        Ok(result)
+
+        Ok(())
     }
 
-    async fn take_action(
+    fn take_action(
         &self,
         action: Array<f32, IxDyn>,
         metadata: &ModelMetadata,
@@ -331,10 +350,8 @@ impl ModelProvider for PyModelProvider {
 
 #[gen_stub_pyclass]
 #[pyclass]
-#[derive(Clone)]
 struct PyModelRunner {
-    runner: Arc<ModelRunner>,
-    runtime: Arc<tokio::runtime::Runtime>,
+    runner: Arc<Mutex<ModelRunner>>,
 }
 
 #[gen_stub_pymethods]
@@ -348,142 +365,34 @@ impl PyModelRunner {
     ) -> PyResult<Self> {
         let input_provider = Arc::new(PyModelProvider::__new__(provider));
 
-        // Create a single runtime to be reused for all operations
-        let runtime = Arc::new(
-            tokio::runtime::Runtime::new()
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?,
-        );
-
-        let runner = runtime.block_on(async {
-            ModelRunner::new(
-                model_path,
-                input_provider,
-                pre_fetch_time_ms.map(Duration::from_millis),
-            )
-            .await
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-        })?;
+        let runner = ModelRunner::new(
+            model_path,
+            input_provider,
+            pre_fetch_time_ms.map(Duration::from_millis),
+        )
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(Self {
-            runner: Arc::new(runner),
-            runtime,
+            runner: Arc::new(Mutex::new(runner)),
         })
     }
 
-    // Reuse runtime and release GIL
-    fn init(&self) -> PyResult<Py<PyArrayDyn<f32>>> {
-        let runner = self.runner.clone();
-        let runtime = self.runtime.clone();
-
-        let result = runtime
-            .block_on(async { runner.init().await.map_err(|e| SendError(e.to_string())) })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
-
-        Python::attach(|py| {
-            let array = numpy::PyArray::from_array(py, &result);
-            Ok(array.into())
-        })
-    }
-
-    // Reuse runtime and release GIL
-    fn step(&self, carry: Py<PyArrayDyn<f32>>) -> PyResult<StepResult> {
-        let runner = self.runner.clone();
-        let runtime = self.runtime.clone();
-
-        // Extract the carry array from Python with GIL.
-        let carry_input = Python::attach(|py| carry.bind(py).to_owned_array());
-
-        // Release GIL during computation.
-        let result = runtime
-            .block_on(async {
-                runner
-                    .step(carry_input)
-                    .await
-                    .map_err(|e| SendError(e.to_string()))
-            })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
-
-        // Extract the carry array from Python with GIL.
-        Python::attach(|py| {
-            let (output, carry) = result;
-            let output_array = numpy::PyArray::from_array(py, &output);
-            let next_carry_array = numpy::PyArray::from_array(py, &carry);
-            Ok((output_array.into(), next_carry_array.into()))
-        })
-    }
-
-    // Reuse runtime and release GIL
-    fn take_action(&self, action: Py<PyArrayDyn<f32>>) -> PyResult<()> {
-        let runner = self.runner.clone();
-        let runtime = self.runtime.clone();
-
-        // Extract action data with GIL
-        let action_input = Python::attach(|py| action.bind(py).to_owned_array());
-
-        runtime
-            .block_on(async {
-                runner
-                    .take_action(action_input)
-                    .await
-                    .map_err(|e| SendError(e.to_string()))
-            })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.0))?;
-
-        Ok(())
-    }
-}
-
-#[gen_stub_pyclass]
-#[pyclass]
-#[derive(Clone)]
-struct PyModelRuntime {
-    runtime: Arc<Mutex<ModelRuntime>>,
-}
-
-#[gen_stub_pymethods]
-#[pymethods]
-impl PyModelRuntime {
-    #[new]
-    fn __new__(model_runner: PyModelRunner, dt: u64) -> PyResult<Self> {
-        Ok(Self {
-            runtime: Arc::new(Mutex::new(ModelRuntime::new(model_runner.runner, dt))),
-        })
-    }
-
-    fn set_slowdown_factor(&self, slowdown_factor: i32) -> PyResult<()> {
-        let mut runtime = self
-            .runtime
+    #[pyo3(name = "run", signature = (dt, total_runtime = None, total_steps = None))]
+    fn run(
+        &self,
+        dt: Duration,
+        total_runtime: Option<Duration>,
+        total_steps: Option<u64>,
+    ) -> PyResult<()> {
+        let mut runner = self
+            .runner
             .lock()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        runtime.set_slowdown_factor(slowdown_factor);
-        Ok(())
-    }
 
-    fn set_magnitude_factor(&self, magnitude_factor: f32) -> PyResult<()> {
-        let mut runtime = self
-            .runtime
-            .lock()
+        runner
+            .run(dt, total_runtime, total_steps)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        runtime.set_magnitude_factor(magnitude_factor);
-        Ok(())
-    }
 
-    fn start(&self) -> PyResult<()> {
-        let mut runtime = self
-            .runtime
-            .lock()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        runtime
-            .start()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    fn stop(&self) -> PyResult<()> {
-        let mut runtime = self
-            .runtime
-            .lock()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        runtime.stop();
         Ok(())
     }
 }
@@ -496,7 +405,6 @@ fn rust_bindings(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(metadata_from_json, m)?)?;
     m.add_class::<ModelProviderABC>()?;
     m.add_class::<PyModelRunner>()?;
-    m.add_class::<PyModelRuntime>()?;
     Ok(())
 }
 

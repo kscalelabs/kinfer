@@ -35,7 +35,7 @@ def pack(
     if len(init_fn.graph.output) != 1:
         raise ValueError(f"`init` function should have exactly 1 output! Got {len(init_fn.graph.output)}")
     init_carry = init_fn.graph.output[0]
-    init_carry_shape = tuple(dim.dim_value for dim in init_carry.type.tensor_type.shape.dim)
+    init_carry_shape = [dim.dim_value for dim in init_carry.type.tensor_type.shape.dim]
 
     if metadata.carry_size != init_carry_shape:  # type: ignore[attr-defined]
         logger.warning(
@@ -62,7 +62,7 @@ def pack(
         raise ValueError(f"Expected output shape {num_joints} for output `{output_actions.name}`, got {actions_shape}")
 
     output_carry = step_fn.graph.output[1]
-    output_carry_shape = tuple(dim.dim_value for dim in output_carry.type.tensor_type.shape.dim)
+    output_carry_shape = [dim.dim_value for dim in output_carry.type.tensor_type.shape.dim]
     if output_carry_shape != init_carry_shape:
         raise ValueError(f"Expected carry shape {init_carry_shape} for output carry, got {output_carry_shape}")
 

@@ -45,6 +45,11 @@ requirements_jax = [
     "numpy<2",
 ]
 
+requirements_vis = [
+    "matplotlib",
+    "numpy",
+]
+
 
 class RustBuildExt(build_ext):
     def run(self) -> None:
@@ -81,7 +86,8 @@ setup(
         "dev": requirements_dev,
         "pytorch": requirements_pytorch,
         "jax": requirements_jax,
-        "all": requirements_dev + requirements_pytorch + requirements_jax,
+        "vis": requirements_vis,
+        "all": requirements_dev + requirements_pytorch + requirements_jax + requirements_vis,
     },
     include_package_data=True,
     packages=find_packages(),

@@ -1,19 +1,47 @@
 use crate::logger::StepLogger;
 use crate::types::{InputType, ModelMetadata};
-use async_trait::async_trait;
 use chrono;
 use flate2::read::GzDecoder;
 use ndarray::{Array, IxDyn};
-use ort::session::Session;
-use ort::value::Value;
-use std::collections::HashMap;
+use ort::{
+    memory::{AllocationDevice, Allocator, AllocatorType, MemoryInfo, MemoryType},
+    session::Session,
+    value::{Tensor, TensorValueType, Value, ValueRef},
+};
+use std::fs::File;
+use std::hint::spin_loop;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tar::Archive;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+
+#[inline]
+fn wait_until(deadline: Instant, spin: Duration) {
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            break;
+        }
+        let remain = deadline - now;
+
+        // Sleep away the bulk…
+        if remain > spin + Duration::from_micros(150) {
+            std::thread::sleep(remain - spin);
+            continue;
+        }
+        // Short yield if we're close
+        if remain > spin {
+            std::thread::yield_now();
+            continue;
+        }
+        // Final busy wait for sub-millisecond precision
+        while Instant::now() < deadline {
+            spin_loop();
+        }
+        break;
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -23,21 +51,20 @@ pub enum ModelError {
     Provider(String),
 }
 
-#[async_trait]
 pub trait ModelProvider: Send + Sync {
-    async fn pre_fetch_inputs(
+    fn pre_fetch_inputs(
         &self,
-        input_types: &[InputType],
+        input_buffers: &[(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
     ) -> Result<(), ModelError>;
 
-    async fn get_inputs(
+    fn get_inputs(
         &self,
-        input_types: &[InputType],
+        input_buffers: &mut [(InputType, Tensor<f32>)],
         metadata: &ModelMetadata,
-    ) -> Result<HashMap<InputType, Array<f32, IxDyn>>, ModelError>;
+    ) -> Result<(), ModelError>;
 
-    async fn take_action(
+    fn take_action(
         &self,
         action: Array<f32, IxDyn>,
         metadata: &ModelMetadata,
@@ -49,21 +76,24 @@ pub struct ModelRunner {
     step_session: Session,
     metadata: ModelMetadata,
     provider: Arc<dyn ModelProvider>,
-    logger: Option<Arc<StepLogger>>,
     pre_fetch_time: Option<Duration>,
+    inputs_buffer: Vec<(InputType, Tensor<f32>)>,
+    #[allow(dead_code)] // Used implicitly by tensors in inputs_buffer
+    allocator: Allocator,
+    logger: Option<Arc<StepLogger>>,
 }
 
 impl ModelRunner {
-    pub async fn new<P: AsRef<Path>>(
+    pub fn new<P: AsRef<Path>>(
         model_path: P,
         input_provider: Arc<dyn ModelProvider>,
         pre_fetch_time: Option<Duration>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut file = File::open(model_path).await?;
+        let mut file = File::open(model_path)?;
 
         // Read entire file into memory
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).await?;
+        file.read_to_end(&mut buffer)?;
 
         // Decompress and read the tar archive from memory
         let gz = GzDecoder::new(&buffer[..]);
@@ -130,6 +160,85 @@ impl ModelRunner {
         // Validate step_fn inputs and outputs
         Self::validate_step_fn(&step_session, &metadata, &carry_shape)?;
 
+        // Pre-allocate buffers based on model metadata
+        let input_names: Vec<String> = step_session.inputs.iter().map(|i| i.name.clone()).collect();
+        let mut inputs_buffer: Vec<(InputType, Tensor<f32>)> =
+            Vec::with_capacity(input_names.len());
+
+        // Can update this allocator to use CUDA later on if necessary.
+        let allocator = Allocator::new(
+            &step_session,
+            MemoryInfo::new(
+                AllocationDevice::CPU,
+                0,
+                AllocatorType::Device,
+                MemoryType::CPUInput,
+            )?,
+        )?;
+
+        // Pre-allocate arrays for each input type
+        for name in &input_names {
+            match name.as_str() {
+                "joint_angles" => {
+                    let shape = InputType::JointAngles.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::JointAngles,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "joint_angular_velocities" => {
+                    let shape = InputType::JointAngularVelocities.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::JointAngularVelocities,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "projected_gravity" => {
+                    let shape = InputType::ProjectedGravity.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::ProjectedGravity,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "accelerometer" => {
+                    let shape = InputType::Accelerometer.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::Accelerometer,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "gyroscope" => {
+                    let shape = InputType::Gyroscope.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::Gyroscope,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "command" => {
+                    let shape = InputType::Command.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::Command,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "time" => {
+                    let shape = InputType::Time.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::Time,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                "carry" => {
+                    let shape = InputType::Carry.get_shape(&metadata);
+                    inputs_buffer.push((
+                        InputType::Carry,
+                        Tensor::<f32>::new(&allocator, shape.as_slice())?,
+                    ));
+                }
+                _ => return Err(format!("Unknown input name: {name}").into()),
+            }
+        }
+
         let logger = if let Ok(log_dir) = std::env::var("KINFER_LOG_PATH") {
             let log_dir_path = std::path::Path::new(&log_dir);
 
@@ -154,8 +263,10 @@ impl ModelRunner {
             step_session,
             metadata,
             provider: input_provider,
-            logger,
             pre_fetch_time,
+            inputs_buffer,
+            allocator,
+            logger,
         })
     }
 
@@ -211,150 +322,192 @@ impl ModelRunner {
         Ok(())
     }
 
-    pub async fn pre_fetch_inputs(&self, input_types: &[InputType]) -> Result<(), ModelError> {
+    pub fn pre_fetch_inputs(&self) -> Result<(), ModelError> {
         self.provider
-            .pre_fetch_inputs(input_types, &self.metadata)
-            .await
+            .pre_fetch_inputs(&self.inputs_buffer, &self.metadata)
     }
 
-    pub async fn get_inputs(
+    fn get_inputs(&mut self) -> Result<(), ModelError> {
+        self.provider
+            .get_inputs(&mut self.inputs_buffer, &self.metadata)
+    }
+
+    fn get_input_buffer_mut(&mut self, input_type: InputType) -> Option<&mut Tensor<f32>> {
+        self.inputs_buffer
+            .iter_mut()
+            .find(|(t, _)| *t == input_type)
+            .map(|(_, v)| v)
+    }
+
+    fn get_input_buffer_values(
         &self,
-        input_types: &[InputType],
-    ) -> Result<HashMap<InputType, Array<f32, IxDyn>>, ModelError> {
-        self.provider.get_inputs(input_types, &self.metadata).await
+        input_type: InputType,
+    ) -> Result<Option<Vec<f32>>, Box<dyn std::error::Error>> {
+        if let Some(pair) = self.inputs_buffer.iter().find(|(t, _)| *t == input_type) {
+            let arr = pair
+                .1
+                .try_extract_tensor::<f32>()?
+                .clone()
+                .view()
+                .to_owned()
+                .as_slice()
+                .map(|x| x.to_vec());
+
+            Ok(arr)
+        } else {
+            Ok(None)
+        }
     }
 
-    pub async fn init(&self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
-        let input_values: Vec<(&str, Value)> = Vec::new();
-        let outputs = self.init_session.run(input_values)?;
-        let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
-        Ok(output_tensor.view().to_owned())
-    }
-
-    pub async fn step(
-        &self,
-        carry: Array<f32, IxDyn>,
-    ) -> Result<(Array<f32, IxDyn>, Array<f32, IxDyn>), Box<dyn std::error::Error>> {
-        // Gets the model input names.
-        let input_names: Vec<String> = self
-            .step_session
-            .inputs
-            .iter()
-            .map(|i| i.name.clone())
-            .collect();
-
-        // Calls the relevant getter methods in parallel.
-        let mut input_types = Vec::new();
-        let mut inputs = HashMap::new();
-        for name in &input_names {
-            match name.as_str() {
-                "joint_angles" => {
-                    input_types.push(InputType::JointAngles);
-                }
-                "joint_angular_velocities" => {
-                    input_types.push(InputType::JointAngularVelocities);
-                }
-                "projected_gravity" => {
-                    input_types.push(InputType::ProjectedGravity);
-                }
-                "accelerometer" => {
-                    input_types.push(InputType::Accelerometer);
-                }
-                "gyroscope" => {
-                    input_types.push(InputType::Gyroscope);
-                }
-                "command" => {
-                    input_types.push(InputType::Command);
-                }
-                "time" => {
-                    input_types.push(InputType::Time);
-                }
-                "carry" => {
-                    inputs.insert(InputType::Carry, carry.clone());
-                }
-                _ => return Err(format!("Unknown input name: {name}").into()),
+    pub fn init(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let output_data = {
+            let input_values: Vec<(&str, Value)> = Vec::new();
+            let output_values = self.init_session.run(input_values)?;
+            if output_values.len() != 1 {
+                return Err("Expected exactly one output value".into());
             }
+            let output_tensor = output_values[0].try_extract_tensor::<f32>()?;
+            output_tensor.view().to_owned()
+        };
+
+        // Copies the output tensor to the carry buffer.
+        if let Some(carry_val) = self.get_input_buffer_mut(InputType::Carry) {
+            let mut carry_view = carry_val.try_extract_tensor_mut()?;
+            carry_view.assign(&output_data);
         }
 
+        Ok(())
+    }
+
+    pub fn step(&mut self) -> Result<Array<f32, IxDyn>, Box<dyn std::error::Error>> {
         // Pre-fetches the inputs if requested, then sleep for a short amount of time.
         if let Some(pre_fetch_time) = self.pre_fetch_time {
             let start_time = std::time::Instant::now();
-            self.pre_fetch_inputs(&input_types).await?;
+            self.pre_fetch_inputs()?;
             let elapsed = start_time.elapsed();
             if elapsed < pre_fetch_time {
-                tokio::time::sleep(pre_fetch_time - elapsed).await;
+                std::thread::sleep(pre_fetch_time - elapsed);
             }
         }
 
         // Gets the input values.
-        let result = self
-            .provider
-            .get_inputs(&input_types, &self.metadata)
-            .await?;
-
-        // Adds the input values to the input map.
-        inputs.extend(result);
-
-        // Convert inputs to ONNX values
-        let mut input_values: Vec<(&str, Value)> = Vec::new();
-        for input in &self.step_session.inputs {
-            let input_type = InputType::from_name(&input.name)?;
-            let input_data = inputs
-                .get(&input_type)
-                .ok_or_else(|| format!("Missing input: {}", input.name))?;
-            let input_value = Value::from_array(input_data.view())?.into_dyn();
-            input_values.push((input.name.as_str(), input_value));
-        }
+        self.get_inputs()?;
 
         // Run the model
-        let outputs = self.step_session.run(input_values)?;
-        let output_tensor = outputs[0].try_extract_tensor::<f32>()?;
-        let carry_tensor = outputs[1].try_extract_tensor::<f32>()?;
+        let (output, carry) = {
+            let inputs: Vec<(&str, ValueRef<'_, TensorValueType<f32>>)> = self
+                .inputs_buffer
+                .iter()
+                .map(|(t, v)| (t.get_name(), v.view()))
+                .collect();
 
-        // Log the step if needed
-        if let Some(lg) = &self.logger {
-            let joint_angles_opt = inputs
-                .get(&InputType::JointAngles)
-                .map(|a| a.as_slice().unwrap());
-            let joint_vels_opt = inputs
-                .get(&InputType::JointAngularVelocities)
-                .map(|a| a.as_slice().unwrap());
-            let projected_g_opt = inputs
-                .get(&InputType::ProjectedGravity)
-                .map(|a| a.as_slice().unwrap());
-            let accel_opt = inputs
-                .get(&InputType::Accelerometer)
-                .map(|a| a.as_slice().unwrap());
-            let gyro_opt = inputs
-                .get(&InputType::Gyroscope)
-                .map(|a| a.as_slice().unwrap());
-            let command_opt = inputs
-                .get(&InputType::Command)
-                .map(|a| a.as_slice().unwrap());
-            let output_opt = Some(output_tensor.as_slice().unwrap());
+            // `inputs` is moved into `run`, and then dropped at block end
+            let outputs = self.step_session.run(inputs)?;
+            if outputs.len() != 2 {
+                return Err("Expected exactly two outputs".into());
+            }
 
-            lg.log_step(
-                joint_angles_opt,
-                joint_vels_opt,
-                projected_g_opt,
-                accel_opt,
-                gyro_opt,
-                command_opt,
-                output_opt,
-            );
+            let output = outputs[0].try_extract_tensor::<f32>()?.view().to_owned();
+            let carry = outputs[1].try_extract_tensor::<f32>()?.view().to_owned();
+
+            (output, carry)
+        };
+
+        // Populates the carry buffer.
+        if let Some(carry_val) = self.get_input_buffer_mut(InputType::Carry) {
+            let mut carry_view = carry_val.try_extract_tensor_mut()?;
+            carry_view.assign(&carry);
         }
 
-        Ok((
-            output_tensor.view().to_owned(),
-            carry_tensor.view().to_owned(),
-        ))
+        if let Some(logger) = &self.logger {
+            let joint_angles = self.get_input_buffer_values(InputType::JointAngles)?;
+            let joint_vels = self.get_input_buffer_values(InputType::JointAngularVelocities)?;
+            let projected_g = self.get_input_buffer_values(InputType::ProjectedGravity)?;
+            let accel = self.get_input_buffer_values(InputType::Accelerometer)?;
+            let gyro = self.get_input_buffer_values(InputType::Gyroscope)?;
+            let command = self.get_input_buffer_values(InputType::Command)?;
+            let out = output.as_slice().map(|x| x.to_vec());
+
+            logger.log_step(
+                joint_angles,
+                joint_vels,
+                projected_g,
+                accel,
+                gyro,
+                command,
+                out,
+            )
+        }
+
+        Ok(output)
     }
 
-    pub async fn take_action(
-        &self,
-        action: Array<f32, IxDyn>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        self.provider.take_action(action, &self.metadata).await?;
+    pub fn take_action(&self, action: Array<f32, IxDyn>) -> Result<(), Box<dyn std::error::Error>> {
+        self.provider.take_action(action, &self.metadata)?;
+        Ok(())
+    }
+
+    pub fn get_joint_count(&self) -> usize {
+        self.metadata.joint_names.len()
+    }
+
+    pub fn step_and_take_action(&mut self) -> Result<(), ModelError> {
+        let output = self
+            .step()
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+
+        self.take_action(output)
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub fn run(
+        &mut self,
+        dt: Duration,
+        total_runtime: Option<Duration>,
+        total_steps: Option<u64>,
+    ) -> Result<(), ModelError> {
+        self.init()
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+
+        let start = Instant::now();
+        let mut deadline = start + dt;
+        let mut steps = 0u64;
+
+        const SPIN: Duration = Duration::from_micros(300); // tune 100–500µs
+
+        loop {
+            wait_until(deadline, SPIN);
+            let tick_start = Instant::now();
+
+            // Execute the step
+            self.step_and_take_action()?;
+
+            // Termination checks with fresh time
+            if let Some(rt) = total_runtime {
+                if tick_start.duration_since(start) >= rt {
+                    break;
+                }
+            }
+            if let Some(max_steps) = total_steps {
+                steps += 1;
+                if steps >= max_steps {
+                    break;
+                }
+            }
+
+            // Advance absolute schedule; catch up if we overran
+            deadline += dt;
+            let now = Instant::now();
+            if deadline + dt < now {
+                // If we fell far behind, skip ahead to avoid spiral-of-death
+                let behind = now.duration_since(deadline);
+                let skip = (behind.as_nanos() / dt.as_nanos()) as u32;
+                deadline += dt * (skip + 1);
+            }
+        }
+
         Ok(())
     }
 }
