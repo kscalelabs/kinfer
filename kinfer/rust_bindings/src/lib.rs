@@ -268,7 +268,7 @@ impl ModelProvider for PyModelProvider {
             .map(|t| t.0.get_name().to_string())
             .collect();
 
-        Python::with_gil(|py| -> PyResult<()> {
+        Python::attach(|py| -> PyResult<()> {
             let obj = self.obj.clone();
             let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
             obj.call_method(py, "pre_fetch_inputs", args, None)?;
@@ -290,7 +290,7 @@ impl ModelProvider for PyModelProvider {
             .map(|t| t.0.get_name().to_string())
             .collect();
 
-        Python::with_gil(|py| -> Result<(), Box<dyn std::error::Error>> {
+        Python::attach(|py| -> Result<(), Box<dyn std::error::Error>> {
             let obj = self.obj.clone();
             let args = (input_names.clone(), PyModelMetadata::from(metadata.clone()));
             let result = obj.call_method(py, "get_inputs", args, None)?;
@@ -331,7 +331,7 @@ impl ModelProvider for PyModelProvider {
         action: Array<f32, IxDyn>,
         metadata: &ModelMetadata,
     ) -> Result<(), ModelError> {
-        Python::with_gil(|py| -> PyResult<()> {
+        Python::attach(|py| -> PyResult<()> {
             let obj = self.obj.clone();
             let action_1d = action
                 .into_dimensionality::<Ix1>()
