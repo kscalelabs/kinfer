@@ -8,7 +8,7 @@ from kinfer.rust_bindings import PyInputType, PyModelMetadata, metadata_from_jso
 def test_model_metadata_serialization() -> None:
     metadata = PyModelMetadata(
         joint_names=["joint1", "joint2"],
-        num_commands=2,
+        command_names=["xvel", "yvel"],
         carry_size=[1],
     )
 
@@ -25,7 +25,7 @@ def test_model_metadata_serialization() -> None:
 def test_input_type_serialization() -> None:
     metadata = PyModelMetadata(
         joint_names=["joint1", "joint2"],
-        num_commands=2,
+        command_names=["xvel", "yvel"],
         carry_size=[1],
     )
 

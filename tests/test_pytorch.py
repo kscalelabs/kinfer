@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 JOINT_NAMES = ["left_arm", "right_arm", "left_leg", "right_leg"]
 NUM_JOINTS = len(JOINT_NAMES)
 CARRY_SIZE = 10
-NUM_COMMANDS = 4
+COMMAND_NAMES = ["xvel", "yvel", "yawrate", "baseheight"]
 
 
 @torch.jit.script
@@ -63,7 +63,7 @@ def step_fn(
 def test_export(tmpdir: Path) -> None:
     metadata = PyModelMetadata(
         joint_names=JOINT_NAMES,
-        num_commands=NUM_COMMANDS,
+        command_names=COMMAND_NAMES,
         carry_size=[CARRY_SIZE],
     )
 
@@ -116,7 +116,7 @@ def test_export(tmpdir: Path) -> None:
                     case "gyroscope":
                         return_values["gyroscope"] = np.random.randn(3)
                     case "command":
-                        return_values["command"] = np.random.randn(NUM_COMMANDS)
+                        return_values["command"] = np.random.randn(len(COMMAND_NAMES))
                     case "time":
                         return_values["time"] = np.random.randn(1)
                     case _:

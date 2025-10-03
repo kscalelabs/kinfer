@@ -4,7 +4,7 @@ use serde::Serialize;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ModelMetadata {
     pub joint_names: Vec<String>,
-    pub num_commands: Option<usize>,
+    pub command_names: Vec<String>,
     pub carry_size: Vec<usize>,
 }
 
@@ -51,7 +51,7 @@ impl InputType {
             InputType::ProjectedGravity => vec![3],
             InputType::Accelerometer => vec![3],
             InputType::Gyroscope => vec![3],
-            InputType::Command => vec![metadata.num_commands.unwrap_or(0)],
+            InputType::Command => vec![metadata.command_names.len()],
             InputType::Time => vec![1],
             InputType::Carry => metadata.carry_size.clone(),
         }
