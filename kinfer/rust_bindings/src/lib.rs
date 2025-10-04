@@ -99,7 +99,7 @@ struct PyModelMetadata {
     #[pyo3(get, set)]
     pub joint_names: Vec<String>,
     #[pyo3(get, set)]
-    pub num_commands: Option<usize>,
+    pub command_names: Vec<String>,
     #[pyo3(get, set)]
     pub carry_size: Vec<usize>,
 }
@@ -110,12 +110,12 @@ impl PyModelMetadata {
     #[new]
     fn __new__(
         joint_names: Vec<String>,
-        num_commands: Option<usize>,
+        command_names: Vec<String>,
         carry_size: Vec<usize>,
     ) -> Self {
         Self {
             joint_names,
-            num_commands,
+            command_names,
             carry_size,
         }
     }
@@ -123,7 +123,7 @@ impl PyModelMetadata {
     fn to_json(&self) -> PyResult<String> {
         let metadata = ModelMetadata {
             joint_names: self.joint_names.clone(),
-            num_commands: self.num_commands,
+            command_names: self.command_names.clone(),
             carry_size: self.carry_size.clone(),
         }
         .to_json()
@@ -158,7 +158,7 @@ impl From<ModelMetadata> for PyModelMetadata {
     fn from(metadata: ModelMetadata) -> Self {
         Self {
             joint_names: metadata.joint_names,
-            num_commands: metadata.num_commands,
+            command_names: metadata.command_names,
             carry_size: metadata.carry_size,
         }
     }
@@ -168,7 +168,7 @@ impl From<&ModelMetadata> for PyModelMetadata {
     fn from(metadata: &ModelMetadata) -> Self {
         Self {
             joint_names: metadata.joint_names.clone(),
-            num_commands: metadata.num_commands,
+            command_names: metadata.command_names.clone(),
             carry_size: metadata.carry_size.clone(),
         }
     }
@@ -178,7 +178,7 @@ impl From<PyModelMetadata> for ModelMetadata {
     fn from(metadata: PyModelMetadata) -> Self {
         Self {
             joint_names: metadata.joint_names,
-            num_commands: metadata.num_commands,
+            command_names: metadata.command_names,
             carry_size: metadata.carry_size,
         }
     }
