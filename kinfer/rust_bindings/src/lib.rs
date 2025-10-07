@@ -395,6 +395,20 @@ impl PyModelRunner {
 
         Ok(())
     }
+
+    #[pyo3(name = "step_and_take_action")]
+    fn step_and_take_action(&self) -> PyResult<()> {
+        let mut runner = self
+            .runner
+            .lock()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        runner
+            .step_and_take_action()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        Ok(())
+    }
 }
 
 #[pymodule]
