@@ -4,6 +4,7 @@ use serde::Serialize;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ModelMetadata {
     pub joint_names: Vec<String>,
+    pub joint_biases: Vec<f32>,
     pub command_names: Vec<String>,
     pub carry_size: Vec<usize>,
 }
