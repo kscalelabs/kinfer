@@ -94,7 +94,7 @@ impl PyInputType {
 
 #[pyclass]
 #[gen_stub_pyclass]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 struct PyModelMetadata {
     #[pyo3(get, set)]
     pub joint_names: Vec<String>,
