@@ -94,12 +94,10 @@ impl PyInputType {
 
 #[pyclass]
 #[gen_stub_pyclass]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct PyModelMetadata {
     #[pyo3(get, set)]
     pub joint_names: Vec<String>,
-    #[pyo3(get, set)]
-    pub joint_biases: Vec<f32>,
     #[pyo3(get, set)]
     pub command_names: Vec<String>,
     #[pyo3(get, set)]
@@ -112,24 +110,19 @@ impl PyModelMetadata {
     #[new]
     fn __new__(
         joint_names: Vec<String>,
-        joint_biases: Vec<f32>,
         command_names: Vec<String>,
         carry_size: Vec<usize>,
     ) -> Self {
-        if joint_biases.len() != joint_names.len() {
-            panic!(
-                "joint_biases length ({}) must equal joint_names length ({})",
-                joint_biases.len(),
-                joint_names.len()
-            );
+        Self {
+            joint_names,
+            command_names,
+            carry_size,
         }
-        Self { joint_names, command_names, carry_size, joint_biases }
     }
 
     fn to_json(&self) -> PyResult<String> {
         let metadata = ModelMetadata {
             joint_names: self.joint_names.clone(),
-            joint_biases: self.joint_biases.clone(),
             command_names: self.command_names.clone(),
             carry_size: self.carry_size.clone(),
         }
@@ -165,7 +158,6 @@ impl From<ModelMetadata> for PyModelMetadata {
     fn from(metadata: ModelMetadata) -> Self {
         Self {
             joint_names: metadata.joint_names,
-            joint_biases: metadata.joint_biases,
             command_names: metadata.command_names,
             carry_size: metadata.carry_size,
         }
@@ -176,7 +168,6 @@ impl From<&ModelMetadata> for PyModelMetadata {
     fn from(metadata: &ModelMetadata) -> Self {
         Self {
             joint_names: metadata.joint_names.clone(),
-            joint_biases: metadata.joint_biases.clone(),
             command_names: metadata.command_names.clone(),
             carry_size: metadata.carry_size.clone(),
         }
@@ -187,7 +178,6 @@ impl From<PyModelMetadata> for ModelMetadata {
     fn from(metadata: PyModelMetadata) -> Self {
         Self {
             joint_names: metadata.joint_names,
-            joint_biases: metadata.joint_biases,
             command_names: metadata.command_names,
             carry_size: metadata.carry_size,
         }

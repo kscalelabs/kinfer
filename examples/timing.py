@@ -202,7 +202,6 @@ def main() -> None:
 
     metadata = PyModelMetadata(
         joint_names=JOINT_NAMES,
-        joint_biases=[0.0] * NUM_JOINTS,
         command_names=COMMAND_NAMES,
         carry_size=[CARRY_SIZE],
     )
